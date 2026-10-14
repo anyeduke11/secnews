@@ -8,10 +8,10 @@
 职责
 ----
 1. 扫描 data/security/incidents/agent_D/*.md, 解析元数据头 (source_url 等)
-2. IncidentReportService.ingest 入库 (idempotent by source_url, 硬约束: 真 URL)
+2. IncidentReportService.ingest_report 入库 (idempotent by source_url, 硬约束: 真 URL)
 3. 按 per-report 候选映射 (LLM 抽取产出, 引号均为源文逐字子串) 落候选池
-4. EventTechniqueExtractService.persist_candidate 内置程序化校验:
-   technique FK ∈ attack_techniques / evidence_quote substring / confidence ≥ 0.5
+4. EventTechniqueExtractService.submit_candidate 内置程序化校验:
+   technique FK ∈ attack_techniques / evidence_quote substring / confidence ≥ 0.4
 5. 打印摘要; 幂等可重跑 (UNIQUE 约束兜底)
 
 LLM 抽取说明
@@ -126,10 +126,10 @@ def parse_corpus(path: Path) -> dict:
             raise ValueError(f"{path.name}: missing metadata key {key!r}")
     return {
         "file": path.name,
+        "title": meta.get("title", path.stem),
         "source_url": meta["source_url"],
         "fetched_at": meta["fetched_at"],
         "event_class_hint": meta.get("event_class_hint", "data_breach"),
-        "industry": meta.get("industry", "financial"),
         "report_md": text,  # 整文件入库, 保证 evidence substring 命中
     }
 
@@ -151,19 +151,20 @@ def main() -> int:
 
     for f in files:
         parsed = parse_corpus(f)
-        report = report_svc.ingest(
+        report = report_svc.ingest_report(
             source_url=parsed["source_url"],
+            title=parsed["title"],
+            fetched_at=parsed["fetched_at"],
             report_md=parsed["report_md"],
-            agent_owner=AGENT_OWNER,
-            industry=parsed["industry"],
             event_class_hint=parsed["event_class_hint"],
+            agent_owner=AGENT_OWNER,
         )
         print(
             f"[agent-D] report ingested: {f.name} -> {report['id'][:8]} "
             f"(url={parsed['source_url']})"
         )
         for cand in EXTRACTIONS.get(f.name, []):
-            result = extract_svc.persist_candidate(
+            result = extract_svc.submit_candidate(
                 event_type_id=EVENT_TYPE_ID,
                 technique_id=cand["technique_id"],
                 stage=cand["stage"],
@@ -174,12 +175,12 @@ def main() -> int:
                 llm_model=LLM_MODEL,
                 agent_owner=AGENT_OWNER,
             )
-            if result.get("persisted"):
+            if result["accepted"]:
                 ok_persisted += 1
                 print(f"  + candidate {cand['technique_id']}/{cand['stage']} conf={cand['confidence']}")
             else:
                 ok_rejected += 1
-                print(f"  - REJECTED {cand['technique_id']}/{cand['stage']}: {result.get('auto_reject_reason')}")
+                print(f"  - REJECTED {cand['technique_id']}/{cand['stage']}: {result['auto_reject_reason']}")
 
     print(f"\n[agent-D] persisted={ok_persisted} rejected={ok_rejected}")
     return 0 if ok_persisted >= 6 else 1

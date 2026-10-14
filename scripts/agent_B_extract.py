@@ -3,13 +3,13 @@
 
 MP-2 抽取纪律 (discussion §7.2 / plan §4 Step 3):
   1. attack_techniques 先落数据 (幂等 load_attack_data, data/stix/ 静态子集)
-  2. 报告语料先入库 (IncidentReportService.ingest_dir, source_url UNIQUE 去重)
+  2. 报告语料先入库 (IncidentReportService.ingest_report, source_url UNIQUE 去重)
   3. 逐报告拼 prompt 调 ai_hub 单出口 llm_service.generate; provider 全失败
      (返回空串) 时降级为确定性规则抽取 — 词表来自 data/security/event_types_seed.json
      的 typical_signals + 本脚本 per-type technique hints (人工初判), 诚实标注
      llm_model='agent_B_rule_v1@<task>'
-  4. 程序化校验 (service 层 enforce): FK ∈ attack_techniques / evidence_quote
-     是 report_md 逐字子串 / confidence ≥ 0.5; 失败落 auto_reject_reason
+  4. 程序化校验 (由 extract_svc.submit_candidate 统一 enforce): FK ∈ attack_techniques /
+     evidence_quote 是 report_md 逐字子串 / confidence ≥ 0.4; 失败返回 auto_reject_reason
   5. 输出摘要 (每类候选数 / auto_reject 数)
 
 用法:
@@ -34,8 +34,24 @@ from backend.services.event_technique_extract_service import (  # noqa: E402
 )
 from backend.services.incident_report_service import (  # noqa: E402
     IncidentReportService,
-    parse_frontmatter,
 )
+
+
+def _split_frontmatter(content: str) -> tuple[dict[str, str], str]:
+    """极简 YAML frontmatter 解析 (只支持 key: value 单行) — 与 service 内实现一致."""
+    if not content.startswith("---"):
+        return {}, content
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return {}, content
+    front: dict[str, str] = {}
+    for line in parts[1].strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, _, val = line.partition(":")
+        front[key.strip()] = val.strip()
+    return front, parts[2].lstrip("\n")
 
 AGENT_OWNER = "B"
 CORPUS_DIR = ROOT / "data" / "security" / "incidents" / "agent_B"
@@ -158,26 +174,34 @@ async def main_async(dry_run: bool) -> int:
     report_svc = IncidentReportService()
     extract_svc = EventTechniqueExtractService()
 
-    ingest = report_svc.ingest_dir(CORPUS_DIR)
-    print(f"ingest: {ingest}")
-
-    extracted = rejected = deduped = 0
+    extracted = rejected = deduped = unsupported = 0
+    ingested = skipped = 0
     for md_path in sorted(CORPUS_DIR.glob("*.md")):
-        meta, body = parse_frontmatter(md_path.read_text(encoding="utf-8"))
+        meta, body = _split_frontmatter(md_path.read_text(encoding="utf-8"))
         event_type_id = meta.get("event_type_id", "")
         if event_type_id not in TECHNIQUE_HINTS:
             print(f"SKIP (非 B 类): {md_path.name}")
             continue
-        report = next(
-            (r for r in report_svc.list_by_event_type(event_type_id) if r["source_url"] == meta["source_url"]),
-            None,
-        )
-        if report is None:
-            print(f"ERROR: 报告未入库 {md_path.name}")
-            continue
         if dry_run:
             print(f"DRY: {md_path.name} -> {event_type_id}")
             continue
+        if not meta.get("source_url"):
+            print(f"ERROR: 缺 source_url {md_path.name}")
+            continue
+        # 报告入库 (source_url UNIQUE 幂等去重)
+        res = report_svc.ingest_report(
+            source_url=meta["source_url"],
+            title=meta.get("title", md_path.stem),
+            fetched_at=meta.get("fetched_at", ""),
+            report_md=body,
+            event_class_hint=event_type_id,
+            agent_owner=AGENT_OWNER,
+        )
+        report_id = res["id"]
+        if res["new"]:
+            ingested += 1
+        else:
+            skipped += 1
 
         llm_result = await llm_extract(body, event_type_id)
         model_used = LLM_TASK
@@ -190,25 +214,37 @@ async def main_async(dry_run: bool) -> int:
         for cand in candidates:
             result = extract_svc.submit_candidate(
                 event_type_id=event_type_id,
-                technique_id=cand["id"],
-                stage=cand["stage"],
+                technique_id=cand.get("id"),
+                stage=cand.get("stage", ""),
                 confidence=float(cand.get("confidence", 0.8)),
                 evidence_quote=cand.get("evidence_quote", ""),
-                rationale=cand.get("rationale"),
-                source_report_id=report["id"],
+                rationale=cand.get("rationale", ""),
+                source_report_id=report_id,
                 llm_model=model_used,
+                agent_owner=AGENT_OWNER,
             )
-            if result["candidate_id"] is None:
-                deduped += 1
-            elif result["auto_reject_reason"]:
-                rejected += 1
-            else:
+            reason = result["auto_reject_reason"]
+            if result["accepted"]:
                 extracted += 1
+            elif reason == "duplicate_candidate":
+                deduped += 1
+            elif reason and reason.startswith("unsupported:"):
+                unsupported += 1
+                print(f"  不支持(跳过): {md_path.name} technique={cand.get('id')} reason={reason}")
+            else:
+                rejected += 1
+                print(f"  auto_reject: {md_path.name} technique={cand.get('id')} reason={reason}")
 
-    stats = extract_svc.stats()
+    pool = {}
+    for et_id in TECHNIQUE_HINTS:
+        pool[et_id] = extract_svc.candidate_repo.count_by_event_type(et_id)
     print("\n==== extract summary ====")
-    print(f"valid_candidates={extracted} auto_rejected={rejected} deduped={deduped}")
-    print(f"pool: {stats}")
+    print(f"ingest: ingested={ingested} skipped_existing={skipped}")
+    print(
+        f"candidates: accepted={extracted} auto_rejected={rejected} "
+        f"deduped={deduped} unsupported={unsupported}"
+    )
+    print(f"pool: {pool}")
     if dry_run:
         print("(dry-run: 未落库)")
     close_db()

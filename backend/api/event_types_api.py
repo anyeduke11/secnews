@@ -1,4 +1,4 @@
-"""MP-2 Event Technique API — /api/event-technique/event-types (4 端点).
+"""MP-2 Event Technique API — /api/event-technique/event-types (5 端点).
 
 Endpoints
 ---------

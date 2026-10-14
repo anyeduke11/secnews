@@ -1189,13 +1189,18 @@ def distinct_sources_since(since_iso: str, limit: int = 200) -> list[dict]:
         return []
 
 
+# DEV-0326: 非安全内容 reaction 哨兵域 — 用户对无域条目赞/踩照常持久化 (点了就记住),
+# 但 weight=0 且域不属于 PRACTICE_DOMAINS, 天然不入兴趣权重聚合。此常量仅用于
+# 内容偏好自动推导 (DEV-0316) 排除: 否则 weight=0 行会 +1 events 触发 more/less 门限。
+INTEREST_UNATTRIBUTED_DOMAIN = "_unattributed"
+
 # DEV-0316: 内容偏好自动推导 — 按类目/来源 JOIN hotspots 聚合带符号信号净分。
 # axis 白名单 (防注入, 同 _runs_table 先例); 净分 = Σ weight (dislike 负权重天然拉低)。
 _INTEREST_AXIS_COL: dict[str, str] = {"category": "h.category", "source": "h.source"}
 _SQL_INTEREST_STATS_BY_AXIS = (
     "SELECT {col} AS key, SUM(s.weight) AS net, COUNT(*) AS events "
     "FROM interest_signals s JOIN hotspots h ON h.id = s.item_id "
-    "WHERE s.created_at >= ? AND {col} IS NOT NULL AND {col} != '' "
+    "WHERE s.created_at >= ? AND s.domain != ? AND {col} IS NOT NULL AND {col} != '' "
     "GROUP BY {col}"
 )
 
@@ -1205,13 +1210,16 @@ def interest_signal_stats_by_axis(axis: str, since_iso: str) -> dict[str, dict]:
 
     净分含正负 (like/favorite/view 正, dislike 负), 供上层判 more/less。
     30d 窗口即时间约束 (与兴趣引擎半衰同族, 粗粒度可解释)。
+    DEV-0326: 排除哨兵域 (无域 reaction, weight=0) — 其 events 不应触发 more/less 门限。
     """
     col = _INTEREST_AXIS_COL.get(axis)
     if col is None:
         raise ValueError(f"invalid axis: {axis!r} (expect category|source)")
     try:
         conn = get_connection()
-        rows = conn.execute(_SQL_INTEREST_STATS_BY_AXIS.format(col=col), (since_iso,)).fetchall()
+        rows = conn.execute(
+            _SQL_INTEREST_STATS_BY_AXIS.format(col=col), (since_iso, INTEREST_UNATTRIBUTED_DOMAIN)
+        ).fetchall()
         return {r["key"]: {"net": float(r["net"] or 0.0), "events": int(r["events"] or 0)} for r in rows}
     except Exception as e:
         logger.warning(f"interest_signal_stats_by_axis({axis}) failed: {e}")

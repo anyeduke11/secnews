@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg"
      width="1200" height="460" viewBox="0 0 1200 460"
      role="img" aria-labelledby="arch-title arch-desc">
-  <title id="arch-title">SecNews v0.8.5 架构总览 — NAV4 四菜单壳 + 三层架构</title>
-  <desc id="arch-desc">v0.8.5 NAV4：SentinelShell 四菜单（资讯/知识/行动/设置）是唯一壳。三层架构：Layer 1 客户端（浏览器 React SPA / 外部 AI Agent via MCP），Layer 2 FastAPI 单进程（101 Routers / 14 Collectors / 14 Quality Gates / 161 Services / 58 Jobs / MCP 19 工具），Layer 3 持久化（SQLite WAL 130 migrations / llm-wiki-2.0 md 真源 / CodeGarden / dsh 受管子进程 / WebDAV 同步）。</desc>
+  <title id="arch-title">SecNews v0.8.6 架构总览 — NAV4 四菜单壳 + 三层架构</title>
+  <desc id="arch-desc">v0.8.6 AI Native：SentinelShell 四菜单（资讯/知识/行动/设置）是唯一壳。三层架构：Layer 1 客户端（浏览器 React SPA / 外部 AI Agent via MCP），Layer 2 FastAPI 单进程（101 Routers / 19 Collectors / 14 Quality Gates / 161 Services / 59 Jobs / MCP 19 工具），Layer 3 持久化（SQLite WAL 134 migrations / llm-wiki-2.0 md 真源 / CodeGarden / dsh 受管子进程 / WebDAV 同步）。</desc>
 
   <defs>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
@@ -100,7 +100,7 @@
           <rect width="252" height="58" rx="8" fill="#07080A" stroke="#1C1E2E" stroke-width="1"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">14 COLLECTORS  ·  7 领域</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">19 COLLECTORS  ·  7 领域</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">AI  ·  Security  ·  Finance  ·  GitHub</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -137,7 +137,7 @@
           <rect width="344" height="58" rx="8" fill="#07080A" stroke="#1C1E2E" stroke-width="1"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">APScheduler  ·  58 JOBS</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">APScheduler  ·  59 JOBS</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">Collection  ·  Sync  ·  Catchup  ·  Revival</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -194,7 +194,7 @@
         <text x="14" y="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
               font-size="9" fill="#00B4D8" letter-spacing="1.5">SQLite  ·  WAL</text>
         <text x="14" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-              font-size="10" fill="#E4E9F0">hotspot.db  ·  130 migrations  ·  24h 备份</text>
+              font-size="10" fill="#E4E9F0">hotspot.db  ·  134 migrations  ·  24h 备份</text>
       </g>
       <!-- .md 文件系统 -->
       <g transform="translate(268 0)">

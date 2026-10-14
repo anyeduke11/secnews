@@ -100,8 +100,8 @@ def _card_to_item(card: dict) -> KnowledgeItem | None:
         source="cubox",
         source_url=url,
         tags=tags,
-        ingested_at=card.get("create_time", now_iso()),
-        updated_at=card.get("update_time", now_iso()),
+        ingested_at=card.get("create_time") or now_iso(),
+        updated_at=card.get("update_time") or card.get("create_time") or now_iso(),
     )
 
 
@@ -217,12 +217,73 @@ def import_cubox_cards(
     }
 
 
-def import_cubox_dir(dir_path: str) -> dict:
-    """C2 (DEV-0195): 扫描本地目录中的 cubox CLI 导出 JSON 并导入。
+def _normalize_md_tags(raw) -> list[str]:
+    """把 cubox md frontmatter 的 tags 归一化为 ``list[str]``。
 
-    接受 ``*.json`` 文件, 形状为卡片数组或 ``{"cards": [...]}``;
-    其余扩展名忽略。dir_path 必须为绝对路径且为存在的目录 (本地运维导入,
-    非出站请求 — 无 SSRF 面; 路径校验防误操作)。
+    ``parse_frontmatter`` 对内联数组 (如 ``tags: [RAG, 应用]``) 因非合法 JSON
+    会退化成原字符串, 这里兜底把 ``"[a, b]"`` 拆回 ``["a", "b"]``。
+    """
+    if isinstance(raw, list):
+        return [str(t).strip() for t in raw if str(t).strip()]
+    if isinstance(raw, str) and raw.strip():
+        inner = raw.strip().strip("[]")
+        return [
+            t.strip().strip('"').strip("'")
+            for t in inner.split(",")
+            if t.strip()
+        ]
+    return []
+
+
+def _md_to_card(md_path: Path) -> dict | None:
+    """C2 (DEV-0327): cubox 本地化 ``.md`` 卡片 → 导入卡片 dict。
+
+    支持两种已观测的 frontmatter 形状:
+    - 本地 Cubox 知识库: ``source_url`` / ``cubox_id`` / ``created`` (+ ``quality`` 嵌套块)
+    - cubox-cli 导出:   ``url`` / ``author`` / ``domain`` / ``created``
+
+    无 frontmatter (index.md / WIKI.md 等) 或缺来源 URL 的文件返回 ``None``,
+    由调用方静默跳过 (非卡片文件不计入卡数)。
+    """
+    from backend.services.knowledge_sync import _FRONTMATTER_RE, parse_frontmatter
+
+    fm = parse_frontmatter(md_path)
+    if not fm:
+        return None
+    url = fm.get("source_url") or fm.get("url")
+    if not url:
+        return None
+
+    body = ""
+    try:
+        text = md_path.read_text(encoding="utf-8")
+        m = _FRONTMATTER_RE.match(text)
+        if m:
+            body = text[m.end():].strip()
+    except Exception:
+        pass
+
+    return {
+        "title": fm.get("title") or md_path.stem,
+        "url": url,
+        "tags": _normalize_md_tags(fm.get("tags")),
+        "create_time": fm.get("created") or fm.get("updated"),
+        "update_time": fm.get("updated"),
+        "description": body,
+    }
+
+
+def import_cubox_dir(dir_path: str) -> dict:
+    """C2 (DEV-0195/DEV-0327): 扫描本地目录中的 cubox 卡片并导入。
+
+    接受两类来源 (可混放):
+    - ``*.json`` (顶层): cubox-cli 导出, 形状为卡片数组或 ``{"cards": [...]}``
+    - ``*.md`` (递归子目录): cubox 本地化知识库卡片, 按 frontmatter
+      (``source_url``/``url`` + ``title`` + ``tags`` + ``created``) 反解;
+      无 frontmatter / 无来源 URL 的 md (index.md 等) 静默跳过。
+
+    dir_path 必须为绝对路径且为存在的目录 (本地运维导入, 非出站请求 —
+    无 SSRF 面; 路径校验防误操作)。
     """
     from pathlib import Path as _P
 
@@ -232,9 +293,10 @@ def import_cubox_dir(dir_path: str) -> dict:
     if not p.is_dir():
         raise ValueError(f"目录不存在: {p}")
 
-    files = sorted(p.glob("*.json"))
     all_cards: list[dict] = []
     errors: list[str] = []
+
+    files = sorted(p.glob("*.json"))
     parsed_files = 0
     for f in files:
         try:
@@ -251,12 +313,25 @@ def import_cubox_dir(dir_path: str) -> dict:
         else:
             errors.append(f"{f.name}: 形状不符 (期望卡片数组或 {{cards: [...]}})")
 
+    # DEV-0327: cubox 本地化知识库 md (递归子目录), 按 frontmatter 反解
+    md_files = sorted(p.rglob("*.md"))
+    md_cards = 0
+    for f in md_files:
+        card = _md_to_card(f)
+        if card is None:
+            continue
+        all_cards.append(card)
+        md_cards += 1
+
     result = import_cubox_cards(all_cards)
     return {
         "dir": str(p),
         "files": parsed_files,
         "files_total": len(files),
+        "md_files": len(md_files),
+        "md_cards": md_cards,
         "cards": len(all_cards),
+        "imported": result["total"],
         "errors": errors,
         **result,
     }

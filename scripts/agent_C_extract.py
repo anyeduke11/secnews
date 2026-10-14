@@ -2,13 +2,14 @@
 """agent-C LLM 抽取替身 — evt_fraud (反诈) 事件类型候选落库.
 
 规约 (PLAN_MP2_EVENT_TYPE_2026-09-13.md §7 + MP-2 反诈专用规则):
-  1. technique_id 在 attack_techniques 存在 (FK 校验走 extract service)
-  2. evidence_quote 必须是 report_md 原文子串 (NFC + 空白折叠后逐字命中)
-  3. confidence ≥ 0.5 才入候选池
-  4. stage 必填 (枚举: recon/resource_dev/initial_access/execution/credential_access/impact_*)
-  5. 反诈专用: 社会工程链路允许 technique_id=NULL, 标 is_social_engineering_only=1,
-     confidence 压在 0.5~0.8 (反映社会工程链路不确定), 但 stage + evidence_quote 仍必填
-  6. 同源同位置去重 (UNIQUE(event_type, technique, stage, report) + seo 行查重兜底)
+  1. technique_id 在 attack_techniques 存在 (FK 校验由 extract service.submit_candidate enforce)
+  2. evidence_quote 必须是 report_md 原文子串 (NFKC + 空白折叠后逐字命中)
+  3. confidence ≥ 0.4 才入候选池
+  4. stage 必填
+  5. 反诈策展: 社会工程链路候选 technique_id=NULL。schema 阶段
+     (event_technique_candidates.technique_id NOT NULL) 无法承载 → submit_candidate 显式
+     返回 'unsupported:null_technique' 并跳过 (不静默); 仅 FK 合法候选落库
+  6. 同源同位置去重 (UNIQUE(event_type, technique, report) 兜底 → duplicate_candidate)
   7. owner_status 一律 'pending', 不写 event_technique_map
 
 用法:
@@ -28,13 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from backend.repository.db import apply_migrations, get_connection  # noqa: E402
-from backend.repository.event_technique_repo import EventTypeSeedRepo  # noqa: E402
 from backend.services.attack_loader import load_attack_data  # noqa: E402
 from backend.services.event_technique_extract_service import EventTechniqueExtractService  # noqa: E402
 from backend.services.incident_report_service import IncidentReportService  # noqa: E402
 
-SEED_PATH = ROOT / "data" / "security" / "event_types_seed.json"
 CORPUS_DIR = ROOT / "data" / "security" / "incidents" / "agent_C"
+AGENT_OWNER = "C"
 LLM_MODEL = "agent-C-curated-extractor-v1"  # 抽取替身: 策展候选集 (无 ai_hub 依赖)
 
 
@@ -132,63 +132,6 @@ CANDIDATES: list[dict] = [
 ]
 
 
-def seed_event_type() -> int:
-    """从共享 seed JSON 播种 evt_fraud (只 seed agent_owner='C' 的 1 类)."""
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
-    conn = get_connection()
-    seeded = 0
-    for et in seed["event_types"]:
-        if et["agent_owner"] != "C":
-            continue
-        # security_entities 主行 (id=evt_fraud)
-        conn.execute(
-            """
-            INSERT INTO security_entities (
-                id, entity_type, name, description, external_ref, metadata,
-                created_at, updated_at, agent_owner
-            ) VALUES (?, 'event_type', ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
-            ON CONFLICT(id) DO UPDATE SET
-                name=excluded.name, description=excluded.description,
-                metadata=excluded.metadata, updated_at=datetime('now'),
-                agent_owner=excluded.agent_owner
-            """,
-            (et["id"], et["name_zh"], et["description"], et["name_en"],
-             json.dumps({"name_en": et["name_en"], "category": et["category"],
-                         "priority": et["priority"]}, ensure_ascii=False),
-             et["agent_owner"]),
-        )
-        # event_type_seed 扩展元数据
-        EventTypeSeedRepo().upsert(
-            event_type_id=et["id"], category=et["category"],
-            industry=et["category"], agent_owner=et["agent_owner"],
-            priority=et["priority"], typical_signals=et["typical_signals"],
-            kill_chain_stages=et["kill_chain_stages"],
-            report_source_pool=et["report_source_pool"],
-        )
-        seeded += 1
-    return seeded
-
-
-def load_reports(svc: IncidentReportService, dry: bool) -> list[str]:
-    """5 份 .md 语料 → incident_reports (返回 report_id 列表, 按 file 名索引)."""
-    ids: list[str] = []
-    for path in sorted(CORPUS_DIR.glob("*.md")):
-        meta, body = parse_frontmatter(path.read_text(encoding="utf-8"))
-        result = {"id": None, "created": False}
-        if not dry:
-            result = svc.upsert_report(
-                source_url=meta["source_url"],
-                fetched_at=meta.get("fetched_at"),
-                event_class_hint=meta.get("event_class_hint"),
-                report_md=body,
-                agent_owner=meta.get("agent_owner", "C"),
-            )
-        ids.append(result.get("id") or f"dry:{path.name}")
-        print(f"  report {path.name}: {'created' if result.get('created') else 'exists'}"
-              f" -> {result.get('id')}")
-    return ids
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -198,11 +141,7 @@ def main() -> int:
     apply_migrations(conn)
     load_attack_data()
 
-    print("[1/3] seed evt_fraud ...")
-    n = seed_event_type()
-    print(f"  seeded {n} event_type rows (期望 1)")
-
-    print("[2/3] load incident reports ...")
+    print("[1/2] load incident reports ...")
     report_svc = IncidentReportService()
     file_to_id: dict[str, str] = {}
     for path in sorted(CORPUS_DIR.glob("*.md")):
@@ -210,26 +149,25 @@ def main() -> int:
         if args.dry_run:
             file_to_id[path.name] = f"dry:{path.name}"
             continue
-        existing = report_svc.get_by_url(meta["source_url"])
-        if existing:
-            file_to_id[path.name] = existing["id"]
-            print(f"  report {path.name}: exists -> {existing['id']}")
-            continue
-        r = report_svc.upsert_report(
-            source_url=meta["source_url"], fetched_at=meta.get("fetched_at"),
-            event_class_hint=meta.get("event_class_hint"), report_md=body,
-            agent_owner=meta.get("agent_owner", "C"),
+        # ingest_report 自身按 source_url 幂等去重
+        r = report_svc.ingest_report(
+            source_url=meta["source_url"],
+            title=meta.get("title", path.stem),
+            fetched_at=meta.get("fetched_at", ""),
+            report_md=body,
+            event_class_hint=meta.get("event_class_hint"),
+            agent_owner=AGENT_OWNER,
         )
         file_to_id[path.name] = r["id"]
-        print(f"  report {path.name}: created -> {r['id']}")
+        print(f"  report {path.name}: {'created' if r['new'] else 'exists'} -> {r['id']}")
 
     if args.dry_run:
         print("dry-run stop")
         return 0
 
-    print("[3/3] submit candidates ...")
+    print("[2/2] submit candidates ...")
     ext = EventTechniqueExtractService()
-    accepted = rejected = 0
+    accepted = rejected = deduped = unsupported = 0
     for cand in CANDIDATES:
         rid = file_to_id.get(cand["file"])
         if not rid:
@@ -243,17 +181,27 @@ def main() -> int:
             rationale=cand["rationale"],
             source_report_id=rid,
             llm_model=LLM_MODEL,
-            is_social_engineering_only=cand["is_social_engineering_only"],
+            agent_owner=AGENT_OWNER,
         )
+        reason = r["auto_reject_reason"]
         if r["accepted"]:
             accepted += 1
+        elif reason == "duplicate_candidate":
+            deduped += 1
+        elif reason and reason.startswith("unsupported:"):
+            unsupported += 1
+            print(f"  不支持(跳过): {cand['file']} reason={reason} quote={cand['evidence_quote'][:30]}...")
         else:
             rejected += 1
-            print(f"  REJECTED ({r['auto_reject_reason']}): {cand['evidence_quote'][:40]}...")
-    print(f"accepted={accepted} rejected={rejected}")
-    stats = ext.count_by_event_type("evt_fraud")
+            print(f"  REJECTED ({reason}): {cand['evidence_quote'][:40]}...")
+    print(
+        f"accepted={accepted} rejected={rejected} "
+        f"deduped={deduped} unsupported={unsupported}"
+    )
+    stats = ext.candidate_repo.count_by_event_type("evt_fraud")
     print(json.dumps(stats, ensure_ascii=False))
-    return 0 if accepted >= 10 else 1
+    # 成功门槛 = FK 合法候选数 (12 条 NULL-technique 策展候选按 schema 不可承载, 不计入)
+    return 0 if accepted >= 5 else 1
 
 
 if __name__ == "__main__":

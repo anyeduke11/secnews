@@ -495,6 +495,16 @@ class HotspotScheduler:
             name="secrets master key rotation check (daily 09:00 Asia/Shanghai)",
             replace_existing=True,
         )
+        # MP-2: 事件类型实例化 — 采集 agent_A~E → 抽取 technique 候选 → 入池
+        # (每日 03:30 Asia/Shanghai; 走 ai_hub LLM, 失败降级 mock)
+        if _is_job_enabled("mp2_extract"):
+            self.scheduler.add_job(
+                jobs.mp2_extract_job,
+                trigger=CronTrigger(hour=3, minute=30, timezone="Asia/Shanghai"),
+                id="mp2_extract",
+                name="MP-2 event type instantiation (daily 03:30 Asia/Shanghai)",
+                replace_existing=True,
+            )
 
     def _register_digest_jobs(self, _now_utc: datetime) -> None:
         """简报 / 报告域: 快照 + 周报 + 发布回收 + 每日简报 + 草稿生成。"""

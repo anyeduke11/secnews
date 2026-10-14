@@ -1,4 +1,4 @@
-"""MP-2 Event Technique API — /api/event-technique/candidates (4 端点).
+"""MP-2 Event Technique API — /api/event-technique/candidates (2 端点).
 
 Endpoints
 ---------

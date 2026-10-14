@@ -35,8 +35,7 @@ import { trackInterest } from '../../lib/interest';
 import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { NewsAlertList } from './NewsAlertList';
-import { ReactionButtons } from './ReactionButtons';
-import { useToast } from '../Toast';
+import { ReactionButtons, useReactionAction } from './ReactionButtons';
 import { SentinelShell, usePipe, usePipeReloadOnSse } from './SentinelShell';
 import { SentinelRail } from './SentinelRail';
 import { SignalPanel } from '../v1/panels/SignalPanel';
@@ -327,7 +326,7 @@ export function SentinelHomePage() {
   // ── 收藏: 模块级单例 store, 乐观更新 + 失败回滚 ──
   const { count: favoriteCount, isFavorite, toggleFavorite } = useFavorites();
   // DEV-0311: 赞/踩 (available=false 时隐藏按钮组, 不渲染死键)
-  const { reactionOf, react: reactItem, available: reactionsAvailable } = useReactions();
+  const { reactionOf, available: reactionsAvailable } = useReactions();
 
   useEffect(() => {
     if (keywordInput === keyword) return;
@@ -422,12 +421,7 @@ export function SentinelHomePage() {
     if (!isFavorite(item.id)) trackInterest(item.id, 'favorite');
     void toggleFavorite(item);
   }, [toggleFavorite, isFavorite]);
-  const toast = useToast();
-  const doReact = useCallback(async (item: HotspotItem, type: ReactionType) => {
-    // DEV-0314: 回滚已由 store 完成; 此处对"服务器丢弃"如实提示, 不装成功
-    const discarded = await reactItem(item, type);
-    if (discarded) toast.show({ type: 'info', message: '该条目未参与推荐：非安全领域内容或未归类' });
-  }, [reactItem, toast]);
+  const doReact = useReactionAction();
 
   const goPrev = useCallback(() => setPage(page - 1), [page, setPage]);
   const goNext = useCallback(() => setPage(page + 1), [page, setPage]);
@@ -555,6 +549,7 @@ export function SentinelHomePage() {
                         <div className="flash-side">
                           <span className="flash-src">{item.source}</span>
                         </div>
+                        {reactionsAvailable && <ReactionButtons item={item} current={reactionOf(item.id)} onReact={doReact} />}
                       </li>
                     );
                   })}

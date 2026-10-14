@@ -6,7 +6,7 @@ PATH/认证异常即静默 0 条; 本文件提供两条人工兜底导入路径�
 路由清单 (prefix 自带, 挂 knowledge 聚合层惯例)
 --------
 - ``POST /api/knowledge/cubox/import-cards``  导入 CLI 导出的卡片 JSON 数组
-- ``POST /api/knowledge/cubox/import-dir``    扫描本地目录 *.json 导入
+- ``POST /api/knowledge/cubox/import-dir``    扫描本地目录 (*.json + 递归 *.md) 导入
 """
 from __future__ import annotations
 
@@ -45,8 +45,10 @@ async def import_cubox_cards_endpoint(body: CuboxCardsIn) -> dict:
 
 @router.post("/cubox/import-dir")
 async def import_cubox_dir_endpoint(body: CuboxDirIn) -> dict:
-    """扫描本地目录中的 cubox 导出 JSON (*.json) 并导入。
+    """扫描本地目录中的 cubox 卡片并导入 (顶层 ``*.json`` + 递归 ``*.md``)。
 
+    ``*.json`` = cubox-cli 导出数组; ``*.md`` = cubox 本地化知识库卡片,
+    按 frontmatter (``source_url``/``url`` + ``title`` + ``tags``) 反解。
     路径校验: 绝对路径 + 存在目录。本地运维导入 (非出站请求, 无 SSRF 面)。
     """
     from backend.services.cubox_sync import import_cubox_dir

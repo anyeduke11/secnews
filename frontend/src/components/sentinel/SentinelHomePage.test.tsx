@@ -512,11 +512,11 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     await screen.findByRole('button', { name: '点赞：企业自建大模型网关曝出未授权访问风险' });
   });
 
-  it('赞/踩丢弃如实提示 (DEV-0314): 未归域条目不装成功 — 回滚高亮 + toast', async () => {
-    // 所有 signals 写入统一返回 accepted_no_domain (伺服"未归域丢弃"语义)
+  it('未归类条点赞/踩照常持久化 (DEV-0326): 高亮保留, 不弹"未参与推荐"提示', async () => {
+    // 未归类条目: 后端以哨兵域 weight 0 落库, 对外 status=ok/domain=null
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) === '/api/interest/signals' && (init?.method ?? 'GET').toUpperCase() === 'POST') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'accepted_no_domain', domain: null }) } as Response);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'ok', domain: null }) } as Response);
       }
       return fetchMock(input, init);
     }));
@@ -524,12 +524,12 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     render(<MemoryRouter><ToastProvider><SentinelHomePage /></ToastProvider></MemoryRouter>);
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
 
-    // 常规快讯条目 (未归域) 点踩 → 服务器丢弃 → 按钮回滚到未按下态
+    // 常规快讯条目 (未归域) 点踩 → 照常落库 → 按钮保持按下态
     const dislikeBtn = await screen.findByRole('button', { name: '点踩：常规快讯条目' });
     fireEvent.click(dislikeBtn);
-    await waitFor(() => expect(screen.getByRole('button', { name: '点踩：常规快讯条目' })).toHaveAttribute('aria-pressed', 'false'));
-    // 如实提示可见 (不装成功)
-    expect(await screen.findByText(/未参与推荐/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: '取消点踩：常规快讯条目' })).toHaveAttribute('aria-pressed', 'true'));
+    // 不再有丢弃提示
+    expect(screen.queryByText(/未参与推荐/)).toBeNull();
   });
 
   it('行为埋点接线 (DEV-0314): 点击标题记 view; 点星标记 favorite (beacon 不可用时 fetch 兜底)', async () => {

@@ -30,6 +30,15 @@ class _TestSecCollector(BaseCollector):
     name = "test_sihou"
 
 
+class _TestPaperCollector(BaseCollector):
+    """论文分类 collector — 验证 paper 走 14 天滚动窗口而非周级门禁。"""
+
+    category = Category.PAPER
+    _skip_quality = True
+    max_items = 50
+    name = "test_paper"
+
+
 def _sihou_source():
     return {"name": "嘶吼", "url": "https://www.4hou.com/", "score": 70}
 
@@ -196,3 +205,58 @@ class TestMaxItems:
         items = c._build_items(raw, _sihou_source())
         # max_items=50
         assert len(items) == 50
+
+
+# ---------------------------------------------------------------------------
+# paper 14 天滚动窗口 (2026-10-13): 论文不走周级门禁
+# ---------------------------------------------------------------------------
+class TestPaperRecencyWindow:
+    """paper 分类改用 14 天滚动窗口, 而非 current_week_start() 周级门禁.
+
+    为什么: arXiv 等学术源索引本就有数天滞后, 论文也无「当周」语义 —
+    周级门禁会把整批上周五公告的论文 drop 掉 (arXiv 零产出的根因)。
+    """
+
+    @staticmethod
+    def _paper_source():
+        return {"name": "AI", "url": "https://arxiv.org/", "score": 75}
+
+    def test_last_week_paper_kept(self):
+        """上周内 (本周一之前, 但 14 天内) 的论文 → 保留.
+
+        锚定 current_week_start() - 3d: 恒早于本周一 (旧行为必拒收),
+        且距 now 不超过 ~10 天 (恒在 14 天窗口内) — 精确落在修复语义上。
+        """
+        cur_week = current_week_start()
+        c = _TestPaperCollector()
+        raw = [{
+            "title": "Adversarial Robustness of Large Language Models",
+            "url": "https://arxiv.org/abs/2609.01234v1",
+            "published_at": cur_week - timedelta(days=3),
+        }]
+        items = c._build_items(raw, self._paper_source())
+        assert len(items) == 1
+        assert items[0].category == Category.PAPER
+
+    def test_last_month_paper_dropped(self):
+        """上月论文 (超出 14 天窗口) → 仍被拒收 (窗口非无限放行)."""
+        c = _TestPaperCollector()
+        raw = [{
+            "title": "A Survey of Threat Intelligence Sharing",
+            "url": "https://arxiv.org/abs/2509.05678v2",
+            "published_at": datetime.now(timezone.utc) - timedelta(days=30),
+        }]
+        items = c._build_items(raw, self._paper_source())
+        assert len(items) == 0
+
+    def test_non_paper_still_uses_week_gate(self):
+        """非 paper 分类不受影响: 上周内资讯仍按周级门禁拒收 (回归护栏)."""
+        cur_week = current_week_start()
+        c = _TestSecCollector()
+        raw = [{
+            "title": "嘶吼安全资讯: 上周某 APT 组织活动分析",
+            "url": "https://www.4hou.com/post/lastweek",
+            "published_at": cur_week - timedelta(days=3),
+        }]
+        items = c._build_items(raw, _sihou_source())
+        assert len(items) == 0

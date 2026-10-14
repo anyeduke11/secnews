@@ -10,7 +10,7 @@
 |---|------|------|----------|------|----------|
 | 1 | 资料库前厅 khub | `/knowledge/khub` | 无 — `GET /api/knowledge/hub-stats` 已落地 (C3) | **已实现 (真实数据, C3/DEV-0191)** | 六源聚合统计卡 (编目/chunks/复习/漏斗/队列/门禁) + 逐源容错 (失败源显示 …) |
 | 2 | 编目室 library | `/knowledge/library` | 无 — 复用既有 `GET /api/knowledge/items` | **已实现 (真实数据, C1/DEV-0189)** | 领域/主题/类型/难度筛选 + 翻页 + 掌握度列 (SM-2 库内代理); 不建平行表 (wiki-first) |
-| 3 | 通稿审核 events | `/action/events` | 无 — 端点全部存在 | **已实现 (真实数据)** | `GET/POST /api/event-technique/*` 六端点全接: 类型进度 / 候选队列 / 通过 / 驳回(理由必填) / 批量通过 |
+| 3 | 通稿审核 events | `/action/events` | 无 — 端点全部存在 | **已实现 (真实数据)** | `GET/POST /api/event-technique/*` 七端点全接: 类型进度 / 候选队列 / 通过 / 驳回(理由必填) / 批量通过 |
 | 4 | 清样深读 reader | `/reader/:id` | 无 — API 已存在 (v1.7 Phase 2), 既有表加 quote 列 (migration 118) | **已实现 (真实数据, C2/DEV-0190)** | 正文 + 批注全真实: B+ 四步抗漂移解析 / mark 高亮 / 选区批注 / 侧栏三态; 不写 wiki md |
 | 5 | 校对室 quality | `/quality` | 无 — 原型设想的 rules 端点已存在 | **已实现 (真实数据)** | `GET /api/quality/summary` 门禁卡 + `GET /api/info-filter/rules` 规则表 + 拒绝样本子标签 (旧 `/quality/rejection` 重定向兼容) |
 
@@ -31,7 +31,7 @@
 
 ### 3. (无缺口) 通稿审核
 
-MP-2 已交付 `/api/event-technique` 六端点 (migration 117, `event_technique_api.py` + `event_types_api.py`), 前端本批全量接入。approve/reject/batch-approve 均写 `audit_log_mp2_review` (actor=owner)。
+MP-2 已交付 `/api/event-technique` 七端点 (migration 117, `event_technique_api.py` + `event_types_api.py`), 前端本批全量接入。approve/reject/batch-approve 均写 `audit_log_mp2_review` (actor=owner)。
 
 ### 4. reader 批注能力 — ✅ 已闭环 (C2, DEV-0190)
 

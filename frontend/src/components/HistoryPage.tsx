@@ -14,6 +14,8 @@ import { useGoBack } from '../hooks/useGoBack';
 import { getJSON, postJSON } from '../lib/api';
 import { Icon } from './Icon';
 import { EmptyState } from './EmptyState';
+import { useReactions } from '../hooks/useReactions';
+import { ReactionButtons, useReactionAction } from './sentinel/ReactionButtons';
 
 interface HistoryPageProps {
   favoritedIds: Set<string>;
@@ -32,6 +34,9 @@ function formatBatchRange(start: string, end: string): string {
 
 export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps) {
   const goBack = useGoBack();
+  // DEV-0326: 历史资讯接入赞/踩 (统一 4 资讯面)
+  const { reactionOf, available: reactionsAvailable } = useReactions();
+  const doReact = useReactionAction();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
   const [batchesError, setBatchesError] = useState<string | null>(null);
@@ -363,22 +368,27 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
                     isFavorited={favoritedIds.has(item.id)}
                     onToggleFavorite={onToggleFavorite}
                   />
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleArchive(item); }}
-                    disabled={isArchived || isArchiving}
-                    className="btn-ghost absolute bottom-2 left-2 px-1.5 py-0.5 text-[10px] z-10"
-                    style={{
-                      backgroundColor: isArchived ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-                      color: isArchived ? 'var(--text-muted)' : 'var(--text-secondary)',
-                      border: '1px solid var(--border-color)',
-                      opacity: isArchiving ? 0.6 : 1,
-                      cursor: (isArchived || isArchiving) ? 'default' : 'pointer',
-                    }}
-                    title={isArchived ? '已归档到知识库' : '归档到知识库'}
-                  >
-                    {isArchiving ? '📚 归档中…' : isArchived ? '✓ 已归档' : '📚 归档'}
-                  </button>
+                  <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleArchive(item); }}
+                      disabled={isArchived || isArchiving}
+                      className="btn-ghost px-1.5 py-0.5 text-[10px]"
+                      style={{
+                        backgroundColor: isArchived ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                        color: isArchived ? 'var(--text-muted)' : 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)',
+                        opacity: isArchiving ? 0.6 : 1,
+                        cursor: (isArchived || isArchiving) ? 'default' : 'pointer',
+                      }}
+                      title={isArchived ? '已归档到知识库' : '归档到知识库'}
+                    >
+                      {isArchiving ? '📚 归档中…' : isArchived ? '✓ 已归档' : '📚 归档'}
+                    </button>
+                    {reactionsAvailable && (
+                      <ReactionButtons item={item} current={reactionOf(item.id)} onReact={doReact} />
+                    )}
+                  </div>
                 </div>
               );
             })}

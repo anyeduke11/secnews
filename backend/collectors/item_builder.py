@@ -9,11 +9,17 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.collectors.keywords import _is_title_relevant_to_category
 from backend.domain.models import HotspotItem
+
+# 2026-10-13: 论文源时效窗口 (天). 学术源 (arXiv/IACR 等) 索引本就有
+# 数天滞后, 且论文「当周」语义与资讯不同 — 用周级门禁会整批 drop。
+# 取 14 天: 覆盖 arXiv 索引滞后 (~4 天) + 周末/节假日空档, 同时仍拦截
+# 明显的陈年论文。
+PAPER_MAX_AGE_DAYS = 14
 
 
 class ItemBuilderMixin:
@@ -64,6 +70,10 @@ class ItemBuilderMixin:
             raw_wechat_age = int(source.get("max_age_days", 7) or 7)
             wechat_max_age = max(1, min(raw_wechat_age, 14))  # 硬上限 14
             recency_threshold = now - __import__("datetime").timedelta(days=wechat_max_age)
+        elif self.category.value == "paper":
+            # 2026-10-13: 论文分类不走周级门禁 (学术源索引滞后 + 论文无
+            # "当周" 语义), 改用 14 天滚动窗口 — 修复 arXiv 整批 drop。
+            recency_threshold = now - timedelta(days=PAPER_MAX_AGE_DAYS)
         else:
             recency_threshold = current_week_start()
         for i, raw in enumerate(raw_items[: self.max_items * 2]):  # 多取些再过滤

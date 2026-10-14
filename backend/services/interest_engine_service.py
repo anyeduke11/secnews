@@ -25,6 +25,7 @@ from typing import Any, ClassVar
 
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import (
+    INTEREST_UNATTRIBUTED_DOMAIN,
     interest_attribution_hint,
     interest_delete_reactions,
     interest_has_recent_signal,
@@ -162,6 +163,8 @@ class InterestEngineService:
         """记录行为信号。返回 {status: recorded|no_domain|deduped|invalid_*, domain?}。
 
         域归因写入时完成; dwell 由前端仅在 >30s 时上报 (对齐 attention_events 口径)。
+        DEV-0326: reaction (like/dislike) 对无域条目放行 — 以哨兵域 + weight 0
+        持久化 (点了就记住), 对外 domain 仍报 None; 非 reaction 无域信号保持丢弃。
         """
         if signal_type not in SIGNAL_WEIGHTS:
             return {"status": "invalid_type"}
@@ -169,8 +172,16 @@ class InterestEngineService:
             return {"status": "invalid_item"}
 
         domain = self._attribute_domain(item_id)
+        is_reaction = signal_type in REACTION_TYPES
         if domain is None:
-            return {"status": "no_domain"}
+            if not is_reaction:
+                return {"status": "no_domain"}
+            # 非安全内容 reaction: 存哨兵域, weight 0 → 不进兴趣权重聚合。
+            stored_domain = INTEREST_UNATTRIBUTED_DOMAIN
+            weight = 0.0
+        else:
+            stored_domain = domain
+            weight = SIGNAL_WEIGHTS[signal_type]
 
         cutoff = _utc_iso_minus(minutes=DEDUP_WINDOW_MIN)
         if interest_has_recent_signal(item_id, signal_type, cutoff):
@@ -179,11 +190,11 @@ class InterestEngineService:
         # DEV-0311: reaction 互斥 — 写新态度前删同 item 旧 reaction。
         # dedup 先行: 同 type 30min 内重复 = 幂等; 切换 (like↔dislike) 因删旧
         # 不触发 dedup, 保证"态度以最新为准"且不叠加 (防 like→dislike 净 +0.5)。
-        if signal_type in REACTION_TYPES:
+        if is_reaction:
             interest_delete_reactions(item_id, REACTION_TYPES)
 
         try:
-            interest_insert_signal(item_id, domain, signal_type, SIGNAL_WEIGHTS[signal_type], _now_iso())
+            interest_insert_signal(item_id, stored_domain, signal_type, weight, _now_iso())
         except Exception as e:
             logger.warning(f"interest signal write failed: {e}")
             return {"status": "error"}

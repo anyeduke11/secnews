@@ -10,10 +10,14 @@ import { useI18n } from '../../contexts/I18nContext';
 import { PRACTICE_DOMAIN_LABELS } from '../../types';
 import { apiFetch } from '../../lib/api';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
+import { useReactions } from '../../hooks/useReactions';
+import { ReactionButtons, useReactionAction } from './ReactionButtons';
 
 interface PriorityItem {
   title?: string;
   practice_domain?: string | null;
+  /** DEV-0326: 后端反查附加的 hotspot 行 id (material_id→hotspot id); 缺失则降级只读 */
+  item_id?: string;
   [key: string]: unknown;
 }
 
@@ -32,6 +36,9 @@ export function PriorityDigestCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
+  // DEV-0326: 今日重点情报接入赞/踩 (仅当条目已映射到 hotspot 行)
+  const { reactionOf, available: reactionsAvailable } = useReactions();
+  const doReact = useReactionAction();
 
   const load = useCallback((force = false) => {
     setLoading(true);
@@ -107,11 +114,17 @@ export function PriorityDigestCard() {
               </div>
             )}
             <ul className="space-y-0.5">
-              {g.items.map((it, i) => (
-                <li key={`${g.key}-${i}`} className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                  · {it.title || String(it.summary || '')}
-                </li>
-              ))}
+              {g.items.map((it, i) => {
+                const title = it.title || String(it.summary || '');
+                return (
+                  <li key={`${g.key}-${i}`} className="text-[11px] leading-snug flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="flex-1">· {title}</span>
+                    {reactionsAvailable && it.item_id && (
+                      <ReactionButtons item={{ id: it.item_id, title }} current={reactionOf(it.item_id)} onReact={doReact} />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}

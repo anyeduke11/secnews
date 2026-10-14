@@ -28,11 +28,17 @@ def _now_utc_iso() -> str:
 
 
 def _query_admission_recent(days: int = 7) -> list[dict[str, Any]]:
-    """T07 已落 admission_log (migration 097), SK-01 拉近 N 天决策."""
+    """T07 已落 admission_log (migration 097), SK-01 拉近 N 天决策.
+
+    真实列 = id / material_id / body_hash / verdict / reason / matched_rule_id /
+    raw_material_json / created_at (无 action/subject_id)。原 SELECT 引用了不存在
+    的列 → OperationalError 被吞 → 聚合自 T14 起静默为空, 本处随映射链一并修正;
+    material_id 供 source_refs 反查 hotspot。
+    """
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT action, verdict, subject_id, reason, created_at "
+            "SELECT material_id, verdict, reason, created_at "
             "FROM admission_log "
             "WHERE created_at >= datetime('now', ?) "
             "ORDER BY created_at DESC LIMIT 20",
@@ -42,7 +48,7 @@ def _query_admission_recent(days: int = 7) -> list[dict[str, Any]]:
         logger.warning(f"admission_log table missing: {e}")
         return []
     return [
-        {"action": r[0], "verdict": r[1], "subject_id": r[2], "reason": r[3], "ts": r[4]}
+        {"material_id": r[0], "verdict": r[1], "reason": r[2], "ts": r[3]}
         for r in rows
     ]
 
@@ -52,7 +58,7 @@ def _query_signals_recent(days: int = 3) -> list[dict[str, Any]]:
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT id, subject_id, confidence, summary, occurred_at "
+            "SELECT id, subject_id, material_id, confidence, summary, occurred_at "
             "FROM v1_signals "
             "WHERE occurred_at >= datetime('now', ?) "
             "ORDER BY occurred_at DESC LIMIT 20",
@@ -62,8 +68,8 @@ def _query_signals_recent(days: int = 3) -> list[dict[str, Any]]:
         logger.warning(f"v1_signals table missing: {e}")
         return []
     return [
-        {"id": r[0], "subject_id": r[1], "confidence": r[2],
-         "summary": r[3], "occurred_at": r[4]}
+        {"id": r[0], "subject_id": r[1], "material_id": r[2],
+         "confidence": r[3], "summary": r[4], "occurred_at": r[5]}
         for r in rows
     ]
 
@@ -119,6 +125,50 @@ def _partition_by_practice(
         key = pd if (pd and pd in interest_domains) else "other"
         partitions.setdefault(key, []).append(item)
     return partitions
+
+
+def _attach_hotspot_ids(
+    top_items: list[Any], signals_recent: list[dict[str, Any]], *, days: int = 30,
+) -> None:
+    """top_items.source_refs.material_id → hotspot id 反查, 就地附加 item_id.
+
+    reaction 需真实 hotspot 行 id (interest_attribution_hint 单查 hotspots,
+    非 hotspot id → no_domain 被丢弃)。material_id 内容寻址不可逆 → 遍历近窗
+    hotspots 反算建表; signal_id → material_id 作二级兜底 (LLM 可能只抄 signal_id)。
+    命中 → item["item_id"]; 未命中不附加 (前端降级为只读)。
+    """
+    from backend.services.v1_signal_bridge import material_id_for
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, url, title FROM hotspots "
+            "WHERE COALESCE(fetched_at, published_at, ingested_at) >= datetime('now', ?) "
+            "  AND title != '' AND url != ''",
+            (f"-{days} days",),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        logger.warning(f"hotspot reverse lookup unavailable: {e}")
+        return
+    mat_to_hotspot = {material_id_for(r["url"], r["title"]): r["id"] for r in rows}
+    sig_to_mat = {
+        str(s.get("id") or ""): str(s.get("material_id") or "")
+        for s in signals_recent if s.get("id")
+    }
+    for item in top_items:
+        if not isinstance(item, dict):
+            continue
+        for ref in item.get("source_refs") or []:
+            if not isinstance(ref, dict):
+                continue
+            mid = str(ref.get("material_id") or "")
+            hid = mat_to_hotspot.get(mid) if mid else None
+            if hid is None:
+                sid = str(ref.get("signal_id") or "")
+                hid = mat_to_hotspot.get(sig_to_mat.get(sid, "")) if sid else None
+            if hid:
+                item["item_id"] = hid
+                break
 
 
 class DailyPriorityIntelService:
@@ -196,6 +246,7 @@ class DailyPriorityIntelService:
             logger.warning(f"V1EvidenceService trace failed (SK-01 still inserts): {e}")
         # DEV-0176 T0.5: 实践域打标 + 兴趣域分区 (无画像 = None, 单组渲染等于现状)
         top_items = parsed["top_items"]
+        _attach_hotspot_ids(top_items, signals_recent)
         practice_partitions = _partition_by_practice(top_items, interest_domains)
         return {
             "top_items": top_items,

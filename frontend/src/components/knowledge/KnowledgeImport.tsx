@@ -322,7 +322,7 @@ export function KnowledgeImport() {
           {/* C2 (DEV-0195): 同步异常的人工兜底 — CLI 导出导入 + 本地目录导入 */}
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
             <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>
-              同步异常时的人工兜底：用 cubox-cli 导出 JSON 上传，或导入本地导出目录。
+              同步异常时的人工兜底：上传 cubox-cli 导出的 JSON，或导入本地 Cubox 知识库目录（.json / .md）。
             </p>
             <div className="flex flex-col gap-2">
               <input
@@ -371,7 +371,7 @@ export function KnowledgeImport() {
                 <input
                   className="editorial-input flex-1 text-xs"
                   style={{ minWidth: 0 }}
-                  placeholder="本地导出目录绝对路径, 如 /Users/me/cubox-export"
+                  placeholder="本地 Cubox 目录绝对路径 (支持 .json/.md), 如 /Users/me/Cubox"
                   aria-label="cubox 导出目录路径"
                   value={dirPath}
                   onChange={e => setDirPath(e.target.value)}
@@ -381,11 +381,11 @@ export function KnowledgeImport() {
                     if (!dirPath.trim() || dirBusy) return;
                     setDirBusy(true);
                     try {
-                      const r = await postJSON<{ imported?: number; cards?: number; files?: number }>(
+                      const r = await postJSON<{ imported?: number; cards?: number; new?: number; merged?: number }>(
                         CUBOX_IMPORT_DIR_URL,
                         { path: dirPath.trim() },
                       );
-                      flashToast({ kind: 'ok', msg: `目录导入完成: ${r.files ?? 0} 文件 ${r.cards ?? 0} 卡 → 入库 ${r.imported ?? 0} 条` });
+                      flashToast({ kind: 'ok', msg: `目录导入完成: ${r.cards ?? 0} 卡 → 入库 ${r.imported ?? 0} 条（新建 ${r.new ?? 0} · 合并 ${r.merged ?? 0}）` });
                     } catch (err) {
                       flashToast({ kind: 'err', msg: `目录导入失败: ${err instanceof Error ? err.message : String(err)}` });
                     } finally {

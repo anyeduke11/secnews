@@ -7,7 +7,7 @@
  *
  * DEV-0311 reaction (赞/踩): 显式动作, 走 apiFetch 等待响应 (非 beacon —
  * 需即时一致性, 失败供上层回滚); 互斥/取消语义由后端保证。
- * DEV-0314: postReaction 透传响应体 — accepted_no_domain 时上层回滚高亮。
+ * DEV-0326: 全部条目均可赞/踩 (含未归类), 后端以哨兵域 weight 0 持久化。
  */
 import { apiFetch } from './api';
 
@@ -46,14 +46,11 @@ export type ReactionType = 'like' | 'dislike';
 
 /** 提交赞/踩 (后端互斥: 写新态度自动删旧)。
  *
- * 返回响应体供调用方判定真实落地: status='accepted_no_domain' = 条目未归入
- * 安全实践域, 信号被服务器丢弃 (DEV-0314: UI 据此如实回滚, 不装成功)。
+ * DEV-0326: 全部条目均接受 (未归类条目以哨兵域 weight 0 持久化, 不进权重聚合),
+ * 故不返回响应体; 失败由 apiFetch 抛错, 上层据此回滚乐观态。
  */
-export async function postReaction(
-  itemId: string,
-  type: ReactionType,
-): Promise<{ status?: string; domain?: string | null }> {
-  return apiFetch('/api/interest/signals', {
+export async function postReaction(itemId: string, type: ReactionType): Promise<void> {
+  await apiFetch('/api/interest/signals', {
     method: 'POST',
     body: JSON.stringify({ item_id: itemId, signal_type: type }),
   });

@@ -16,8 +16,8 @@ const CANDIDATES = {
   owner_status: 'pending',
   total: 2,
   items: [
-    { candidate_id: 'etc_01', technique_id: 'T1486', stage: 'impact', confidence: 0.91, evidence_quote: '加密文件并勒索赎金', owner_status: 'pending' },
-    { candidate_id: 'etc_02', technique_id: 'T1071', stage: 'c2', confidence: 0.74, evidence_quote: '回连 C2 域名', owner_status: 'pending' },
+    { id: 'etc_01', technique_id: 'T1486', stage: 'impact', confidence: 0.91, evidence_quote: '加密文件并勒索赎金', owner_status: 'pending' },
+    { id: 'etc_02', technique_id: 'T1071', stage: 'c2', confidence: 0.74, evidence_quote: '回连 C2 域名', owner_status: 'pending' },
   ],
 };
 
@@ -31,7 +31,7 @@ describe('EventsReviewPage — 通稿审核 (/action/events, 全真实 API)', ()
         return Promise.resolve({ ok: true, json: () => Promise.resolve(CANDIDATES) } as Response);
       }
       if (url.includes('/api/event-technique/event-types') && url.includes('batch-approve')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ approved: 2, total: 2 }) } as Response);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ approved_count: 2, skipped_count: 0 }) } as Response);
       }
       if (url.includes('/api/event-technique/event-types')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(TYPES) } as Response);

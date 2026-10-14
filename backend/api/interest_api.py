@@ -40,7 +40,11 @@ class InterestResetRequest(BaseModel):
 
 @router.post("/signals")
 async def record_signal(req: InterestSignalRequest) -> dict:
-    """记录行为信号; 无域条目返 202 accepted_no_domain (记录丢弃但不算错误)。"""
+    """记录行为信号; 无域非 reaction 条目返 202 accepted_no_domain (记录丢弃但不算错误)。
+
+    DEV-0326: reaction (like/dislike) 无域时放行 (存哨兵域 weight 0) → 返回
+    {"status": "ok", "domain": None}, 前端不再回滚; 累计型信号无域仍走 accepted_no_domain。
+    """
     result = _service.record_signal(req.item_id, req.signal_type)
     status = result.get("status", "error")
     if status in ("no_domain",):

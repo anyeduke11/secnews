@@ -333,6 +333,13 @@ class EventTechniqueExtractService:
             try:
                 parsed = json.loads(raw)
                 extracted = parsed.get("techniques", []) if isinstance(parsed, dict) else []
+                # LLM 输出 schema 用 "id" (见 _build_llm_prompt), 内部校验/落库用
+                # "technique_id" — 归一化, 否则真实 LLM 模式全量 missing_field:technique_id
+                extracted = [
+                    {**c, "technique_id": c.get("technique_id") or c.get("id", "")}
+                    for c in extracted
+                    if isinstance(c, dict)
+                ]
             except json.JSONDecodeError:
                 logger.warning("LLM returned non-JSON, fallback to mock")
                 extracted = _mock_extract(event_type_id, report_md, event_type, self._valid_techniques_list())
@@ -394,6 +401,111 @@ class EventTechniqueExtractService:
             "candidates_rejected": rejected,
             "duration_ms": duration_ms,
         }
+
+    # ------------------------------------------------------------------
+    # 抽取入口 (策展通道 — 供 agent_B~E 脚本提交人工/规则策展候选)
+    # ------------------------------------------------------------------
+    def submit_candidate(
+        self,
+        event_type_id: str,
+        technique_id: str | None,
+        stage: str,
+        confidence: float,
+        evidence_quote: str,
+        source_report_id: str,
+        rationale: str = "",
+        llm_model: str = "manual",
+        agent_owner: str = "A",
+    ) -> dict:
+        """提交单条策展候选 (复用 ``_validate_candidate`` 的 FK/substring/confidence 校验).
+
+        与 ``extract_for_report`` 的区别: 候选由脚本或人工策展给定, 不走 LLM;
+        但仍走同一套程序化校验, 保证落库质量一致.
+
+        NULL-technique 候选 (如反诈社工 / 监管通报) 因 schema
+        (``event_technique_candidates.technique_id NOT NULL``) 无法承载,
+        显式返回 ``unsupported:null_technique`` 并跳过 (不静默丢弃).
+
+        Returns:
+            {
+              "candidate_id": str | None,
+              "auto_reject_reason": str | None,  # 非空表示未落库, 供脚打印
+              "accepted": bool,
+            }
+        """
+        # 1. NULL-technique 预检 (schema 结构限制, 非校验失败)
+        if not (technique_id or "").strip():
+            return {
+                "candidate_id": None,
+                "auto_reject_reason": "unsupported:null_technique",
+                "accepted": False,
+            }
+
+        # 2. source_report 必须存在 (FK)
+        report = self.report_repo.get(source_report_id)
+        if not report:
+            return {
+                "candidate_id": None,
+                "auto_reject_reason": f"report_not_found:{source_report_id}",
+                "accepted": False,
+            }
+
+        # 3. event_type 必须存在 (FK) — 同时取 kill_chain_stages
+        event_type = self.event_type_repo.get(event_type_id)
+        if not event_type:
+            return {
+                "candidate_id": None,
+                "auto_reject_reason": f"event_type_not_found:{event_type_id}",
+                "accepted": False,
+            }
+
+        # 4. 复用同一套程序化校验 (FK / confidence / evidence_quote substring)
+        candidate = {
+            "technique_id": technique_id,
+            "stage": stage,
+            "confidence": confidence,
+            "evidence_quote": evidence_quote,
+            "rationale": rationale,
+        }
+        ok, reason = self._validate_candidate(
+            candidate,
+            report["report_md"],
+            event_type.get("kill_chain_stages", []),
+        )
+        if not ok:
+            return {
+                "candidate_id": None,
+                "auto_reject_reason": reason,
+                "accepted": False,
+            }
+
+        # 5. 落库 (UNIQUE 冲突视为重复)
+        cid = _new_ulid("etc")
+        try:
+            self.candidate_repo.insert(
+                candidate_id=cid,
+                event_type_id=event_type_id,
+                technique_id=technique_id,
+                stage=stage,
+                confidence=confidence,
+                evidence_quote=evidence_quote,
+                rationale=rationale,
+                source_report_id=source_report_id,
+                llm_model=llm_model,
+                llm_run_at=datetime.now(timezone.utc).isoformat(),
+                agent_owner=agent_owner,
+            )
+        except Exception as e:
+            if "UNIQUE" in str(e).upper() or "duplicate" in str(e).lower():
+                return {
+                    "candidate_id": None,
+                    "auto_reject_reason": "duplicate_candidate",
+                    "accepted": False,
+                }
+            logger.error("submit_candidate insert failed: %s", e)
+            raise InternalException(f"candidate insert failed: {e}") from e
+
+        return {"candidate_id": cid, "auto_reject_reason": None, "accepted": True}
 
     def bulk_extract(
         self,

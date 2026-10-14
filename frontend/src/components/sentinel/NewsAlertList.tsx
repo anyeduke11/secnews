@@ -12,6 +12,8 @@ import {
   ALERT_RULE_LABELS,
   type NewsAlertEvent,
 } from '../../api/secnews';
+import { useReactions } from '../../hooks/useReactions';
+import { ReactionButtons, useReactionAction } from './ReactionButtons';
 
 const TABS: Array<{ key: string; label: string }> = [
   { key: '', label: '全部' },
@@ -29,6 +31,9 @@ export function NewsAlertList() {
   const [items, setItems] = useState<NewsAlertEvent[] | null>(null);
   const [tab, setTab] = useState('');
   const nav = useNavigate();
+  // DEV-0326: 赞/踩覆盖告警面 — 仅当告警可归因到真实 hotspot 行 (item_id 非空) 才渲染
+  const { reactionOf, available: reactionsAvailable } = useReactions();
+  const doReact = useReactionAction();
 
   const reload = useCallback(async (ruleType: string) => {
     try {
@@ -84,6 +89,9 @@ export function NewsAlertList() {
                   <button className="abtn" onClick={() => { void markAlertRead(a.id).then(() => reload(tab)); }}>已读</button>
                 )}
                 <button className="abtn" onClick={() => { void resolveAlert(a.id).then(() => reload(tab)); }}>解决</button>
+                {a.item_id && reactionsAvailable && (
+                  <ReactionButtons item={{ id: a.item_id, title: a.title }} current={reactionOf(a.item_id)} onReact={doReact} />
+                )}
               </div>
             </li>
           ))}

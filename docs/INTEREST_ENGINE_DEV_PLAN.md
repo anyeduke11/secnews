@@ -15,6 +15,7 @@
 
 ### T1.2 InterestEngineService（`backend/services/interest_engine_service.py`）
 - `record_signal(item_id, signal_type)`：条目查 title → 域归因 → 无域返 no_domain；同 item+type 30min 去重；写权重按 PRD §1 表。
+  - **DEV-0326 修订**：无域**累计型**信号仍返 `no_domain` 丢弃；无域 **reaction**（like/dislike）放行——以哨兵域 `_unattributed` + `weight 0.0` 持久化（对外仍报 `domain: None`），哨兵域不属 10 实践域故不入权重聚合。
 - `aggregate()`（5min TTL）：14d 半衰 B(d)、归一化、E 读 settings.kv、β_eff 渐进、S 与乘子 m(d) 落 `interest_domain_weights`；保证 10 域全量返回 + events_30d。
 - `get_boost_map()` → `{domain: m}`；`reset()` 清信号与行为分。
 - 退出判据：service 单测覆盖（归因/去重/衰减数学/β 渐进/无数据恒等/reset）。

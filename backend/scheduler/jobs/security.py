@@ -3,10 +3,15 @@
 patch("backend.scheduler.jobs.<fn>") 测试契约。
 """
 import asyncio
+from pathlib import Path
 
 from backend.logging_config import logger
 
 _logger = logger.bind(component="jobs")
+
+# MP-2 抽取模型名 — 非 MOCK_LLM_MODEL("mock-extract-v1") ⇒ 触发真实 ai_hub LLM 调用,
+# 调用失败/返回非 JSON 时 extract_for_report 自动降级 mock.
+MP2_LLM_MODEL = "ai_hub-extract"
 
 
 async def mitre_sync_job() -> None:
@@ -438,3 +443,126 @@ async def secrets_rotation_check_job() -> None:
         _logger.warning(f"secrets_rotation_check_job: notified (age_days={age})")
     except Exception as e:
         _logger.error(f"secrets_rotation_check_job crashed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# MP-2 事件类型实例化 (采集 → 抽取 → 入候选池)
+# ---------------------------------------------------------------------------
+def _mp2_ingest_all() -> dict[str, str]:
+    """采集 agent_A~E 语料到 incident_reports; 返回 {event_type_id: agent_owner}.
+
+    同步 (供 asyncio.to_thread 包裹). 路由差异:
+      - agent_A: 每子目录 = 一个 event_type (5 类)
+      - agent_B: 扁平目录, 按 frontmatter event_type_id 分组 (3 类混合)
+      - agent_C/D/E: 扁平单类目录, bulk_ingest 绑定固定 event_type
+    """
+    from backend.services.incident_report_service import (
+        MIN_REPORT_BODY_LEN,
+        IncidentReportService,
+        _split_frontmatter,
+    )
+
+    corpus_root = Path(__file__).resolve().parents[3] / "data" / "security" / "incidents"
+    svc = IncidentReportService()
+    et_owner: dict[str, str] = {}
+
+    # agent_A — 每子目录一个 event_type
+    agent_a = corpus_root / "agent_A"
+    if agent_a.exists():
+        for sub in sorted(p for p in agent_a.iterdir() if p.is_dir()):
+            svc.bulk_ingest_from_dir(sub, sub.name, "A")
+            et_owner[sub.name] = "A"
+
+    # agent_B — 扁平目录, frontmatter event_type_id 分类 (bulk_ingest 不支持混合类)
+    agent_b = corpus_root / "agent_B"
+    if agent_b.exists():
+        for md in sorted(agent_b.glob("*.md")):
+            front, body = _split_frontmatter(md.read_text(encoding="utf-8"))
+            et_id = (front.get("event_type_id") or "").strip()
+            if not et_id:
+                _logger.warning(f"mp2_ingest: {md.name} missing event_type_id, skipped")
+                continue
+            if not body or len(body.strip()) < MIN_REPORT_BODY_LEN:
+                _logger.warning(f"mp2_ingest: {md.name} body too short, skipped")
+                continue
+            svc.ingest_report(
+                source_url=(front.get("source_url") or "").strip()
+                or f"mp2-agent-B-local://{md.stem}",
+                title=(front.get("title") or md.stem).strip(),
+                fetched_at=(front.get("fetched_at") or "").strip(),
+                report_md=body,
+                event_class_hint=et_id,
+                agent_owner="B",
+            )
+            et_owner[et_id] = "B"
+
+    # agent_C/D/E — 扁平单类目录
+    for owner, dirname, et_id in (
+        ("C", "agent_C", "evt_fraud"),
+        ("D", "agent_D", "evt_data_breach"),
+        ("E", "agent_E", "evt_regulatory_notice"),
+    ):
+        d = corpus_root / dirname
+        if d.exists():
+            svc.bulk_ingest_from_dir(d, et_id, owner)
+            et_owner[et_id] = owner
+
+    return et_owner
+
+
+def _mp2_reports_with_candidates(event_type_id: str) -> set[str]:
+    """返回该 event_type 下已产出候选的 source_report_id 集合 (增量过滤)."""
+    from backend.repository.db import get_connection
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT DISTINCT source_report_id FROM event_technique_candidates "
+        "WHERE event_type_id = ?",
+        (event_type_id,),
+    ).fetchall()
+    return {r[0] for r in rows}
+
+
+async def mp2_extract_job() -> None:
+    """MP-2 事件类型实例化 — 采集 agent_A~E 语料 → 逐报告抽取 technique 候选 → 入候选池.
+
+    - 覆盖 agent_A~E 全部 11 类 event_type
+    - 走真实 ai_hub LLM (MP2_LLM_MODEL); 调用失败/非 JSON 自动降级 mock
+    - 增量: 已产出候选的 source_report_id 跳过, 避免每 tick 重跑 LLM
+    - 失败只 log.error, 不抛异常 (与既有 job 模式一致)
+    """
+    try:
+        from backend.services.event_technique_extract_service import (
+            EventTechniqueExtractService,
+        )
+        from backend.services.incident_report_service import IncidentReportService
+
+        et_owner = await asyncio.to_thread(_mp2_ingest_all)
+        svc = EventTechniqueExtractService()
+        report_svc = IncidentReportService()
+
+        reports_processed = 0
+        candidates_inserted = 0
+        for et_id, owner in et_owner.items():
+            done = await asyncio.to_thread(_mp2_reports_with_candidates, et_id)
+            reports = await asyncio.to_thread(
+                report_svc.list_reports_by_event_type, et_id, 50
+            )
+            for r in reports:
+                if r["id"] in done:
+                    continue
+                try:
+                    res = await svc.extract_for_report(r["id"], et_id, MP2_LLM_MODEL, owner)
+                except Exception as e:
+                    _logger.error(f"mp2_extract: report {r['id']} ({et_id}) failed: {e}")
+                    continue
+                reports_processed += 1
+                candidates_inserted += res["candidates_inserted"]
+
+        _logger.info(
+            f"mp2_extract_job: event_types={len(et_owner)} "
+            f"reports_processed={reports_processed} "
+            f"candidates_inserted={candidates_inserted}"
+        )
+    except Exception as e:
+        _logger.error(f"mp2_extract_job crashed: {e}")

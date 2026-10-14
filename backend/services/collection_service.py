@@ -36,6 +36,13 @@ from backend.collectors.github_collector import GitHubCollector
 from backend.collectors.hn_collector import HNCollector  # P2-6
 from backend.collectors.openbb_collector import OpenBBCollector  # P2-6
 from backend.collectors.ossinsight_collector import OSSInsightCollector  # P2-6
+from backend.collectors.paper_sources import (  # 2026-10-13 论文多源
+    CrossrefCollector,
+    HFDailyPapersCollector,
+    IACRCollector,
+    OpenAlexCollector,
+    SemanticScholarCollector,
+)
 from backend.collectors.reddit_collector import RedditCollector  # P2-6
 from backend.collectors.security_collector import SecurityCollector
 from backend.collectors.startup_collector import StartupCollector
@@ -100,7 +107,15 @@ class CollectionService:
                 OSSInsightCollector(),
             ],
             # 2026-09-26 论文抓取: category 扩展, 无独立 gate/job
-            Category.PAPER: [ArxivPaperCollector()],
+            # 2026-10-13 论文多源扩展: arXiv + OpenAlex/S2/IACR/Crossref/HF
+            Category.PAPER: [
+                ArxivPaperCollector(),
+                OpenAlexCollector(),
+                SemanticScholarCollector(),
+                IACRCollector(),
+                CrossrefCollector(),
+                HFDailyPapersCollector(),
+            ],
         }
         self.repo = HotspotRepository()
         self.trend = TrendRepository()

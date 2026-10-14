@@ -2,7 +2,7 @@
      width="1200" height="360" viewBox="0 0 1200 360"
      role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">SecNews — 单人本地 AI 与安全工作站</title>
-  <desc id="hero-desc">左侧品牌与价值主张；右侧 Sentinel 终端窗口展示四菜单壳（资讯 / 知识 / 行动 / 设置）、管道心跳条与架构数字（101 routers · 161 services · 58 jobs · 14 collectors）。</desc>
+  <desc id="hero-desc">左侧品牌与价值主张；右侧 Sentinel 终端窗口展示四菜单壳（资讯 / 知识 / 行动 / 设置）、管道心跳条与架构数字（101 routers · 161 services · 59 jobs · 19 collectors）。</desc>
 
   <defs>
     <linearGradient id="primaryGrad" x1="0" y1="0" x2="1" y2="0">
@@ -31,13 +31,13 @@
   <!-- ═══════ 左侧：品牌区 (0–620) ═══════ -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
     <text x="56" y="54" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="13" fill="#5A6178" letter-spacing="2.5">v0.8.5 · NAV4 SHELL · 19 MCP TOOLS · SINGLE-USER LOCAL</text>
+          font-size="13" fill="#5A6178" letter-spacing="2.5">v0.8.6 · AI NATIVE · 19 MCP TOOLS · SINGLE-USER LOCAL</text>
 
     <rect x="56" y="70" width="36" height="3" fill="url(#primaryGrad)" rx="1.5"/>
 
     <text x="56" y="156" font-size="76" font-weight="700" fill="#F5F7FA" letter-spacing="1">SecNews</text>
 
-    <text x="56" y="198" font-size="23" fill="#8B93A7">AI + 安全从业者 · 单人本地知识工作站</text>
+    <text x="56" y="198" font-size="23" fill="#8B93A7">AI + 安全从业者 · 单机 AI Native 证据工作台</text>
 
     <!-- 特性徽章 -->
     <g font-size="15">
@@ -81,7 +81,7 @@
     <!-- 管道心跳条 -->
     <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">
       <rect x="664" y="154" width="7" height="7" rx="1.5" fill="#2DD4A7"/>
-      <text x="678" y="162" fill="#5A6178">PIPELINE · 14 COLLECTORS · ALL GATES GREEN</text>
+      <text x="678" y="162" fill="#5A6178">PIPELINE · 19 COLLECTORS · ALL GATES GREEN</text>
       <g fill="#00B4D8">
         <rect x="1010" y="155" width="4" height="6" rx="1" opacity="0.9"/>
         <rect x="1018" y="152" width="4" height="9" rx="1" opacity="0.65"/>
@@ -112,7 +112,7 @@
     <!-- 底部状态行 -->
     <line x1="640" y1="282" x2="1144" y2="282" stroke="#1C1E2E" stroke-width="1"/>
     <text x="664" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="12.5" fill="#5A6178">101 ROUTERS · 161 SERVICES · 58 JOBS</text>
+          font-size="12.5" fill="#5A6178">101 ROUTERS · 161 SERVICES · 59 JOBS</text>
     <text x="1120" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
           font-size="12.5" fill="#2DD4A7" text-anchor="end">● healthy</text>
   </g>

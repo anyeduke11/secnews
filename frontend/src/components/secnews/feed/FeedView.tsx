@@ -13,6 +13,8 @@ import { FeedCard } from './FeedCard';
 import { FeedFilters } from './FeedFilters';
 import { useI18n } from '../../../contexts/I18nContext';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
+import { useReactions } from '../../../hooks/useReactions';
+import { ReactionButtons, useReactionAction } from '../../sentinel/ReactionButtons';
 
 interface FeedItem {
   id: string;
@@ -33,6 +35,9 @@ export function FeedView() {
   const [category, setCategory] = useState('');
   const [keyword, setKeyword] = useState('');
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
+  // DEV-0326: 赞/踩覆盖报纸流头版头条 (网格卡片由 FeedCard 自带)
+  const { reactionOf, available: reactionsAvailable } = useReactions();
+  const doReact = useReactionAction();
 
   const fetchFeed = useCallback(async () => {
     setLoading(true);
@@ -129,6 +134,11 @@ export function FeedView() {
               <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{hero.category}</span>
             </div>
           </a>
+          {reactionsAvailable && (
+            <div className="mt-2">
+              <ReactionButtons item={hero} current={reactionOf(hero.id)} onReact={doReact} />
+            </div>
+          )}
         </div>
       )}
 

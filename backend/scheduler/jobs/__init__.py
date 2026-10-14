@@ -69,6 +69,7 @@ from backend.scheduler.jobs.codegarden import (
 from backend.scheduler.jobs.security import (
     cve_sync_to_security_job,
     mitre_sync_job,
+    mp2_extract_job,
     secrets_rotation_check_job,
     security_enrichment_job,
     security_entity_concept_sync_job,
@@ -207,6 +208,7 @@ __all__.extend([
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
     "legacy_hold_reap_job",  # v1.0 T09: F01 53 pending → legacy_hold (周一 04:30)
+    "mp2_extract_job",  # MP-2: 采集 agent_A~E → LLM 抽取 technique 候选 → 入池 (每日 03:30)
     "observability_aggregator_job",  # v0.7 Batch ③: api_events → api_metrics_hourly roll-up
     "observability_threshold_check_job",  # v0.7 Batch ④: 阈值规则引擎
     "observability_ttl_job",  # v0.7 Batch 1: 观测表 TTL 清理

@@ -27,8 +27,8 @@ _RAW_DSH = json.dumps({
     "suggested_actions": ["关注 CVE-2026-1234 补丁进展"],
 }, ensure_ascii=False)
 
-_ADMISSION_ROW = [{"action": "allow", "verdict": "allow", "subject_id": "S1", "reason": "r", "ts": "2026-09-12"}]
-_SIGNAL_ROW = [{"id": "SIG1", "subject_id": "S1", "confidence": 0.9, "summary": "测试信号", "occurred_at": "2026-09-12"}]
+_ADMISSION_ROW = [{"material_id": "MAT-1", "verdict": "allow", "reason": "r", "ts": "2026-09-12"}]
+_SIGNAL_ROW = [{"id": "SIG1", "subject_id": "S1", "material_id": "MAT-1", "confidence": 0.9, "summary": "测试信号", "occurred_at": "2026-09-12"}]
 
 
 @pytest.fixture
@@ -43,6 +43,8 @@ def _wire_queries(monkeypatch: pytest.MonkeyPatch, *, admission: list, signals: 
     monkeypatch.setattr(sk01, "_query_interest_domains", lambda: interests)
     # watchlist 走 settings.kv, 一并注入避免 DB 依赖
     monkeypatch.setattr(sk01, "_query_watchlist", lambda: [])
+    # hotspot 反查 (DEV-0326) 会触真实 DB — 本文件保持纯单元; 该映射单测见 test_skill_registry_v1
+    monkeypatch.setattr(sk01, "_attach_hotspot_ids", lambda *a, **k: None)
 
 
 class TestSk01PracticePartitions:

@@ -100,6 +100,25 @@ class TestStatsByAxis:
         assert stats["tech"]["events"] == 3
         assert stats["security"]["net"] == pytest.approx(2.0)
 
+    def test_unattributed_reaction_excluded(self, temp_db):
+        """DEV-0326 唯一泄漏面守卫: 无域条目 reaction (哨兵域 weight 0) 不得进 axis stats
+        — 否则 weight=0 行会 +1 events, 凭"证据量"触发 more/less 门限、污染排序。"""
+        from backend.repository.hotspot_repo import interest_signal_stats_by_axis
+        from backend.services.interest_engine_service import InterestEngineService
+
+        # 非安全标题 + TECH 类目 → 归因 None → reaction 落哨兵域
+        _seed(temp_db, [
+            _mk("u1", Category.TECH, title="荣耀 WIN 2 手机外观首曝：横向矩阵 Deco"),
+            _mk("u2", Category.TECH, title="新款智能手表开箱图赏"),
+        ])
+        svc = InterestEngineService()
+        for hid in ("u1", "u2"):
+            assert svc.record_signal(hid, "dislike")["status"] == "recorded"
+
+        since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        stats = interest_signal_stats_by_axis("category", since)
+        assert "tech" not in stats, f"无域 reaction 不应进 axis stats: {stats}"
+
 
 class TestAutoDerivation:
     def test_thresholds_more_and_less(self, temp_db, monkeypatch):

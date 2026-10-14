@@ -63,7 +63,29 @@ v0.8.5 (2026-09-08): 反向收敛 demo — v0.8 Sentinel 三层恢复为唯一�
 CaseQueuePanel / ExecOverviewPanel); v1 四入口 /workbench /intel /cases 重定向
 (透传 query), V1SentinelShell 物理删除; 守卫 v085_route_shell.test.tsx 反转;
 spec = docs/v0.8.5/V0.8.5_PLAN.md。后端业务零改动 (仅版本号)。
+
+v0.8.6 (2026-10-14): AI Native 证据工作台 — 换主干 (P0-P3 全绿, DEV-0269~0328)。
+换的是主干而非加能力: 让已有能力围绕"可验证的安全判断"重新产生流量。四轴 AI Native
+(①Agent 优先工作循环 ②模型驱动管线 ③全界面 AI 副驾 ④对话式驱动) 均入主轴; 主干 =
+资讯→Signal→Case→Claim→Run→Artifact→Knowledge 全链 run record, 禁止"成功但无产物";
+提案 (proposal) 未审批不得成事实 (人主律); 证据回执 (evidence receipt) 为一等公民。
+- 主干流量: Run 账本 + 提案通道 + v1_evidence_receipts + /api/ops/runs|kpi 观测面;
+  对话式命令栏 (轴④) 四类固定意图全命令 run record; 副驾四卡走提案通道 (轴③);
+  ai_classify 零消费点收编 + 批级预算防失控 (轴②); 档位路由 task_overrides 三档锚点。
+- 失败可见性: 静默失败三形态收口 (gate fail-open / 写库失败 / job misfire) 全部落显式
+  outcome; 停机链 R1-R17 (SIGTERM 有界化 + 孤儿收割 + 重放线程化) + run.py 单实例守卫
+  (pgid 锁 + 端口探活双检) + 清理类 job 告警全覆盖 + 备份卡滚动保留 (1 full + 3 增量
+  roll-forward 合成) + 清理卡三档滚动模型 (retention.json qcl 7→21 三方同源)。
+- 质量与归因: 质量规则两层模型 (专家规则 + AI 语义规则, DEV-0280); 内容偏好 AI 自动化
+  (类目/来源第二轴 + 自动学习 + 建议采纳); 资讯赞/踩 reaction 状态型信号 → 推荐优化 v1。
+- 数据与契约: 同步 SQL 离开 event loop + apply_bundle 事务化 (注入失败 base 不推进);
+  deep-read wiki 分支原文真源切 llm-wiki-2.0 md; MP-2 事件类型实例化链路接通 (采集→
+  ai_hub 抽取→候选池→人工审定, migration 135 补种 B/C/D/E 6 类) + 8 用例契约测试;
+  统一检索 P4 (FTS5 主引擎 + CommandBar 收敛); paper sources 采集 + Cubox 本地化 .md
+  导入增强 (NOT NULL 约束崩溃修复)。
+详见 docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md (版本族详细文档); 权威 PRD =
+docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md。
 """
 
-APP_VERSION = "0.8.5"
+APP_VERSION = "0.8.6"
 

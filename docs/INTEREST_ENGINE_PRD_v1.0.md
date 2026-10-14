@@ -47,7 +47,7 @@ S(d)  = 0.6·E(d) + β_eff·B'(d)
 
 | 端点 | 语义 |
 |---|---|
-| `POST /api/interest/signals` `{item_id, signal_type, dwell_seconds?}` | 201 记录；无域条目 202 accepted_no_domain；域归因服务端做 |
+| `POST /api/interest/signals` `{item_id, signal_type, dwell_seconds?}` | 201 记录；无域条目 202 accepted_no_domain；域归因服务端做。**DEV-0326 修订**：无域 **reaction**（like/dislike）放行 → 200 `{status: ok, domain: null}`（存哨兵域 weight 0，不进权重）；无域**累计型**信号仍 202 丢弃 |
 | `GET /api/interest/weights` | 10 域三层分 + 各域近 30d 事件数（权重条数据源） |
 | `POST /api/interest/weights/reset` | 清行为信号（显式勾选保留）+ audit_log |
 

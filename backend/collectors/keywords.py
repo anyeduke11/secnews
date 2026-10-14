@@ -5,8 +5,59 @@
 
 Phase 25+: 防止综合媒体把无关内容误归类到某个分类。
 没列在关键词白名单的 category 默认放行。
+
+paper 例外 (2026-10-13): 论文分类不走 ``_CAT_KEYWORDS`` 关键词白名单,
+改由 :func:`_is_paper_title_relevant` 按「10 实践域 ∪ 通用 AI/ML」放行 —
+学术标题表述自由, 静态关键词表日漏严重; 复用 auto_classifier 的领域判定
++ 通用 AI/ML 词表, 与设置页领域口径对齐。
 """
 from __future__ import annotations
+
+# 2026-10-13: 通用 AI/ML 词表 (论文放行基准之一)。全部小写, 与
+# ``title.lower()`` 双侧匹配 — 避免裸 "ai" 误命中 "maintain" 等;
+# 不含 attention/benchmark/dataset 等过泛词 (否则等于不设门)。
+# 安全向标题已由 classify_practice_domain 的 10 实践域覆盖, 此表只补
+# 「非安全但属 AI/ML」的论文 (cs.AI/cs.LG/cs.CL、ICLR/NeurIPS 主体等)。
+_PAPER_AI_ML_KEYWORDS: tuple[str, ...] = (
+    "machine learning",
+    "deep learning",
+    "neural network",
+    "language model",
+    "large language model",
+    "llm",
+    "foundation model",
+    "transformer",
+    "diffusion model",
+    "reinforcement learning",
+    "representation learning",
+    "self-supervised",
+    "semi-supervised",
+    "fine-tuning",
+    "finetuning",
+    "pretraining",
+    "pre-training",
+    "generative",
+    "artificial intelligence",
+    "computer vision",
+    "natural language processing",
+    "federated learning",
+    "graph neural",
+    "transfer learning",
+    "multimodal",
+    "multi-modal",
+    "vision-language",
+    "embodied",
+    "robotics",
+    "speech recognition",
+    "recommendation system",
+    "knowledge graph",
+    "人工智能",
+    "机器学习",
+    "深度学习",
+    "神经网络",
+    "大语言模型",
+    "大模型",
+)
 
 # Phase 25: 分类相关度关键词白名单 (module-level 常量)
 # 防止综合媒体 (投资界/新浪/36kr) 把无关内容 (旅行社/演唱会/餐饮) 误归类
@@ -85,36 +136,25 @@ _CAT_KEYWORDS: dict[str, list[str]] = {
         "robustness", "AI 监管", "AI 治理",
         "AI 风险", "AI 安全", "AI security",
     ],
-    # 2026-09-26: 论文分类 (ArxivPaperCollector) — arXiv 标题以英文为主,
-    # 子串匹配大小写敏感, 高频词需同时列 Title Case / 小写两种形态。
-    # 作用点: _title_relevant 预过滤 (category_match gate 读的是
-    # quality/config.py 的 DEFAULT_CATEGORY_KEYWORDS, paper 未列 → gate 放行)。
-    # 词表覆盖 14 领域检索词的标题特征: 安全论文标题必含
-    # security / vulnerability / adversarial / attack 类词之一。
-    "paper": [
-        # 学术/预印本通用
-        "arXiv", "论文", "预印本", "Survey", "survey", "Benchmark",
-        "benchmark", "Empirical Study", "empirical study", "Towards",
-        # 安全主词 (网络安全/应用安全/漏洞治理/攻击面 等标题特征)
-        "security", "Security", "secure", "vulnerability", "Vulnerability",
-        "vulnerabilities", "adversarial", "Adversarial", "attack", "Attack",
-        "attacks", "Attacks", "attack surface", "defense", "Defense",
-        "malware", "Malware", "threat", "Threat", "threat intelligence",
-        "privacy", "Privacy", "exploit", "Exploit", "backdoor", "Backdoor",
-        "intrusion", "Intrusion", "phishing", "ransomware", "jailbreak",
-        "prompt injection", "red team", "penetration", "incident response",
-        "situational awareness", "authentication", "cryptography",
-        "Cryptography", "cryptographic", "encryption", "watermarking",
-        # AI/模型词 (AI 领域论文标题特征)
-        "LLM", "GPT", "AI", "machine learning", "deep learning",
-        "neural network", "reinforcement learning", "large language model",
-        "foundation model", "diffusion model", "detection", "Detection",
-        "robustness", "Robustness", "anomaly", "federated",
-        "differential privacy", "agent", "Agent", "transformer", "Transformer",
-        # 中文兜底
-        "安全", "漏洞", "攻防", "大模型", "人工智能",
-    ],
+    # 2026-10-13: 原 "paper" 关键词表已删除 —— 论文分类改用
+    # _is_paper_title_relevant (10 实践域 ∪ 通用 AI/ML), 见文件头说明。
 }
+
+
+def _is_paper_title_relevant(title: str) -> bool:
+    """论文分类放行基准 (2026-10-13): 10 实践域 ∪ 通用 AI/ML。
+
+    - 命中 auto_classifier 的 10 实践域任一 → 放行 (与设置页领域口径一致)
+    - 否则命中通用 AI/ML 词表 → 放行 (cs.AI/cs.LG/cs.CL、ICLR/NeurIPS 等
+      纯 AI 论文)
+    - 两者皆无 → 拦 (拦「非安全且非 AI/ML」的论文, 如纯生物/材料)
+    """
+    from backend.services.auto_classifier import classify_practice_domain
+
+    if classify_practice_domain([], title) is not None:
+        return True
+    lowered = title.lower()
+    return any(kw in lowered for kw in _PAPER_AI_ML_KEYWORDS)
 
 
 def _is_title_relevant_to_category(title: str, category_value: str) -> bool:
@@ -122,11 +162,21 @@ def _is_title_relevant_to_category(title: str, category_value: str) -> bool:
 
     检查 ``title`` 是否命中 ``category_value`` 对应的关键词白名单。
     没在白名单的 category 一律放行。
+
+    ``paper`` 分类例外: 走 :func:`_is_paper_title_relevant` 领域判定,
+    不读 ``_CAT_KEYWORDS``。
     """
+    if category_value == "paper":
+        return _is_paper_title_relevant(title)
     keywords = _CAT_KEYWORDS.get(category_value)
     if not keywords:
         return True
     return any(kw in title for kw in keywords)
 
 
-__all__ = ["_CAT_KEYWORDS", "_is_title_relevant_to_category"]
+__all__ = [
+    "_CAT_KEYWORDS",
+    "_PAPER_AI_ML_KEYWORDS",
+    "_is_paper_title_relevant",
+    "_is_title_relevant_to_category",
+]

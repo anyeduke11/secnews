@@ -9,9 +9,8 @@
  * 边界:
  *   - available=false (初始化失败, 如 interest_engine gate 关闭 404) →
  *     调用方隐藏按钮, 不渲染死键;
- *   - no_domain 条目 (DEV-0314 起): 服务器返回 accepted_no_domain 时
- *     如实回滚乐观态并返回 discarded=true (调用方提示"未参与推荐"),
- *     不再保留虚假高亮。
+ *   - DEV-0326: 所有条目均可赞/踩并持久化 (含非安全领域/未归类) —
+ *     后端以哨兵域 + weight 0 记录 (点了就记住), 不再回滚乐观态。
  *
  * 后端契约 (backend/api/interest_api.py, DEV-0311):
  *   GET    /api/interest/reactions?days=90   → { items: {id: 'like'|'dislike'}, count }
@@ -25,9 +24,17 @@ import {
   postReaction,
   type ReactionType,
 } from '../lib/interest';
-import type { HotspotItem } from '../types';
 
 export type { ReactionType };
+
+/**
+ * reaction 最小目标 — 仅需 id (开关态键) 与 title (a11y 文案)。
+ * 放宽后首页精选 / 告警 / feed / 历史 / 今日重点等异构资讯均可复用 (DEV-0326)。
+ */
+export interface ReactionTarget {
+  id: string;
+  title: string;
+}
 
 interface ReactionsStoreState {
   map: Map<string, ReactionType>;
@@ -94,10 +101,9 @@ export function refreshReactions(): Promise<void> {
 
 /**
  * 赞/踩操作: 同键 = 取消 (删信号), 异键 = 切换/首设 (POST, 后端互斥)。
- * 乐观更新立即翻转本地状态; 请求失败自动回滚并写入 error (不向调用方抛错);
- * DEV-0314: 服务器丢弃 (accepted_no_domain) 同样回滚, 返回 true 供上层提示。
+ * 乐观更新立即翻转本地状态; 请求失败自动回滚并写入 error (不向调用方抛错)。
  */
-export function reactToItem(item: HotspotItem, type: ReactionType): Promise<boolean> {
+export function reactToItem(item: ReactionTarget, type: ReactionType): Promise<void> {
   const current = state.map.get(item.id);
   const isCancel = current === type;
 
@@ -113,20 +119,9 @@ export function reactToItem(item: HotspotItem, type: ReactionType): Promise<bool
     try {
       if (isCancel) {
         await deleteReaction(item.id);
-        return false;
+        return;
       }
-      const resp = await postReaction(item.id, type);
-      if (resp?.status === 'accepted_no_domain') {
-        // 服务器真实丢弃: 非安全内容不入权重 — 如实回滚, 不装成功 (DEV-0314)
-        updateState(prev => {
-          const map = new Map(prev.map);
-          if (current === undefined) map.delete(item.id);
-          else map.set(item.id, current);
-          return { ...prev, map };
-        });
-        return true;
-      }
-      return false;
+      await postReaction(item.id, type);
     } catch (e) {
       // 失败回滚 (恢复操作前状态: 无态度 / like / dislike)
       updateState(prev => {
@@ -135,7 +130,6 @@ export function reactToItem(item: HotspotItem, type: ReactionType): Promise<bool
         else map.set(item.id, current);
         return { ...prev, map, error: (e as Error).message || '赞踩操作失败' };
       });
-      return false;
     }
   })();
 }
@@ -149,8 +143,8 @@ export function resetReactionsStore(): void {
 
 export interface UseReactionsReturn {
   reactionOf: (id: string) => ReactionType | undefined;
-  /** 返回 true = 服务器丢弃 (accepted_no_domain, 未入库); 失败/取消/成功均 false */
-  react: (item: HotspotItem, type: ReactionType) => Promise<boolean>;
+  /** 赞/踩 (同键取消/异键切换); 失败自动回滚 + error, 不向调用方抛错 */
+  react: (item: ReactionTarget, type: ReactionType) => Promise<void>;
   available: boolean;
   loading: boolean;
   error: string | null;

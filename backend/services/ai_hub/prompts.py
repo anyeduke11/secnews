@@ -754,9 +754,9 @@ def build_daily_priority_intel_prompt(
     subject_id:
         顶层 subject (可不传, 走全 subject).
     admission_recent:
-        admission_log 近 7 天记录 [{action, verdict, subject_id, reason, ts}, ...]
+        admission_log 近 7 天记录 [{material_id, verdict, reason, ts}, ...]
     signals_recent:
-        signals 近 3 天记录 [{id, summary, subject_id, confidence, occurred_at}, ...]
+        signals 近 3 天记录 [{id, material_id, summary, subject_id, confidence, occurred_at}, ...]
     watchlist_subjects:
         关注的 subject_id 列表 (T08 watchlist; 默认空)
 
@@ -772,15 +772,14 @@ def build_daily_priority_intel_prompt(
             + "\n"
         )
     admission_block = "\n".join(
-        f"- ts={a.get('ts', '?')}, action={a.get('action', '?')}, "
-        f"verdict={a.get('verdict', '?')}, subject={a.get('subject_id', '?')}, "
-        f"reason={a.get('reason', '(none)')[:120]}"
+        f"- ts={a.get('ts', '?')}, material_id={a.get('material_id', '?')}, "
+        f"verdict={a.get('verdict', '?')}, reason={a.get('reason', '(none)')[:120]}"
         for a in admission_recent[:20]
     ) or "(无 admission 记录)"
     signals_block = "\n".join(
-        f"- id={s.get('id', '?')}, ts={s.get('occurred_at', '?')}, "
-        f"subject={s.get('subject_id', '?')}, conf={s.get('confidence', '?')}, "
-        f"summary={s.get('summary', '(none)')[:200]}"
+        f"- id={s.get('id', '?')}, material_id={s.get('material_id', '?')}, "
+        f"ts={s.get('occurred_at', '?')}, subject={s.get('subject_id', '?')}, "
+        f"conf={s.get('confidence', '?')}, summary={s.get('summary', '(none)')[:200]}"
         for s in signals_recent[:20]
     ) or "(无 signals 记录)"
     schema_str = json.dumps(DAILY_PRIORITY_INTEL_SCHEMA_V1, ensure_ascii=False, indent=2)
@@ -795,7 +794,8 @@ def build_daily_priority_intel_prompt(
         f"## 输出要求 (严格 JSON, 不允许 prose 包裹)\n\n"
         f"```json\n{schema_str}\n```\n\n"
         f"## 纪律\n"
-        f"1. top_items 3-5 条; 每条 rank + 一句话重点 + 关联 subject + reason + 原始来源 material/signal_id\n"
+        f"1. top_items 3-5 条; 每条 rank + 一句话重点 + 关联 subject + reason + 原始来源 "
+        f"source_refs (material_id / signal_id 必须从上文原样回填, 不得改写或臆造)\n"
         f"2. watchlist_changes 仅列已关注 subject 的状态变化 (空数组表示无变化)\n"
         f"3. suggested_actions 给 1-3 条具体下一步 (例: '启动 cve-impact-brief 评估 CVE-2026-31337')\n"
         f"4. confidence: high = 有 ≥2 独立来源; medium = 1 强来源; low = 推断\n"

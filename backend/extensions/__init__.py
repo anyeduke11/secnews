@@ -133,6 +133,7 @@ EXTENSION_JOBS: dict[str, list[str]] = {
     "security_graph": [
         "mitre_sync",                       # MITRE ATT&CK 同步 (Sun 04:00)
         "cve_sync_to_security",             # CVE 同步到 security 实体 (1800s)
+        "mp2_extract",                      # MP-2 事件类型实例化 (daily 03:30)
     ],
     "secnews": [
         "kl_pipeline_heartbeat",            # KL 管线心跳消费 (60s) — SECNEWS Phase 1

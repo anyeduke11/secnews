@@ -31,7 +31,7 @@ interface EventTypeRow {
 }
 
 interface CandidateRow {
-  candidate_id: string;
+  id: string;
   technique_id: string;
   stage?: string;
   confidence?: number;
@@ -128,7 +128,7 @@ export function EventsReviewPage() {
     try {
       await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/approve`, {});
       if (dead.current) return;
-      setCandidates(list => list.filter(c => c.candidate_id !== candidateId));
+      setCandidates(list => list.filter(c => c.id !== candidateId));
       setNotice({ kind: 'ok', text: `已通过 ${candidateId}` });
       void loadTypes();
     } catch (e) {
@@ -146,7 +146,7 @@ export function EventsReviewPage() {
     try {
       await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/reject`, { reason: rejectReason.trim() });
       if (dead.current) return;
-      setCandidates(list => list.filter(c => c.candidate_id !== candidateId));
+      setCandidates(list => list.filter(c => c.id !== candidateId));
       setRejectId(null);
       setRejectReason('');
       setNotice({ kind: 'ok', text: `已驳回 ${candidateId}` });
@@ -164,12 +164,12 @@ export function EventsReviewPage() {
     setBatching(true);
     setNotice(null);
     try {
-      const r = await postJSON<{ approved?: number; total?: number }>(
+      const r = await postJSON<{ approved_count?: number; skipped_count?: number }>(
         `/api/event-technique/event-types/${encodeURIComponent(selected)}/batch-approve`,
         { min_confidence: 0.7 },
       );
       if (dead.current) return;
-      setNotice({ kind: 'ok', text: `批量通过 ${r.approved ?? 0}/${r.total ?? 0} 条` });
+      setNotice({ kind: 'ok', text: `批量通过 ${r.approved_count ?? 0} 条 (跳过 ${r.skipped_count ?? 0})` });
       void loadCandidates(selected);
       void loadTypes();
     } catch (e) {
@@ -256,7 +256,7 @@ export function EventsReviewPage() {
             ) : candsError ? (
               <EmptyState title="候选加载失败" description={candsError} />
             ) : candidates.length === 0 ? (
-              <EmptyState title="该类型暂无待审候选" description="候选由采集管线按置信度 ≥ 阈值自动入池, 也可稍后刷新。" />
+              <EmptyState title="该类型暂无待审候选" description="候选由采集管线每日自动抽取入池 (置信度 ≥ 阈值)。若尚未产出, 可等待下次调度或运行 agent 抽取脚本。" />
             ) : (
               <table className="ed-table" aria-label="候选队列">
                 <thead>
@@ -270,13 +270,13 @@ export function EventsReviewPage() {
                 </thead>
                 <tbody>
                   {candidates.map(c => (
-                    <tr key={c.candidate_id}>
+                    <tr key={c.id}>
                       <td className="mono">{c.technique_id}</td>
                       <td className="mono">{c.stage ?? '--'}</td>
                       <td className="mono">{typeof c.confidence === 'number' ? c.confidence.toFixed(2) : '--'}</td>
                       <td style={{ maxWidth: 380 }}>
                         <div style={{ lineHeight: 1.55 }}>{c.evidence_quote || c.rationale || '--'}</div>
-                        {rejectId === c.candidate_id && (
+                        {rejectId === c.id && (
                           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                             <input
                               className="editorial-input"
@@ -292,13 +292,13 @@ export function EventsReviewPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {rejectId === c.candidate_id ? (
+                          {rejectId === c.id ? (
                             <>
                               <button
                                 type="button"
                                 className="ed-btn warn"
-                                disabled={busyId === c.candidate_id || !rejectReason.trim()}
-                                onClick={() => reject(c.candidate_id)}
+                                disabled={busyId === c.id || !rejectReason.trim()}
+                                onClick={() => reject(c.id)}
                               >
                                 确认驳回
                               </button>
@@ -311,16 +311,16 @@ export function EventsReviewPage() {
                               <button
                                 type="button"
                                 className="ed-btn primary"
-                                disabled={busyId === c.candidate_id}
-                                onClick={() => approve(c.candidate_id)}
+                                disabled={busyId === c.id}
+                                onClick={() => approve(c.id)}
                               >
                                 通过
                               </button>
                               <button
                                 type="button"
                                 className="ed-btn"
-                                disabled={busyId === c.candidate_id}
-                                onClick={() => { setRejectId(c.candidate_id); setRejectReason(''); }}
+                                disabled={busyId === c.id}
+                                onClick={() => { setRejectId(c.id); setRejectReason(''); }}
                               >
                                 驳回
                               </button>

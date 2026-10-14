@@ -1,7 +1,7 @@
 """DEV-0182 — Interest Engine API + service 单元测试。
 
 覆盖:
-- record_signal: 归因记录 / 无域拒记 (no_domain) / 去重 / 非法 type
+- record_signal: 归因记录 / 无域拒记 (累计型 no_domain; DEV-0326 reaction 放行) / 去重 / 非法 type
 - aggregate: 无信号时 10 域全量 + S=0.15 (未勾) / 勾选域 S=0.75 / β 渐进
 - get_boost_map: 无数据恒等 (乘子恒定) / 有行为分排序变化
 - reset: 清信号 + 行为分归零 + 显式勾选保留
@@ -138,11 +138,30 @@ class TestAttribution:
         result = InterestEngineService().record_signal("h-attr-aisec", "like")
         assert result == {"status": "recorded", "domain": "ai_security"}
 
-    def test_non_security_category_keeps_no_domain(self, temp_db):
-        """非安全类目补归因不蔓延: tech 裸条仍 no_domain (非安全内容不入权重)。"""
+    def test_non_security_cumulative_still_no_domain(self, temp_db):
+        """非安全类目补归因不蔓延: 累计型信号 (view) 无域仍拒记 (非安全内容不入权重)。"""
         _seed_ai_item("h-attr-tech", "荣耀 WIN 2 手机外观首曝：横向矩阵 Deco", Category.TECH)
-        result = InterestEngineService().record_signal("h-attr-tech", "like")
+        result = InterestEngineService().record_signal("h-attr-tech", "view")
         assert result["status"] == "no_domain"
+
+    def test_non_security_reaction_persisted_without_weight(self, temp_db):
+        """DEV-0326: 非安全类目 reaction 放行 — 存哨兵域 + weight 0 (点了就记住),
+        对外仍报 domain None; 哨兵域不属 PRACTICE_DOMAINS → 不进兴趣权重聚合。"""
+        _seed_ai_item("h-attr-tech", "荣耀 WIN 2 手机外观首曝：横向矩阵 Deco", Category.TECH)
+        svc = InterestEngineService()
+        result = svc.record_signal("h-attr-tech", "like")
+        assert result == {"status": "recorded", "domain": None}
+
+        from backend.repository.db import get_connection
+        from backend.repository.hotspot_repo import INTEREST_UNATTRIBUTED_DOMAIN
+
+        rows = get_connection().execute(
+            "SELECT domain, weight FROM interest_signals WHERE item_id = 'h-attr-tech'"
+        ).fetchall()
+        assert [(r["domain"], r["weight"]) for r in rows] == [(INTEREST_UNATTRIBUTED_DOMAIN, 0.0)]
+        # 回读正常 (UI 高亮保留) / 聚合全 0 (不污染排序)
+        assert svc.reactions_map()["h-attr-tech"] == "like"
+        assert all(v["events_30d"] == 0 for v in svc.aggregate().values())
 
 
 class TestAggregate:

@@ -41,6 +41,15 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def material_id_for(url: str | None, title: str | None) -> str:
+    """material id 内容寻址: mat + sha256(url|title)[:24] (url/title 已 strip)。
+
+    hotspot ↔ v1 世界唯一物理联系。生产方 (_fetch_candidates / _material_body)
+    与反查方 (sk01 source_refs 映射) 共用此单一来源, 防公式漂移。
+    """
+    return "mat" + _sha(f"{str(url or '').strip()}|{str(title or '').strip()}")[:24]
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -69,7 +78,7 @@ def _fetch_candidates(window_hours: int, limit: int) -> tuple[list[dict[str, Any
         return [], 0
     # material id = sha(url|title) — 窗口内先算先滤, 未镜像的才进批
     def _mat_id(h: dict[str, Any]) -> str:
-        return "mat" + _sha(f"{str(h.get('url') or '').strip()}|{str(h.get('title') or '').strip()}")[:24]
+        return material_id_for(h.get("url"), h.get("title"))
 
     ids = [_mat_id(h) for h in hotspots]
     marks = ",".join("?" for _ in ids)
@@ -86,7 +95,7 @@ def _material_body(hotspot: dict[str, Any]) -> dict[str, Any]:
     summary = str(hotspot.get("summary") or "").strip()[:400]
     source = str(hotspot.get("source") or "")
     return {
-        "id": "mat" + _sha(f"{url}|{title}")[:24],
+        "id": material_id_for(url, title),
         "source_kind": "url",
         "url": url,
         "title": title,
@@ -275,4 +284,4 @@ def run_hotspot_signal_bridge(
     return summary
 
 
-__all__ = ["run_hotspot_signal_bridge"]
+__all__ = ["material_id_for", "run_hotspot_signal_bridge"]

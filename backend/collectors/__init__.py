@@ -5,6 +5,14 @@ from backend.collectors.arxiv_paper_collector import (
     PAPER_DOMAIN_QUERIES,
     PAPER_SOURCES,
 )
+from backend.collectors.paper_sources import (
+    CrossrefCollector,
+    HFDailyPapersCollector,
+    IACRCollector,
+    OpenAlexCollector,
+    PaperProviderMixin,
+    SemanticScholarCollector,
+)
 from backend.collectors.hn_collector import HNCollector, HN_SOURCES
 from backend.collectors.reddit_collector import RedditCollector, REDDIT_SOURCES
 from backend.collectors.openbb_collector import OpenBBCollector, OPENBB_SOURCES
@@ -25,11 +33,17 @@ __all__ = [
     "TELEGRAM_SOURCES",
     "ArxivPaperCollector",
     "BackendSession",
+    "CrossrefCollector",
     "GDELTCollector",
+    "HFDailyPapersCollector",
     "HNCollector",
+    "IACRCollector",
     "OSSInsightCollector",
+    "OpenAlexCollector",
     "OpenBBCollector",
+    "PaperProviderMixin",
     "RedditCollector",
+    "SemanticScholarCollector",
     "TelegramCollector",
     "make_readable_id",
 ]

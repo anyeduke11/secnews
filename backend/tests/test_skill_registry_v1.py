@@ -37,7 +37,7 @@ def test_sk01_service_returns_fallback_when_no_data(temp_db) -> None:
 def test_sk01_dsh_failure_returns_fallback(temp_db, monkeypatch) -> None:
     """dsh 抛错 → fallback_dsh_failed (含错误信息 suggested_actions)."""
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_admission_recent",
-                        lambda days=7: [{"action": "x", "verdict": "y", "subject_id": "z", "reason": "r", "ts": "t"}])
+                        lambda days=7: [{"material_id": "MAT-x", "verdict": "y", "reason": "r", "ts": "t"}])
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_signals_recent",
                         lambda days=3: [])
     svc = DailyPriorityIntelService(dsh_caller=lambda _p: (_ for _ in ()).throw(RuntimeError("mock dsh fail")))
@@ -48,9 +48,9 @@ def test_sk01_dsh_failure_returns_fallback(temp_db, monkeypatch) -> None:
 def test_sk01_dsh_success_returns_top_items(temp_db, monkeypatch) -> None:
     """dsh 返合法 JSON → mode=dsh + top_items 1 条 (mock admission_recent + signals_recent 让路径走 dsh)."""
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_admission_recent",
-                        lambda days=7: [{"action": "admit", "verdict": "allow", "subject_id": "SUBJ-1", "reason": "test", "ts": "2026-09-01"}])
+                        lambda days=7: [{"material_id": "MAT-1", "verdict": "allow", "reason": "test", "ts": "2026-09-01"}])
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_signals_recent",
-                        lambda days=3: [{"id": "SIG-1", "subject_id": "SUBJ-1", "confidence": "verified", "summary": "s", "occurred_at": "2026-09-01"}])
+                        lambda days=3: [{"id": "SIG-1", "subject_id": "SUBJ-1", "material_id": "MAT-1", "confidence": "verified", "summary": "s", "occurred_at": "2026-09-01"}])
     dsh_resp = json.dumps({
         "top_items": [
             {"rank": 1, "summary": "CVE-2026-31337 紧急", "subject_id": "SUBJ-001",
@@ -69,12 +69,40 @@ def test_sk01_dsh_success_returns_top_items(temp_db, monkeypatch) -> None:
 def test_sk01_dsh_invalid_json_falls_back(temp_db, monkeypatch) -> None:
     """dsh 返非 JSON → parse 失败 → fallback_dsh_failed (T14 失败样本)."""
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_admission_recent",
-                        lambda days=7: [{"action": "x", "verdict": "y", "subject_id": "z", "reason": "r", "ts": "t"}])
+                        lambda days=7: [{"material_id": "MAT-x", "verdict": "y", "reason": "r", "ts": "t"}])
     monkeypatch.setattr("backend.services.skill_registry.sk01_daily_priority._query_signals_recent",
                         lambda days=3: [])
     svc = DailyPriorityIntelService(dsh_caller=lambda _p: "not json at all")
     out = svc.compute()
     assert out["mode"] == "fallback_dsh_failed"
+
+
+def test_attach_hotspot_ids_maps_material_id_to_hotspot(temp_db) -> None:
+    """DEV-0326: source_refs.material_id → hotspot 行 id 反查, 供前端 reaction 归因.
+
+    命中 → 附加 item_id (前端可点赞); 未命中不附加 (前端降级只读)。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.repository.db import get_connection
+    from backend.services.skill_registry.sk01_daily_priority import _attach_hotspot_ids
+    from backend.services.v1_signal_bridge import material_id_for
+
+    url, title = "https://example.com/cve-2026-1234", "CVE-2026-1234 漏洞复现"
+    recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO hotspots (id, title, source, url, category, published_at, fetched_at) "
+        "VALUES (?, ?, 'test', ?, 'security', ?, ?)",
+        ("hp-1", title, url, recent, recent),
+    )
+    items = [
+        {"title": "命中", "source_refs": [{"material_id": material_id_for(url, title)}]},
+        {"title": "未命中", "source_refs": [{"material_id": "mat-deadbeef"}]},
+    ]
+    _attach_hotspot_ids(items, [])
+    assert items[0]["item_id"] == "hp-1"
+    assert "item_id" not in items[1], "未命中不附加 (前端降级只读)"
 
 
 # ---------------------------------------------------------------------------

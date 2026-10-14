@@ -6,8 +6,9 @@
 - 轮转采样: 连续两次 collect 取的领域集合不同 (mock _fetch_rss_bytes 按领域返回)
 - id 落点: arxiv: 前缀 → item.id, 领域键 → item.source (设计稿 §3.2 的
   tags 三要素载体最终简化为 arxiv:<id> 单 tag, 后两元素无消费点已删)
-- 注册点齐备: Category.PAPER / collectors dict / _CAT_KEYWORDS / 报表标签表 /
-  crawler_sources 种子 14 行 (经 temp_db 真实跑 migration 123)
+- 注册点齐备: Category.PAPER / collectors dict (arXiv + 5 新源) / 领域门 /
+  报表标签表 / crawler_sources 种子 19 行 (经 temp_db 真实跑 migration
+  123 + 134)
 
 为什么这些行为重要: paper 分类要进入既有采集管线 (registry 切流按 name 对齐、
 质量门禁按 category 关键词放行、报表按标签表消费), 任何一个注册点缺失都会让
@@ -224,22 +225,38 @@ def test_category_paper_registered():
 
 
 def test_collectors_dict_has_paper():
-    """collection_service.collectors dict 含 PAPER → ArxivPaperCollector。"""
+    """collection_service.collectors dict 含 PAPER → arXiv + 5 新源 collector。"""
     from backend.collectors.arxiv_paper_collector import ArxivPaperCollector
+    from backend.collectors.paper_sources import (
+        CrossrefCollector,
+        HFDailyPapersCollector,
+        IACRCollector,
+        OpenAlexCollector,
+        SemanticScholarCollector,
+    )
     from backend.domain.enums import Category
     from backend.services.collection_service import CollectionService
 
     svc = CollectionService()
     assert Category.PAPER in svc.collectors
     collectors = svc.collectors[Category.PAPER]
-    assert len(collectors) == 1
+    assert len(collectors) == 6
     assert isinstance(collectors[0], ArxivPaperCollector)
+    assert {type(c) for c in collectors[1:]} == {
+        OpenAlexCollector,
+        SemanticScholarCollector,
+        IACRCollector,
+        CrossrefCollector,
+        HFDailyPapersCollector,
+    }
 
 
 def test_keywords_gate_lets_security_paper_titles_through():
-    """paper 关键词表: 安全论文标题过 _title_relevant, 无关标题被拦。"""
+    """paper 领域门放行基准 = 10 实践域 ∪ 通用 AI/ML:
+    安全论文标题与通用 AI/ML 标题过 _title_relevant, 无关标题被拦。"""
     from backend.collectors.keywords import _is_title_relevant_to_category
 
+    # 10 实践域 (经 classify_practice_domain 命中)
     assert _is_title_relevant_to_category(
         "Adversarial Robustness of Large Language Models", "paper"
     )
@@ -249,7 +266,14 @@ def test_keywords_gate_lets_security_paper_titles_through():
     assert _is_title_relevant_to_category(
         "A Survey of Threat Intelligence Sharing", "paper"
     )
-    # 无任何学术/安全词 → 拦 (这张表是 paper 分类的入管白名单)
+    # 通用 AI/ML (非安全但属 AI/ML, 按用户放行基准放过)
+    assert _is_title_relevant_to_category(
+        "Scaling Laws for Neural Language Models", "paper"
+    )
+    assert _is_title_relevant_to_category(
+        "A Survey of Reinforcement Learning", "paper"
+    )
+    # 非安全且非 AI/ML → 拦 (领域门的排除面)
     assert not _is_title_relevant_to_category("My Cat is Cute", "paper")
 
 
@@ -271,10 +295,17 @@ def test_report_services_label_tables_have_paper():
         assert "paper" in mod.CATEGORY_ORDER, mod.__name__
 
 
-def test_crawler_sources_seed_14_rows(temp_db):
-    """migration 123 种子: 14 行 paper 源, name 与 sources 领域键对齐,
-    feed_url (registry → rss_url 路由键) 与 api_url 均为领域 query。"""
+def test_crawler_sources_seed_paper_rows(temp_db):
+    """migration 123 + 134 种子: 19 行 paper 源 (arXiv 14 领域 + 5 新源),
+    name 与各 collector 的 sources 逐字对齐 (切流机制按 name 匹配)。"""
     from backend.collectors.arxiv_paper_collector import PAPER_DOMAIN_QUERIES
+    from backend.collectors.paper_sources import (
+        CrossrefCollector,
+        HFDailyPapersCollector,
+        IACRCollector,
+        OpenAlexCollector,
+        SemanticScholarCollector,
+    )
     from backend.repository.db import get_connection
 
     conn = get_connection()
@@ -283,17 +314,55 @@ def test_crawler_sources_seed_14_rows(temp_db):
         "network_zone FROM crawler_sources WHERE category = 'paper'"
     ).fetchall()
 
-    assert len(rows) == 14
+    assert len(rows) == 19
     by_name = {r["name"]: r for r in rows}
-    # 注册行 name 必须与 collector sources 领域键一一对齐 (切流机制按 name 匹配)
-    assert set(by_name) == set(PAPER_DOMAIN_QUERIES)
-    for name, r in by_name.items():
+
+    # migration 123: arXiv 14 领域行 — rss, feed_url==api_url==领域 query
+    arxiv = {n: r for n, r in by_name.items() if n in PAPER_DOMAIN_QUERIES}
+    assert len(arxiv) == 14
+    assert set(arxiv) == set(PAPER_DOMAIN_QUERIES)
+    for name, r in arxiv.items():
         assert r["kind"] == "rss"
         assert r["enabled"] == 1
         assert r["network_zone"] == "international"
         assert r["feed_url"] == PAPER_DOMAIN_QUERIES[name], name
         assert r["api_url"] == PAPER_DOMAIN_QUERIES[name], name
         assert r["id"] == f"paper:{name}"
+
+    # migration 134: 5 新源行 — name 与 collector 类常量逐一对齐
+    new_names: set[str] = set()
+    for cls in (
+        OpenAlexCollector,
+        SemanticScholarCollector,
+        IACRCollector,
+        CrossrefCollector,
+        HFDailyPapersCollector,
+    ):
+        new_names.update(s["name"] for s in cls.sources)
+    assert len(new_names) == 5
+    assert new_names <= set(by_name), "migration 134 源名与 collector 常量不齐"
+    for name in new_names:
+        r = by_name[name]
+        assert r["enabled"] == 1
+        assert r["network_zone"] == "international"
+        assert r["id"] == f"paper:{r['id'].split(':', 1)[1]}"
+
+    # JSON 源 feed_url 必须留空 (非空会误走 _fetch_rss); api_url 承载端点
+    for name in ("OpenAlex", "Semantic Scholar", "Crossref",
+                 "Hugging Face Daily Papers"):
+        r = by_name[name]
+        assert r["kind"] == "json", name
+        assert not (r["feed_url"] or ""), f"{name} feed_url 应留空"
+        assert r["api_url"], f"{name} api_url 不应为空"
+    # 动态日期窗占位 (抓取前由 PaperProviderMixin.fetch_source 注入)
+    for name in ("OpenAlex", "Semantic Scholar", "Crossref"):
+        assert "{from_date}" in by_name[name]["api_url"], name
+        assert "{to_date}" in by_name[name]["api_url"], name
+    # IACR ePrint 为 RSS 源: feed_url 填端点, api_url 留空
+    iacr = by_name["IACR ePrint"]
+    assert iacr["kind"] == "rss"
+    assert iacr["feed_url"] == "https://eprint.iacr.org/rss/rss.xml"
+    assert not (iacr["api_url"] or "")
 
 
 def test_registry_rotation_window_applies(temp_db):

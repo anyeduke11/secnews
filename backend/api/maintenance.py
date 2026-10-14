@@ -1,184 +1,29 @@
-"""Maintenance API — DB health, vacuum, data cleanup, duplicate detection."""
+"""Maintenance API — DB 健康 / 维护 / 去重 / 保留策略, 薄聚合层 (拆自 184 行单文件)。
+
+路由按资源域拆为子文件, 本文件只负责组装; URL/method 逐字不变,
+``backend/api/_registry_core.py`` 无需改动 (惯例同 sources.py / knowledge.py):
+
+- ``maintenance_db_api.py``        — DB 健康/维护/去重 (/health · /table-stats ·
+  /dirty-report · /index-health · /vacuum · /cleanup · /orphans · /duplicates ·
+  /cleanup-duplicates)
+- ``maintenance_retention_api.py`` — 保留策略/备份链 (/backup-verify ·
+  /quality-log-tiers · /cleanup-quality-logs · /backups · /backups/compact)
+
+注意: prefix 由每个子 router 自带 (沿用本目录惯例, 见 sources.py),
+而非挂在聚合 router 上 — 本仓 FastAPI 的 include 是惰性 _IncludedRouter,
+prefix 挂聚合层会推迟到请求期才展开, 破坏 test_feature_gates 的静态路由遍历。
+"""
 
 from __future__ import annotations
 
-import asyncio
-import logging
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Query
+from backend.api.maintenance_db_api import router as db_router
+from backend.api.maintenance_retention_api import router as retention_router
 
-log = logging.getLogger("hotspot.api.maintenance")
-router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
+router = APIRouter()
 
+router.include_router(db_router)
+router.include_router(retention_router)
 
-@router.get("/health")
-async def maintenance_health():
-    """DB health: size, page counts, fragmentation."""
-    from backend.services.maintenance_service import db_health
-    return db_health()
-
-
-@router.get("/table-stats")
-async def maintenance_table_stats():
-    """Detailed per-table row count and estimated size."""
-    from backend.services.maintenance_service import table_stats
-    return {"tables": table_stats()}
-
-
-@router.get("/dirty-report")
-async def maintenance_dirty_report():
-    """Comprehensive dirty-data report."""
-    from backend.services.maintenance_service import dirty_data_report
-    return dirty_data_report()
-
-
-@router.get("/index-health")
-async def maintenance_index_health(
-    mode: str = Query("full", pattern="^(quick|full)$",
-                     description="full=integrity_check (含索引内容一致性); quick=仅 B-tree 结构"),
-):
-    """DEV-0320: 索引健康探测 (逐 schema: 索引计数/integrity 检查/ANALYZE 统计覆盖)。
-
-    默认 full — 实测三库合计 ~1s, 是"索引是否真的健康"的权威答案;
-    integrity_check 属读侧长查询, to_thread 防阻塞事件循环。
-    """
-    from backend.services.maintenance_service import index_health
-    return await asyncio.to_thread(index_health, mode)
-
-
-@router.post("/vacuum")
-async def maintenance_vacuum():
-    """VACUUM + REINDEX + ANALYZE. Frees unused pages, rebuilds indexes."""
-    from backend.services.maintenance_service import run_vacuum
-    # DEV-0318: VACUUM 是长事务, async 端点内同步执行会冻结事件循环
-    return await asyncio.to_thread(run_vacuum)
-
-
-@router.post("/backup-verify")
-async def maintenance_backup_verify():
-    """v0.8.2 Y-A4 (§2.4): 最新 full 备份完整性校验 (integrity + 行数 + 抽样)。
-
-    周一 02:00 由 ``backup_verify_job`` 自动触发; 本端点供运维按需手跑。
-    永不抛 — 失败以 ``ok=False + errors`` 返回 (audit_log 已留痕)。
-    """
-    import asyncio
-
-    from backend.services.backup_verify_service import verify_latest_backup
-
-    return await asyncio.to_thread(verify_latest_backup)
-
-
-@router.post("/cleanup")
-async def maintenance_cleanup(
-    days: int = Query(90, ge=1, le=365, description="保留最近 N 天的记录"),
-    dry_run: bool = Query(True, description="True=仅预览, False=实际删除"),
-):
-    """Delete historical data older than N days.
-
-    Tables: sync_history, collection_history, export_cache.
-    Dry-run by default — use ``?dry_run=false`` to actually delete.
-    """
-    from backend.services.maintenance_service import cleanup_history
-    # DEV-0318: 清理+VACUUM 为长事务, 移出事件线程避免冻结事件循环
-    result = await asyncio.to_thread(cleanup_history, days=days, dry_run=dry_run)
-    if not dry_run:
-        from backend.services.maintenance_service import run_vacuum
-        vac = await asyncio.to_thread(run_vacuum)
-        result["vacuum"] = vac
-    return result
-
-
-@router.get("/orphans")
-async def maintenance_orphans():
-    """Detect orphaned knowledge items (no domain, no concepts)."""
-    from backend.services.maintenance_service import detect_orphan_items
-    return detect_orphan_items()
-
-
-@router.get("/quality-log-tiers")
-async def maintenance_quality_log_tiers(
-    days: int | None = Query(None, ge=1, le=120,
-                            description="档宽 (天); 缺省 = 台账 retention/tiers"),
-    tiers: int = Query(3, ge=1, le=6, description="展示档数 (默认 3 档)"),
-):
-    """DEV-0322: 质量日志分档统计 (近 N 档行数/估算体积 + 超窗口档)。
-
-    超窗口档 (in_window=false) 的 rows = 此刻执行清理将真实归档的量 —
-    展示与 archive_quality_logs 同一 isoformat cutoff 口径, 不会两套数字。
-    """
-    from backend.services.maintenance_service import quality_log_tiers
-    # 全表 SUM(LENGTH) + 分段 COUNT, 26 万行稳态 ~百 ms 级 → to_thread
-    return await asyncio.to_thread(quality_log_tiers, days, tiers)
-
-
-@router.post("/cleanup-quality-logs")
-async def maintenance_cleanup_quality_logs(
-    days: int | None = Query(None, ge=1, le=365,
-                            description="保留天数; 缺省 = 台账 retention (DEV-0322 三档 = 档宽×3)"),
-    dry_run: bool = Query(True, description="True=仅预览, False=实际删除"),
-):
-    """Purge old quality_check_logs entries (main DB bloat culprit ~3M rows)."""
-    from backend.services.maintenance_service import cleanup_quality_logs
-    # DEV-0318: 53 万行归档 DELETE 是长事务, 必须移出事件线程
-    if days is None:
-        from backend.services.maintenance_service import _qcl_retention_days
-        days = _qcl_retention_days()
-    return await asyncio.to_thread(cleanup_quality_logs, days=days, dry_run=dry_run)
-
-
-@router.get("/backups")
-async def maintenance_backups_inventory():
-    """DEV-0323: 备份现状盘点 (1 full + ≤3 增量不变量 / 链档 / zip / 占用)。
-
-    纯 stat + 少量 header 读, 毫秒级同步即可。
-    """
-    from backend.services.backup_service import backup_inventory
-    return backup_inventory()
-
-
-@router.post("/backups/compact")
-async def maintenance_backups_compact(
-    keep_incrementals: int = Query(3, ge=1, le=6, description="增量链保留档数 (默认 3)"),
-):
-    """DEV-0323: 手动触发滚动保留整理 (roll-forward 合成 + 旧 full/残档/超额 zip 清理)。
-
-    apply 链到大库 full 副本 + 新 full 落盘是秒~分级长 IO, to_thread。
-    """
-    from backend.services.backup_service import compact_backup_chain
-    return await asyncio.to_thread(compact_backup_chain, keep_incrementals)
-
-
-@router.get("/duplicates")
-async def maintenance_duplicates():
-    """Detect duplicate hotspots by URL and duplicate knowledge items by title."""
-    from backend.services.maintenance_service import (
-        detect_duplicate_hotspots,
-        detect_duplicate_knowledge_items,
-    )
-    return {
-        "hotspots": detect_duplicate_hotspots(),
-        "knowledge_items": detect_duplicate_knowledge_items(),
-    }
-
-
-@router.post("/cleanup-duplicates")
-async def maintenance_cleanup_duplicates(
-    dry_run: bool = Query(True, description="True=仅预览, False=实际删除"),
-):
-    """Deduplicate hotspots (by URL) and knowledge items (by title).
-
-    Keeps the earliest-inserted row per unique URL/title.
-    """
-    from backend.services.maintenance_service import (
-        cleanup_duplicate_hotspots,
-        cleanup_duplicate_knowledge_items,
-    )
-    # DEV-0318: 去重 DELETE 为长事务, 移出事件线程
-    hotspots = await asyncio.to_thread(cleanup_duplicate_hotspots, dry_run=dry_run)
-    ki = await asyncio.to_thread(cleanup_duplicate_knowledge_items, dry_run=dry_run)
-    return {
-        "hotspots": hotspots,
-        "knowledge_items": ki,
-        "dry_run": dry_run,
-        "total_deleted": hotspots["total_deleted"] + ki["total_deleted"],
-    }
+__all__ = ["router"]

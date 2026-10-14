@@ -6,8 +6,17 @@
  * 交互: 同键=取消 / 异键=切换 (语义由 useReactions + 后端互斥保证);
  * 点击不冒泡 (卡片可能整体可点)。
  */
-import type { HotspotItem } from '../../types';
-import type { ReactionType } from '../../hooks/useReactions';
+import { useReactions, type ReactionTarget, type ReactionType } from '../../hooks/useReactions';
+
+/**
+ * useReactionAction — 赞/踩点击处理器 (DEV-0326)。
+ *
+ * 4 个资讯面 (首页精选/告警/报纸流/历史) 共用的调用壳; 赞/踩对全部条目放行
+ * 并由后端持久化 (含非安全领域/未归类, 存哨兵域 weight 0), 无"丢弃"分支。
+ */
+export function useReactionAction(): (item: ReactionTarget, type: ReactionType) => Promise<void> {
+  return useReactions().react;
+}
 
 function ThumbIcon({ down = false, filled = false }: { down?: boolean; filled?: boolean }) {
   return (
@@ -37,14 +46,14 @@ function ThumbIcon({ down = false, filled = false }: { down?: boolean; filled?: 
   );
 }
 
-export function ReactionButtons({
+export function ReactionButtons<T extends ReactionTarget>({
   item,
   current,
   onReact,
 }: {
-  item: HotspotItem;
+  item: T;
   current: ReactionType | undefined;
-  onReact: (item: HotspotItem, type: ReactionType) => void;
+  onReact: (item: T, type: ReactionType) => void;
 }) {
   const liked = current === 'like';
   const disliked = current === 'dislike';

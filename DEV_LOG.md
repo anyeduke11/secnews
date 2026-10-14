@@ -1,4 +1,77 @@
 
+## [DEV-0328] MP-2 事件类型实例化链路修复 — 接通采集→抽取→入池调度 job + 前端契约纠偏 (mp2-event-type-chain-fix)
+
+- **时间**: 2026-10-13
+- **类型**: 修复/补全 (P1 功能闭环; owner: 「采用第一性原理分析通告审核实际的功能和目标，检查是否达到开发预期」→「根据当前问题制定修复计划」→ AskUserQuestion 选定交付范围「全做 A+B+C+D」)
+- **第一性原理诊断 (通告审核实际功能 vs 预期)**: MP-2 预期链路 = 「LLM 抽取 ATT&CK 技术候选 → 程序化校验 → 候选池 (pending) → owner 人工审定 → `event_technique_map` + 审计」。实测链路**四段断裂** —— ① 无调度 job 生产候选 (候选池恒空, 人工审定无米下锅); ② 前端契约与后端不符 (字段名漂移); ③ 语料只种 A 类 5 子目录, B/C/D/E 6 类无 event_types 行; ④ 无契约测试锁定, 三处静默漂移。
+- **A+B+C+D 交付**:
+  - **A1 (接通调度 job, 候选生产端)**: 新增 `mp2_extract_job` (`backend/scheduler/jobs/security.py`) —— `_mp2_ingest_all()` 扫描语料根下 agent_A~E 全部 11 类并按 **per-agent 路由** 映射到 event_type_id (agent_A 按 5 子目录 → evt_brute_force/evt_phishing_social/evt_ransomware/evt_supply_chain/evt_web_app_intrusion; agent_B 按 frontmatter `event_type_id`; agent_C/D/E 各固定 1 类走 `bulk_ingest_from_dir`), 返回 `{event_type_id: agent_owner}`; `_mp2_reports_with_candidates(event_type_id)` 增量过滤已产候选的报告 (避免重复抽取); job 用**真实 ai_hub LLM** (`MP2_LLM_MODEL = "ai_hub-extract"`, 失败自动降级 mock)。`backend/scheduler/scheduler.py` `_register_security_jobs` 注册 `CronTrigger(hour=3, minute=30, timezone="Asia/Shanghai")` id=`mp2_extract`。`backend/extensions/__init__.py` `EXTENSION_JOBS["security_graph"]` 加 `"mp2_extract"`。
+  - **A2 (脚本对齐现有 service)**: `scripts/agent_{B,C,D,E}_extract.py` 改为调用 `event_technique_extract_service` 既有接口 (脚本+薄服务方法方案), 删除陈旧直连逻辑。
+  - **B1/B2 (前端契约纠偏)**: `frontend/src/components/events/EventsReviewPage.tsx` —— B1 候选行字段 `candidate_id` → `id` (后端权威契约); B2 batch 响应改读 `approved_count`/`skipped_count` (原读 `approved`/`total` 恒 undefined)。
+  - **C1 (migration 补种)**: 新增 `backend/repository/migrations/135_mp2_event_types_seed_bcde.sql`, 补种 B/C/D/E 共 6 类 event_types (evt_ai_model_poison/evt_cloud_misconfig/evt_insider_threat/evt_fraud/evt_data_breach/evt_regulatory_notice)。
+  - **D1/D2/D3 (契约文案)**: `event_technique_api.py`/`event_types_api.py` docstring 端点计数修正 (六→七); `EventsReviewPage.tsx` 空态文案; `docs/UNIMPLEMENTED.md` 台账同步。
+  - **D4 (契约测试, 新建)**: `backend/tests/test_mp2_api_contract.py` —— 8 用例锁死全链契约: 候选 approve 链 e2e (`etc_` 前缀/`etm_` map_id/审计行) / 低置信度拒绝 (conf 0.2→400) / 未知 event_type (404) / 重复 approve (409) / 驳回需 reason (422) / batch 响应契约 (`approved_count`/`skipped_count` 回显) / `_mp2_ingest_all()` 11 类路由映射全覆盖 + 落库断言 / 增量过滤跳过已处理报告。
+- **修复的静默漂移 (Rule 12)**: 新增 `mp2_extract` job 后硬编码 job 数失效 —— `test_feature_gates.py::TestJobGating::test_registered_job_count_matches_scheduler` 断言 `59 == 58` 失败, 已随 ↔ 更新为 59 + docstring 说明。B1/B2 前端契约修复后 colocated 测试 mock 仍是旧字段名 → 2 failed, 已修 mock 匹配真实后端契约 (Rule 9: 测试编码真实意图)。
+- **改动 (Rule 3 手术刀式)**:
+  - `backend/scheduler/jobs/security.py`: 新增 `MP2_LLM_MODEL` / `_mp2_ingest_all` / `_mp2_reports_with_candidates` / `mp2_extract_job`
+  - `backend/scheduler/scheduler.py`: 注册 `mp2_extract` job
+  - `backend/extensions/__init__.py`: `EXTENSION_JOBS["security_graph"]` 加 `mp2_extract`
+  - `backend/services/event_technique_extract_service.py`: `id`/`technique_id` 归一化 + `CONFIDENCE_THRESHOLD=0.4` + `MOCK_LLM_MODEL`
+  - `backend/repository/migrations/135_mp2_event_types_seed_bcde.sql`: 补种 6 类
+  - `scripts/agent_{B,C,D,E}_extract.py`: 对齐既有 service 接口
+  - `backend/api/event_technique_api.py` / `event_types_api.py`: docstring 端点数
+  - `frontend/src/components/events/EventsReviewPage.tsx`: B1/B2 + 空态文案
+  - `frontend/src/components/events/EventsReviewPage.test.tsx`: mock 契约纠偏
+  - `backend/tests/test_mp2_api_contract.py`: 新增 8 用例
+  - `backend/tests/test_feature_gates.py`: job 计数 58→59
+  - `docs/UNIMPLEMENTED.md`: 端点数
+- **未触碰**: `event_technique_extract_service` 抽取主逻辑 (程序化校验 FK/substring/confidence 门限) 不变; 无新一级入口/新壳 (frontend/src/AGENTS.md 硬规则); 无新 router/service (架构数字编号不变)。
+- **验证**: `generate_meta.py --check` **OK** (59 jobs/19 collectors/101 routers/161 services, 7/7 文档一致); `ruff check backend/` **All checks passed**; `harness_analyze.py --check` **errors 0** (warnings 5 全 waived); `pytest backend/tests/` **5467 passed, 9 skipped**; 前端 `tsc --noEmit` **0 err** + `vitest run` **102 files / 722 passed** + `vite build` **exit 0**; `test_mp2_api_contract.py` **8 passed**。
+- **关联文件**: `backend/scheduler/jobs/security.py` / `backend/scheduler/scheduler.py` / `backend/extensions/__init__.py` / `backend/services/event_technique_extract_service.py` / `backend/repository/migrations/135_mp2_event_types_seed_bcde.sql` / `scripts/agent_{B,C,D,E}_extract.py` / `backend/api/event_technique_api.py` + `event_types_api.py` / `frontend/src/components/events/EventsReviewPage.tsx` + `.test.tsx` / `backend/tests/test_mp2_api_contract.py` + `test_feature_gates.py` / `docs/UNIMPLEMENTED.md` / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (变更记录 DEV-0328 条) / `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-13.md` (本审计追加)
+- **下一可用号**: DEV-0329
+
+## [DEV-0327] Cubox「导入目录」支持本地化 .md — 修 NOT NULL updated_at 约束崩溃 (cubox-dir-import-md)
+
+- **时间**: 2026-10-13
+- **类型**: 修复/增强 (P1 功能; owner: 「`button`导入没有反应，没有识别cubox本地化的md文档」→ AskUserQuestion 定现象「弹出『0 文件 0 卡 → 入库 0 条』」+ 目标目录 `/home/user/Documents/#书籍/Cubox` + 修复范围「支持 .md」)
+- **前提纠偏 (Rule 12 显式指出)**: owner 初答「md 没有 frontmatter, 只有正文」与实测**矛盾** —— 实测该目录首个 .md **有** YAML frontmatter (形状 A: `title`/`cubox_id`/`source_url`/`tags: [RAG, 应用, …]` 内联数组/`created`/`updated`/`folder`/嵌套 `quality:`)。未盲信错误前提, 按实测结构实现。
+- **双根因 (现象「0 文件 0 卡 → 入库 0 条」)**:
+  - ① 后端 `import_cubox_dir` 只 `p.glob("*.json")` (顶层), cubox 本地化知识库的 `.md` **被完全忽略** → `files=0/cards=0`。
+  - ② `/cubox/import-dir` 响应未透传 `imported`, 前端 toast 恒取 `?? 0` → 即便后端有入库也显「入库 0 条」。
+- **方案 (支持 .md + 响应补全)**:
+  - `import_cubox_dir` 增 `p.rglob("*.md")` 递归扫描; 新增 `_md_to_card()` 按 frontmatter 反解为卡片 dict (复用 `knowledge_sync.parse_frontmatter`/`_FRONTMATTER_RE`), 兼容两种形状 (A 本地库 `source_url`+`created` / B cubox-cli 导出 `url`); 无 frontmatter 或无来源 URL 的 md (index.md/WIKI.md 等) 静默跳过, 不计入卡数。
+  - 新增 `_normalize_md_tags()`: `parse_frontmatter` 对**内联**数组 `tags: [RAG, 应用]` 因非合法 JSON 会退化为字符串, 此处兜底拆回 `list[str]`。
+  - 返回体补 `md_files`/`md_cards`/`imported` (`= result["total"]`) —— 修复前端误报。
+  - 前端 `KnowledgeImport.tsx` toast 改按 `cards/imported/new/merged` 报数, placeholder/提示补 `.md`。
+- **迭代缺陷修复 (Rule 4 循环至验证)**: 新增 md 用例首跑 **3 failed** —— `sqlite3.IntegrityError: NOT NULL constraint failed: knowledge_items.updated_at`。根因: `_card_to_item` 用 `card.get("update_time", now_iso())`, 而当 md 无 `updated` 时 `_md_to_card` 产出**显式** `"update_time": None`, `.get(key, default)` 对显式 None **不回退默认值** → `updated_at=None` 违反 NOT NULL。修 `_card_to_item` 改 `or` 链 (`card.get("update_time") or card.get("create_time") or now_iso()`, `create_time` 同理), 边界层根治并兼顾 JSON 链路同源风险。
+- **改动 (Rule 3 手术刀式)**:
+  - `backend/services/cubox_sync.py`: 新增 `_normalize_md_tags`/`_md_to_card`; `import_cubox_dir` 增 md 递归 + 响应字段; `_card_to_item` 时间字段 `or` 链兜底 (`create_time`/`update_time`)
+  - `backend/api/cubox_import_api.py`: 模块/端点 docstring 同步 (扫 `*.json` + 递归 `*.md`)
+  - `frontend/src/components/knowledge/KnowledgeImport.tsx`: toast 报数 + placeholder + 提示文案
+  - `backend/tests/test_cubox_import.py`: 新增 `_md` helper + `TestMdCard` 4 用例 (内联 tags 拆分/CLI 形状 `url`+`tags: []`/无 frontmatter→None/无 url→None) + `TestImportDir` 2 用例 (递归 + 跳过非卡) + `TestImportAPI` 1 用例 (响应含 `imported`)
+  - `frontend/src/components/knowledge/KnowledgeImport.test.tsx`: 本地目录 toast 断言更新为新格式
+- **未触碰**: `knowledge_sync.py` (仅复用其 `parse_frontmatter`, 未改); `_write_item_md`/`import_cubox_cards` 主体逻辑不变; 无存量测试破坏。
+- **验证**: `pytest backend/tests/test_cubox_import.py` **17 passed**; ruff 0 (3 backend 文件); `generate_meta.py --check` **OK** (58 jobs/19 collectors/101 routers/161 services, 未新增 router/service 编号不变); 前端 `tsc --noEmit` **0 err** + `vitest run src/components/knowledge` **73 passed**。
+- **关联文件**: `backend/services/cubox_sync.py` (`_normalize_md_tags`/`_md_to_card`/`import_cubox_dir` md 支持/`_card_to_item` 时间兜底) / `backend/api/cubox_import_api.py` (docstring) / `frontend/src/components/knowledge/KnowledgeImport.tsx` (toast) / `backend/tests/test_cubox_import.py` + `frontend/src/components/knowledge/KnowledgeImport.test.tsx` / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (变更记录 DEV-0327 条) / `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-13.md` (本审计追加)
+- **下一可用号**: DEV-0328
+
+## [DEV-0326] 放行通用赞/踩 — 非安全内容 reaction 哨兵域持久化, 不污染兴趣权重 (generic-reaction-release)
+
+- **时间**: 2026-10-13
+- **类型**: 变更/纠偏 (P2 语义反转; owner: 「`button`其他领域和类型的资讯点赞点踩功能异常」→ 诊断非缺陷(DEV-0314 安全域门控) → AskUserQuestion 选定「放行通用赞/踩」)
+- **问题**: 用户对非安全/未归类资讯 (AI/tech/finance…) 点赞/点踩后**乐观高亮回滚 + toast「未参与推荐」** — DEV-0314 既定语义 (无域信号静默丢弃 + 前端如实回滚), 非缺陷。但违背「点了就记住」的直觉; owner 裁决放行。
+- **方案 (放行 + 隔离)**: 无域条目的 reaction 以**哨兵域** `INTEREST_UNATTRIBUTED_DOMAIN = "_unattributed"` + `weight 0.0` 持久化 (对外仍报 `domain: None`), 兼得「点了就记住」与「不污染推荐排序」; **累计型** (view/read/dwell/deep_read/favorite) 无域信号保持 `no_domain` 丢弃语义不变。
+- **隔离性 (唯一泄漏面封堵)**: 哨兵域不属 `PRACTICE_DOMAINS` → `aggregate()` 的 `if d in raw` 天然跳过 (不进兴趣权重); 但 `interest_signal_stats_by_axis` (DEV-0316 内容偏好自动推导) 按 `COUNT(*)` 计 events, weight=0 行会 +1 触发 more/less 门限 → SQL 加 `AND s.domain != ?` 排除。
+- **改动 (Rule 3 手术刀式)**:
+  - `backend/repository/hotspot_repo.py`: 新增哨兵常量 `INTEREST_UNATTRIBUTED_DOMAIN`; `_SQL_INTEREST_STATS_BY_AXIS` 加 `AND s.domain != ?` + 传参 + docstring
+  - `backend/services/interest_engine_service.py`: `record_signal` — reaction 无域时 `stored_domain = 哨兵` / `weight = 0.0`, 非 reaction 保持 `no_domain`
+  - `backend/api/interest_api.py`: `POST /signals` docstring 同步 (reaction 无域 → 200 ok/domain None; 累计型无域 → 202 accepted_no_domain)
+  - 前端: `hooks/useReactions.ts` (`reactToItem`/`react` 收敛 `Promise<void>`, 删 accepted_no_domain 回滚分支) + `components/sentinel/ReactionButtons.tsx` (`useReactionAction` 瘦身为 `return useReactions().react`, 删 toast/import) + `lib/interest.ts` (`postReaction` 收敛 `Promise<void>`)
+- **测试**: 后端 `test_interest_engine.py` — 原 `test_non_security_category_keeps_no_domain` 拆为「累计型仍 no_domain」+「reaction 落哨兵域 weight 0 / 回读保留 / aggregate 全 0」; `test_content_pref_auto.py` +1 回归 (无域 reaction 不进 axis stats, 守护泄漏面)。前端 `useReactions.test.ts`(改) / `ReactionButtons.test.tsx`(重写) / `SentinelHomePage.test.tsx`(改) — 断言「照常持久化 + 不弹未参与推荐」。
+- **验证**: `pytest test_interest_engine.py test_content_pref_auto.py` 58 passed; ruff 0; `generate_meta.py --check` OK (58/19/101/161); 前端 `tsc --noEmit` 0 err + `vitest run` 102 files / 722 passed。
+- **关联文件**: `backend/repository/hotspot_repo.py` (哨兵常量 + `_SQL_INTEREST_STATS_BY_AXIS` 排除) / `backend/services/interest_engine_service.py` (`record_signal` reaction 放行) / `backend/api/interest_api.py` (docstring) / `backend/tests/test_interest_engine.py` + `backend/tests/test_content_pref_auto.py` / 前端 `hooks/useReactions.ts` + `components/sentinel/ReactionButtons.tsx` + `lib/interest.ts` + 3 测试 / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` (变更记录 DEV-0326 条) / `docs/INTEREST_ENGINE_PRD_v1.0.md` (§4 端点表修订) / `docs/INTEREST_ENGINE_DEV_PLAN.md` (T1.2 修订) / `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-13.md` (本审计)
+- **下一可用号**: DEV-0327
+
 ## [DEV-0325] 删除 DEV-0324 残档哨兵 — 第一性原理对抗性审查判定顶冗余 (cleanup-residual-sentinel-removed)
 
 - **时间**: 2026-10-12

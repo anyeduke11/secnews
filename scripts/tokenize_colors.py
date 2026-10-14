@@ -9,7 +9,7 @@ Mapping strategy:
 import re
 from pathlib import Path
 
-ROOT = Path("/path/to/hotspot/frontend/src/components")
+ROOT = Path(__file__).resolve().parents[1] / "frontend" / "src" / "components"
 
 # Hardcoded color → CSS variable mapping
 # Note: tokens must be added to index.css first; we're using --color-success/warning/error/info

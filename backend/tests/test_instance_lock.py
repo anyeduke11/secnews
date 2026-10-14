@@ -136,14 +136,14 @@ def _ps_rows(rows: list[str], monkeypatch):
 def test_group_members_parses_ps_output(monkeypatch):
     _ps_rows(
         [
-            "  101  duke   4242  /usr/local/bin/python run.py",
-            "  102  duke   4242  dsh --serve",
-            "   77  duke      1  launchd",
+            "  101  worker 4242  /usr/local/bin/python run.py",
+            "  102  worker 4242  dsh --serve",
+            "   77  worker    1  launchd",
         ],
         monkeypatch,
     )
     members = il._group_members(4242)
-    assert [(p, u) for p, u, _ in members] == [(101, "duke"), (102, "duke")]
+    assert [(p, u) for p, u, _ in members] == [(101, "worker"), (102, "worker")]
     assert "run.py" in members[0][2]
 
 

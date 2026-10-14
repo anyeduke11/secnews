@@ -64,7 +64,8 @@ data/dsh/
 # Personal knowledge base (local-only truth source, never publish to GitHub)
 # Decision: 2026-08-30 — knowledge/ + llm-wiki-2.0/ removed from git history via filter-repo.
 # These dirs are wiki-first source-of-truth, kept ONLY on local disk.
-knowledge/
+# 前导 `/` 锚定仓库根: 否则 `knowledge/` 会误命中 frontend/src/components/**/knowledge/ 下的前端组件。
+/knowledge/
 llm-wiki-2.0/
 
 # dsh-SecNews data archive (contains credentials + wiki + db — NEVER publish)

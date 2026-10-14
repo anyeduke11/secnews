@@ -181,7 +181,7 @@ describe('MCPSettingsCard — Sentinel V2', () => {
     await waitFor(() => {
       const text = mockWriteText.mock.calls[0][0] as string;
       expect(text).toContain('/srv/hotspot');
-      expect(text).not.toContain('/home/user');
+      expect(text).not.toContain('/Users/');
     });
   });
 

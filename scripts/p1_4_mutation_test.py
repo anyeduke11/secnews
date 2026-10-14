@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 # ---------------------------------------------------------------------------
 # 变异定义 (old → new)
 # ---------------------------------------------------------------------------
@@ -127,7 +129,7 @@ import shutil
 
 def apply_mutation(module_name: str, function_name: str, original: str, mutated: str) -> bool:
     """Inject mutation; backup original to .bak for safe revert."""
-    file_path = Path("/path/to/hotspot") / (module_name.replace(".", "/") + ".py")
+    file_path = REPO_ROOT / (module_name.replace(".", "/") + ".py")
     if not file_path.exists():
         print(f"  ❌ file not found: {file_path}")
         return False
@@ -146,7 +148,7 @@ def apply_mutation(module_name: str, function_name: str, original: str, mutated:
 
 def revert_mutation(module_name: str, function_name: str, original: str, mutated: str) -> None:
     """Revert by restoring from .bak backup (single source of truth)."""
-    file_path = Path("/path/to/hotspot") / (module_name.replace(".", "/") + ".py")
+    file_path = REPO_ROOT / (module_name.replace(".", "/") + ".py")
     backup = file_path.with_suffix(file_path.suffix + ".bak")
     if backup.exists():
         shutil.copy2(backup, file_path)
@@ -173,7 +175,7 @@ def run_golden_tests(module_name: str) -> tuple[int, int, str]:
         "-q",
         "--no-header",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd="/path/to/hotspot")
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(REPO_ROOT))
     output = result.stdout + result.stderr
     # 只解析最末尾的 summary 行 (===== N failed, M passed ... =====)
     # 避免从 "M passed, N deselected" 等中间行误取

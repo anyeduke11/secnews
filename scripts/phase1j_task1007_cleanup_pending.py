@@ -15,8 +15,8 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-PENDING_DIR = Path("/path/to/hotspot/knowledge/learning/tasks/pending")
-FAILED_DIR = Path("/path/to/hotspot/knowledge/learning/tasks/failed")
+PENDING_DIR = Path(__file__).resolve().parents[1] / "knowledge/learning/tasks/pending"
+FAILED_DIR = Path(__file__).resolve().parents[1] / "knowledge/learning/tasks/failed"
 KEEP_LATEST_COMPILE = 10
 
 

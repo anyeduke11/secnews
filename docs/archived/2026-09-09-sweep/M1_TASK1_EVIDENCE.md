@@ -167,4 +167,4 @@ QUERY PLAN
 - 迁移: `backend/repository/migrations/064_list_query_optimization.sql`
 - 实现: commit `0490470f` (hotspot_repo + test)
 - 脚本: `backend/scripts/backfill_ingested_at.py` (159 行, 幂等)
-- PROGRESS.md: 任务清单 M1-Task1 待勾选（待 owner 一起 commit）
+- PROGRESS.md: 任务清单 M1-Task1 待勾选（待一起 commit）

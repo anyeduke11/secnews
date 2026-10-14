@@ -6,7 +6,7 @@ Moving it to WARM immediately reduces HOT volume.
 import sqlite3
 from pathlib import Path
 
-REPO_ROOT = Path('/path/to/hotspot')
+REPO_ROOT = Path(__file__).resolve().parents[1]
 HOT_DB = REPO_ROOT / 'backend' / 'hotspot.db'
 WARM_DB = REPO_ROOT / 'backend' / 'hotspot-warm.db'
 TABLE = 'quality_check_logs_archive'

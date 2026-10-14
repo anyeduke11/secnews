@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-ROOT = Path("/path/to/hotspot/frontend/src/components")
+ROOT = Path(__file__).resolve().parents[1] / "frontend" / "src" / "components"
 
 # Additional hex mappings
 HEX_TO_VAR = {

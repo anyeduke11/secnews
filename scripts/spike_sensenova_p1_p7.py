@@ -29,13 +29,15 @@ from typing import Any
 
 import httpx
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 def _key() -> str:
     """从 env 或 .env 读 SENSENOVA_API_KEY, 不打印字面量。"""
     val = os.environ.get("SENSENOVA_API_KEY", "")
     if not val:
         try:
-            for line in open("/path/to/hotspot/.env"):
+            for line in open(os.path.join(_REPO_ROOT, ".env")):
                 if line.startswith("SENSENOVA_API_KEY="):
                     return line.split("=", 1)[1].strip().strip('"').strip("'")
         except FileNotFoundError:

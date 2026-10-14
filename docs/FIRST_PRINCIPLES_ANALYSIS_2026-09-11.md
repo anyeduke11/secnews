@@ -83,7 +83,7 @@ frontend/package.json:7         "dev": "vite --port 8898 --strictPort --host 0.0
 
 ```
 lsof -nP -iTCP:8898 -sTCP:LISTEN
-  node 15572 duke  IPv4 ... TCP *:8898 (LISTEN)      ← 绑定 0.0.0.0
+  node 15572 user  IPv4 ... TCP *:8898 (LISTEN)      ← 绑定 0.0.0.0
 curl http://127.0.0.1:8898/api/health              → HTTP 200（拿到完整后端 JSON）
 curl http://127.0.0.1:8898/api/dsh/control/status  → HTTP 200
 ```
@@ -559,7 +559,7 @@ SecNews（资讯）/ Knowledge（知识）/ Security Graph（安全图谱）/ Co
 | 用户自建 skill | `user_skills` | **0** |
 | 触发队列 | `trigger_tickets` | 53 行，**全来自 2026-09-04 测试，且全部停在 `running`** |
 
-**再加一条最刺眼的**：26 个 skill 的 `default_enabled` **全为 False**、settings 表**没有任何 `skill.*` kv** → `is_skill_enabled()` 恒 False。而 `skill_runs` 的 58 行**全部来自 pytest**（result 里的 wiki 路径是 `/private/var/folders/.../pytest-of-duke/pytest-48/...`）——**生产从未运行过一次 skill**。
+**再加一条最刺眼的**：26 个 skill 的 `default_enabled` **全为 False**、settings 表**没有任何 `skill.*` kv** → `is_skill_enabled()` 恒 False。而 `skill_runs` 的 58 行**全部来自 pytest**（result 里的 wiki 路径是 `/private/var/folders/.../pytest-of-user/pytest-48/...`）——**生产从未运行过一次 skill**。
 
 **另有 spec 违反**：`scripts/t085_seed_review_fixtures.py` 造的评审 fixture 落在了**生产库**（`v1_cases('C11 live verify 2')` / `v1_judgments('JJJJ…')` / `v1_knowledge('K1')`），与 `V0.8.5_PLAN.md` §9「生产库零写入」直接冲突。
 
@@ -873,7 +873,7 @@ SecNews（资讯）/ Knowledge（知识）/ Security Graph（安全图谱）/ Co
 | 种子零调用 | `security/compliance.py:89`、`attack_loader.py:30` | `iter_builtin()` / `load_attack_data()` **均无调用方** |
 | CVE 来源是正则 | 无 NVD 客户端；`knowledge_items` 中 34/3800 有 `cve_ids` | 覆盖 **0.9%**，年份上限 **2020** |
 | 空壳能力矩阵 | 逐表 `COUNT(*)` | alerts×4 / tech_stack / crm×2 / cg_resources×4 / playbook×2 / attention_events / user_skills **全 0** |
-| 生产从未跑过 skill | `skill_runs` 58 行的 `result` 内 wiki 路径 | 全部为 `/private/var/folders/.../pytest-of-duke/pytest-48/...` |
+| 生产从未跑过 skill | `skill_runs` 58 行的 `result` 内 wiki 路径 | 全部为 `/private/var/folders/.../pytest-of-user/pytest-48/...` |
 | 评审 fixture 入生产库 | `scripts/t085_seed_review_fixtures.py` | `v1_cases('C11 live verify 2')` 等落在 `backend/hotspot.db`，违反 spec §9 |
 | ★ 无日志拦截器 | `grep -rn "InterceptHandler\|basicConfig\|addHandler" backend`（去 tests） | 唯一命中是 `utils/shutdown.py:32` 的**注释** |
 | ★ 日志库分裂 | `logging.getLogger(` vs `from backend.logging_config import logger` | **88** 文件 vs **155** 文件（混用 3）——88 个文件的日志不落 app.log |

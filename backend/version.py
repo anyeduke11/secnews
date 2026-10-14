@@ -85,7 +85,14 @@ v0.8.6 (2026-10-14): AI Native 证据工作台 — 换主干 (P0-P3 全绿, DEV-
   导入增强 (NOT NULL 约束崩溃修复)。
 详见 docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md (版本族详细文档); 权威 PRD =
 docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md。
+
+v0.8.7 (2026-10-14): 公开仓库交付收口 — 非功能补丁 (v0.8.6 主干零改动)。
+PII 卫生清理: 机器本机绝对路径 → __file__ 派生 / 通用占位, 个人标识中性化,
+force-add 产物 frontend/test-results/.last-run.json 移除 + .gitignore knowledge/ 规则
+收紧为根锚定; 版本/文档/资产全链对齐 (version.py 单一真源 + AGENTS/CLAUDE/PROJECT/
+README + CHANGELOG + assets/readme/*.svg); 承接文档中已标注 v0.8.7 的 P2/P3 收口工作
+(随 v0.8.6 主干一并交付)。
 """
 
-APP_VERSION = "0.8.6"
+APP_VERSION = "0.8.7"
 

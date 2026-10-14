@@ -1,7 +1,7 @@
 # SecNews · AI + 安全 知识工作站
 
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews v0.8.6 — 单人本地 AI Native 证据工作台: Sentinel 四菜单壳 (资讯/知识/行动/设置) + 19 MCP 工具">
+  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews v0.8.7 — 单人本地 AI Native 证据工作台: Sentinel 四菜单壳 (资讯/知识/行动/设置) + 19 MCP 工具">
 </p>
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的**单机 AI Native 证据工作台**。
@@ -126,7 +126,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 ## 路线图
 
 <p align="center">
-  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台, v1.0 规划中">
+  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台 → v0.8.7 公开仓库交付收口, v1.0 规划中">
 </p>
 
 ## 历史版本（GitHub Releases）
@@ -135,6 +135,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 
 | 版本 | 发布日期 | 关键里程碑 | 源码归档 |
 |------|----------|------------|----------|
+| **v0.8.7** | 2026-10-14 | 公开仓库交付收口：PII 卫生清理（本机路径/个人标识中性化）+ 版本/文档/资产全链对齐（v0.8.6 主干零改动） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.7) |
 | **v0.8.6** | 2026-10-14 | AI Native 换主干：全链证据账本（资讯→Signal→Case→Claim→Run→Artifact→Knowledge）+ 提案通道 + 对话式命令栏 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.6) |
 | **v0.8.5** | 2026-09-08 | 反向收敛：v0.8 三层 Sentinel 唯一壳恢复 + v1.0 九领域对象降级为能力区块 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.5) |
 | **v0.8.2** | 2026-09-05 | 治理合批：全局并发单一真相源 + 配置热重载（gate 5s TTL） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.2) |
@@ -147,7 +148,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5 阶段 · md 真源 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.5.0) |
 | v0.4.3 | 2026-08-19 | 软分层 / Feature Gates · core/exec 边界 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.4.3) |
 
-> **main 分支动态**：v0.8.6 已发版（AI Native 证据工作台），main 与 tag `v0.8.6` 对齐。
+> **main 分支动态**：v0.8.7 已发版（公开仓库交付收口），main 与 tag `v0.8.7` 对齐。
 
 ## 测试
 
@@ -253,6 +254,7 @@ Copy `proxy_config.example.json` → `proxy_config.json` first; the real file is
 
 | Version | Date | Milestone |
 | ------- | ---- | --------- |
+| v0.8.7 | 2026-10-14 | Public-repo delivery closeout: PII hygiene sweep (machine-local paths / personal identifiers neutralized) + version/doc/asset alignment (v0.8.6 trunk unchanged) |
 | v0.8.6 | 2026-10-14 | AI Native main-trunk swap: end-to-end evidence ledger (Feed → Signal → Case → Claim → Run → Artifact → Knowledge) + proposal channel + command bar |
 | v0.8.5 | 2026-09-08 | Reverse convergence: v0.8 three-layer Sentinel as the only shell + v1.0 domain objects demoted to embedded capability blocks |
 | v0.8.2 | 2026-09-05 | Governance batch: global concurrency single source of truth + config hot-reload (gate 5s TTL) |
@@ -265,7 +267,7 @@ Copy `proxy_config.example.json` → `proxy_config.json` first; the real file is
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5-stage · md as source of truth |
 | v0.4.3 | 2026-08-19 | Soft core/exec partitioning · Feature Gates (TOML) |
 
-> **main branch**: v0.8.6 (AI Native evidence workbench) has been released; main is aligned with tag `v0.8.6`.
+> **main branch**: v0.8.7 (public-repo delivery closeout) has been released; main is aligned with tag `v0.8.7`.
 
 ### License
 

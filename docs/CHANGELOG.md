@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.8.7 (2026-10-14) — 公开仓库交付收口: PII 卫生 + 全链版本对齐 (tag v0.8.7)
+
+**非功能补丁**: v0.8.6 主干 (AI Native 证据工作台) 零改动, 本版仅做公开仓库交付前的卫生清理与版本/文档/资产全链对齐。承接文档中已标注 v0.8.7 的 P2/P3 收口工作 (2026-10-08, DEV-0286/0289~0292) 随 v0.8.6 主干一并交付, 本版不再重复计入。
+
+### PII 卫生清理 (三层处理模型)
+- **功能路径**: 硬编码机器本机绝对路径 → `__file__` 派生 (`Path(__file__).resolve().parents[N]`), 覆盖 `scripts/` 下功能性脚本
+- **文档/注释**: 纯文本路径 → 通用占位 (`/path/to/hotspot` · `/home/user/`); 个人标识 `owner` → `owner` (大小写敏感, 不误伤第三方 handle)
+- **测试夹具**: 断言 + 夹具中性化 (`backend/tests/test_codegarden_scanner.py` · `test_instance_lock.py` · 前端 colocated test)
+- **force-add 产物**: `frontend/test-results/.last-run.json` 取消跟踪; `.gitignore` `knowledge/` → `/knowledge/` (根锚定, 防误命中 `frontend/src/components/**/knowledge/`)
+
+### 版本与资产对齐
+- 版本单一真源 `backend/version.py::APP_VERSION` 0.8.6 → 0.8.7
+- 门控/陈述文档: `AGENTS.md` 头部 (版本门校验对象) · `CLAUDE.md` · `PROJECT.md`
+- `README.md` (中英双语版本表 + roadmap alt) + `assets/readme/{hero,roadmap,architecture}.svg`
+- `frontend/package.json` version 0.8.5 → 0.8.7 (对齐后端)
+
+### 验证
+- 后端 5468 passed · 前端 722 passed · `generate_meta.py --check` 过 (59 jobs / 19 collectors / 101 routers / 161 services) · `git grep '/home/user'` 归零
+
 ## v0.8.6 (2026-10-14) — AI Native 证据工作台: 换主干 (tag v0.8.6)
 
 换的是**主干**而非加能力: 让已有能力围绕「可验证的安全判断」重新产生流量。四轴 AI Native (①Agent 优先工作循环 ②模型驱动管线 ③全界面 AI 副驾 ④对话式驱动) 均入主轴; 壳不变 (仍 SentinelShell 四菜单)。版本族文档 = `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`; 权威 PRD = `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`。

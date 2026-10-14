@@ -31,7 +31,7 @@
   <!-- ═══════ 左侧：品牌区 (0–620) ═══════ -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
     <text x="56" y="54" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="13" fill="#5A6178" letter-spacing="2.5">v0.8.6 · AI NATIVE · 19 MCP TOOLS · SINGLE-USER LOCAL</text>
+          font-size="13" fill="#5A6178" letter-spacing="2.5">v0.8.7 · AI NATIVE · 19 MCP TOOLS · SINGLE-USER LOCAL</text>
 
     <rect x="56" y="70" width="36" height="3" fill="url(#primaryGrad)" rx="1.5"/>
 

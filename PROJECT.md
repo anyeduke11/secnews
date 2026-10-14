@@ -12,7 +12,7 @@
 
 ## 项目概述
 
-- **一句话描述**: 面向 AI + 安全从业者的单机 AI Native 证据工作台 — SecNews 资讯聚合 + 知识复利 + Skill/Playbook 看板型 AI 智能体 (v0.8.6, SentinelShell 四菜单唯一壳 + 资讯→Signal→Case→Claim→Run→Artifact→Knowledge 全链证据账本)。
+- **一句话描述**: 面向 AI + 安全从业者的单机 AI Native 证据工作台 — SecNews 资讯聚合 + 知识复利 + Skill/Playbook 看板型 AI 智能体 (v0.8.7, SentinelShell 四菜单唯一壳 + 资讯→Signal→Case→Claim→Run→Artifact→Knowledge 全链证据账本)。
 - **核心目标**:
   1. 看板型 AI 智能体: 常用对话/prompt/skill 固化为主面板可启停功能 (非 chatbox) — Skill 商店 + Playbook YAML 双轨
   2. 知识复利闭环: 采集 → wiki-first md 真源 → 学习/掌握 → 输出

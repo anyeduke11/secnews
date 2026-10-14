@@ -1,8 +1,8 @@
 
-## [DEV-0329] v0.8.6 公开仓库 PII 卫生清理 — 本机绝对路径/个人标识/force-add 产物 (v086-pii-hygiene)
+## [DEV-0329] v0.8.7 公开仓库交付收口 — PII 卫生清理 + 版本/文档/资产全链对齐 (v087-public-repo-closeout)
 
 - **时间**: 2026-10-14
-- **类型**: 卫生清理 (非功能变更; owner: 提交 v0.8.6 至 github.com/anyeduke11/secnews 前「提交前进行敏感信息清理」+ 独立 agent 复查后 AskUserQuestion 选定「全面清理（含本机路径）」)
+- **类型**: 卫生清理 + 版本收口 (非功能变更; owner: 提交至 github.com/anyeduke11/secnews 前「提交前进行敏感信息清理」+ 独立 agent 复查后 AskUserQuestion 选定「全面清理（含本机路径）」; 版本决策: 用户答「调整为 v0.8.7」—— v0.8.6 tag/Release 仍指向含 PII 的旧 commit, 不动历史, 改发新版本承载干净 commit)
 - **范围 (三层处理, Rule 3 手术刀式)**:
   - **① 功能性硬编码路径 → `__file__` 派生** (换机可跑): `scripts/migrate_archive_to_warm.py` / `tokenize_colors.py` / `tokenize_colors_v2.py` / `p1_4_mutation_test.py` / `phase1j_task1007_cleanup_pending.py` / `spike_sensenova_p1_p7.py`。
   - **② 纯文档/注释文本 → 通用占位**: `/path/to/hotspot` → `/path/to/hotspot`, `/home/user` → `/home/user` (37 文件 178 处)。
@@ -10,8 +10,9 @@
 - **个人标识清理**: `docs/ADMIN_MANUAL.md` 个人邮箱 → `<your-email@example.com>`; archived `migration-report.json` 邮箱残留 → `<redacted-email>`; standalone `owner` 别名 → `owner` (5 文件 9 处, 与 AGENTS.md「owner 裁决」约定一致); 第三方公共 handle `AnyeDuke/*` `secnewsbydukez/*` 保留 (公开仓库标题, 非本机 PII)。
 - **force-add 产物**: `git rm --cached frontend/test-results/.last-run.json` (测试产物, 本已在 `.gitignore` 覆盖); `.gitignore` 修正 `knowledge/` → `/knowledge/` (前导 `/` 锚定仓库根, 否则误命中 `frontend/src/components/**/knowledge/` 前端组件)。
 - **未触碰**: 无 router/service/job 变更 (架构数字 101/161/59 不变); 无 PRD 语义变更 (唯一 PRD 仅 1 处路径 scrub, 按纪律留痕本条)。
+- **版本/文档/资产全链对齐 (v0.8.6 → v0.8.7)**: 单一真源 `backend/version.py::APP_VERSION` + v0.8.7 段落; 门控 `AGENTS.md` 头部 (版本门校验对象) + `CLAUDE.md` + `PROJECT.md`; `README.md` 中英双语版本表 + roadmap alt; `assets/readme/{hero,roadmap,architecture}.svg`; `docs/CHANGELOG.md` v0.8.7 条目; `frontend/package.json` + `package-lock.json` 0.8.5/0.7.0 → 0.8.7 (对齐后端)。历史 tag `v0.8.6` 与 `docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md` 版本族文档名保留不改 (历史记录)。
 - **验证**: `generate_meta.py --check` **三绿** (59/19/101/161/69, 7/7 文档, 版本门); `pytest backend/tests/test_codegarden_scanner.py test_instance_lock.py` **74 passed**; 前端 `tsc --noEmit` **0 err** + `vitest run` **102 files / 722 passed**。
-- **关联文件**: `scripts/{migrate_archive_to_warm,tokenize_colors,tokenize_colors_v2,p1_4_mutation_test,phase1j_task1007_cleanup_pending,spike_sensenova_p1_p7}.py` / `backend/tests/{test_codegarden_scanner,test_instance_lock}.py` / `frontend/src/components/sentinel/SentinelGardenPage.test.tsx` + `settings/MCPSettingsCard.test.tsx` / `.gitignore` / `docs/ADMIN_MANUAL.md` / `docs/archived/2026-09-09-sweep/migration-report.json` / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`
+- **关联文件**: `scripts/{migrate_archive_to_warm,tokenize_colors,tokenize_colors_v2,p1_4_mutation_test,phase1j_task1007_cleanup_pending,spike_sensenova_p1_p7}.py` / `backend/tests/{test_codegarden_scanner,test_instance_lock}.py` / `frontend/src/components/sentinel/SentinelGardenPage.test.tsx` + `settings/MCPSettingsCard.test.tsx` / `.gitignore` / `docs/ADMIN_MANUAL.md` / `docs/archived/2026-09-09-sweep/migration-report.json` / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` / `backend/version.py` / `AGENTS.md` / `CLAUDE.md` / `PROJECT.md` / `README.md` / `docs/CHANGELOG.md` / `frontend/package.json` / `frontend/package-lock.json` / `assets/readme/{hero,roadmap,architecture}.svg`
 - **下一可用号**: DEV-0330
 
 ## [DEV-0328] MP-2 事件类型实例化链路修复 — 接通采集→抽取→入池调度 job + 前端契约纠偏 (mp2-event-type-chain-fix)

@@ -1,4 +1,164 @@
 
+## [DEV-0339] v0.8.8 P2 消融阶段关闭 — 20 对象矩阵跑完 + 三条结论回写 + 逃生口还原 (v088-p2-ablation)
+
+- **时间**: 2026-11-11
+- **类型**: 实验报告 + 文档回写 + 临时逃生口还原（**零删除动作、零 schema 变更、零端点增减**）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §7.4 / §8.1；产物 [`docs/audit/P2_ABLATION_2026-11-11.md`](docs/audit/P2_ABLATION_2026-11-11.md)
+- **执行规模**: 20 对象**全量串行**（13 gate 关闭 + 3 LLM gate 反向开启 + R-01/R-02/R-03 三个待删 router + 1 基线），每对象 = `pytest backend/tests/` 全量 + 路由探针 + 冷启动探针；累计 pytest 约 6.7 h
+- **基线**: `2 failed, 5425 passed, 7 skipped, 2 errors`（836.6s）→ 4 项固有失败**逐项复现定性**并从所有差集扣除：
+  - `test_check_temp_db_sizes::test_hot_violation_when_over_limit` = **数据依赖**（本机 WARM 层 364.57 MB > 300 MB 阈值 → summary 为 FAIL 而非 OK）
+  - `test_cold_db_crypto` × 2 = **测试自身缺陷**（fixture 直连 `backend/hotspot-cold.db` 触发 T01 隔离守卫「测试连接生产数据库」）
+  - `test_kpi_api::test_triage_latency_p50` = **数据依赖**（隔离库无 triage 时延样本，`assert 0 == 2`）
+- **三条结论（已回写 PRD §8.1 P2 行 + §1.1 追加 v0.8.8-p2.1）**:
+  1. **R-01 / R-02 / R-03 零业务消费者** —— 新增失败分别 **4 / 3 / 1** 项，全部落在测试断言层（`test_api.py` 业务端点用例 + `test_feature_gates.py` 的 core 白名单参数化条目）。R-03 只红 1 项，反证 `api/weekly_report.py` 的 5 个端点**本就零测试覆盖**（顺带暴露覆盖缺口）
+  2. **16 gate 中 6 个关闭后零新增失败**：`codegarden` / `codegarden_phase2b` / `security_graph` / `skill_registry` / `trigger_gate` / `user_skills` → 为后续 gate 收敛提供候选池，**本轮不新增删除项**（§1.2 质量版口径）
+  3. **`ai_classify` / `pipeline_ner` 开启态零测试覆盖** → 属**覆盖缺口**（非删除候选），登记 P4
+- **口径诚实声明**: PRD §7.4 设计 5 个观测维度，实际可得 **2 有效（失败差集 / 路由数）+ 2 噪声（启动耗时 / 日志异常数）+ 1 不可测（Feed P95）**。启动耗时差异经 uvicorn 日志定位在 **DB migration 阶段**（`gate_user_skills` 关反而 91.13s vs 基线 5.16s），与被测 gate 无因果关系 → **不作结论依据**；报告不含任何百分比增益类结论
+- **消融逃生口已还原（本轮唯一代码改动）**: 三处临时开关 `HOTSPOT_ABLATE_ROUTERS` / `HOTSPOT_ABLATE_JOBS` / `HOTSPOT_TEST_ABLATE_GATE`（`backend/api/_registry_core.py` / `backend/scheduler/scheduler.py` / `backend/tests/conftest.py`）全部清除 → grep 0 命中，`ruff check backend/` 通过，`pytest test_dsh_api + test_feature_gates + test_api` **121 passed**。另修 `sync_bundle.py` 的 I001（未提交 R-13 改动遗留的 import 前置注释破坏 isort 分块）
+- **遗留 6 项（登记不修，Rule 3）**: O-1 `test_url_safety` 随 `tech_stack` 关而红（安全基线域跨域耦合）/ O-2 `test_config_hot_reload` 随 `secnews` 关而红 / O-3 `test_semantic_gate_off_skips` 双向都红（测试与 gate 配置硬耦合，非回归）/ O-4 **已关闭**（复核证实 `security_graph` 按 `extensions/__init__.py:114` 设计只控 3 个 job 不占 router，实测 `_is_job_enabled` gate 关时三 job 全跳过 → 门禁生效，非缺陷）/ O-5 Feed P95 维度未测 / O-6 基线 4 项固有失败（建议单开测试卫生修复项）
+- **M-2 口径澄清**: 本矩阵为**单点不叠加**消融，三个 router 各自单摘均为 `included_routers` 100→99，**不能推算**叠加后为 97 → 实施计划 §7 G1 门应以「P3 三 commit 落地后实测 ≤ 97」为准
+- **阶段解锁**: **P2.5 数据架构（R-17 五子阶段）依赖条件已满足**（P2 跑完）→ 可启动；**P3 移除仍需 owner 显式启动指令**
+- **未执行（边界）**: P2.5 全部代码实施 / P3 六个 commit / P4 / P4.5 / P5；当前 66 项未提交改动的 commit 归属整理（**需 owner 确认哪些属 R-13**）；§8 的 5 项 PRD 事实偏差（D-A~D-E）**待 owner 确认**
+
+## [DEV-0338] v0.8.8 实施计划成文 — 逐 commit 可执行清单 + 5 处 PRD 事实偏差校正 (v088-plan1)
+
+- **时间**: 2026-11-11
+- **类型**: 纯文档（**零运行代码变更、零 schema 变更、零端点增减、零删除动作**）
+- **依据**: [`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md)（本文产物）；[`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4 / §8.1
+- **产物**: 新增 `docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md` —— **21 个 commit** 的逐项可执行清单（P3 六个 / P2.5 五个 / P4 三个 / P4.5 五个 / P5 两个），每个 commit 含「删除/修改对象 → file:line → 验收标准 → 回滚边界」
+- **核准方式**: 对 P3 / P4.5 全部待删对象做**独立 file:line 级复核**（不依赖 PRD 既有记录），复核结果与 PRD 的 5 处偏差已回写 PRD
+- **5 处 PRD 事实偏差（已回写 PRD）**:
+  1. **D-A（R-01）**：PRD 记「摘除 `collection_service.py:121/:187` 写链」→ 实测 `trend` 是 `collection_pipeline.run_category_locked` 的**贯穿形参**（`:386`），摘除须改**函数签名**，另涉 `:435`、`:123-129`、`collection_service.py:264/:259-266`。另 `trend_repo.py`（248 行）**保留**（另有 4 个消费方）；`trend_snapshots` 表保留且仍由 `trend_rebuild_job` + `catchup_service.py:579-580` 写入 → 摘除后该表变「只写不读」
+  2. **D-B（R-02）**：PRD 写「保留 service」→ **`category_service.py` / `categories_service.py` 全仓 0 命中**。实际保留对象 = `hotspot_service.py:619-629` `count_by_category` + `hotspot_repo.py:918/:970`（另有消费方 `api/favorites.py:96`、`health_query_service.py:229`）
+  3. **D-C（R-16）**：PRD 写「24 个前端死封装」→ 实为 **24 个导出函数分布在 4 个文件**（`frontend/src/api/` 仅 8 个 `.ts`）→ 按「删 export」非「删文件」执行
+  4. **D-D（R-16）**：PRD 写「editorial 整组 8 个未挂载」→ 实际路径是 `components/shared/editorial/`（**非** `components/editorial/`），且同目录 `Stamp`/`StatCard`/`InfiniteCanvas` **有外部引用** → 只能删 8 文件、**不能删目录**
+  5. **D-E（R-13）**：PRD 首选 `main.py` 应用级 catch-all → 复核发现 `backend/exceptions.py:117-125` `_STATUS_TO_CODE` **无 410 映射** → 410 会被映成 `E_INTERNAL`，**必须同 commit 补 `410: "E_GONE"`**；另 `main.py` 现无任何 catch-all（全文仅 `:433 @app.get("/")`），需显式排除 `/api/docs` / `/openapi.json` / `/api/health`
+- **执行前置（重要）**: 当前工作树 **66 项未提交改动**（49 M / 5 D / 12 ??）含 R-13 已落地改动 → **P3 首 commit 前必须先整理成 R-13 独立 commit**，否则违反「一项一 commit、可独立 revert」纪律
+- **顺序强制**: P2.5 的 **C2.4 重建管道必须先于 C2.3 沉降管道交付**（RA-14：删行不可逆，重建能力是取消备份的唯一合法性基础）
+- **P2 消融进程稳定性（过程记录）**: 前两次后台启动（`nohup` / `nohup+disown`）均在会话结束时被静默终止（11:16 / 13:07，无 traceback）→ 改用 `launchctl submit`（launchd 托管）后稳定，日志经包装脚本落 `driver.log`
+- **未执行（边界）**: P3 / P2.5 / P4 / P4.5 / P5 **全部代码实施**；P3 需 owner 显式授权；P2 消融矩阵仍待跑完留档；§8 的 5 项偏差已回写 PRD，**待 owner 确认**
+
+## [DEV-0337] v0.8.8 R-17 数据架构热冷分层 — 设计定稿 + PRD 落账（仅设计，零运行代码） (v088-design1-datahotcold)
+
+- **时间**: 2026-11-11
+- **类型**: 纯文档（**零运行代码变更、零 schema 变更、零端点增减、零删除动作**）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17 / §6.3.1 / §8.1 P2.5；设计规格 [`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md)
+- **owner 裁决（4 项）**: ① 备份语义 = **「可重建」而非「可拷贝」**（取消全部备份作业，以重建能力替代恢复能力）；② 「热」口径 = **纯时间窗：热点留 30 天**；③ 本轮**只出设计 + PRD**，改造实施排期 **P2.5**（避免污染正在运行的 P2 消融观测）；④ 冷数据落点 `llm-wiki-2.0/` **保持不变**
+- **问题描述**:
+  - 主库 `backend/hotspot.db` 已达 **345 MB**（+WAL 96 MB），配套备份产物 **449 MB**，合计 **794 MB**；而 `scripts/retention.json` 声明的 HOT/WARM/COLD/FROZEN **四层温度台账从未落地**（`hotspot-warm.db` / `hotspot-cold.db` 文件不存在，`db.py:221` ATTACH 全落空；70 活表不在台账 / 35 台账表在 main 不存在）→ 备份作业与热冷分层两套机制并存却互不联通
+  - 空间大户实测：`admission_log` **91.2 MB**（占全库 27%）、`hotspots` 39.4 MB、`job_runs` 34.8 MB + **其 3 索引 30.1 MB**（占表体 87%）、`hotspots_fts_data` 24.6 MB
+  - 既有 DB→md 流向仅一条（`wiki_archiver` 归档 `knowledge_items` 但不删 DB 行，`wiki_archiver.py:12-14`），且实测 `main.knowledge_items` **0 行** → 知识域真源早已是 md；**`hotspots` 是唯一真源仍在 DB 的域**（43,307 行，md 无对应物）
+  - `PRAGMA auto_vacuum=0` → 删行后空间不回收
+- **核心设计（两管道 + 一个账）**:
+  - **管道 A 沉降（hot→cold）**：先写 `llm-wiki-2.0/feed/{yyyy-mm}.md` → **回读校验** → 通过才删 DB 行，失败即中止本批并计数（fail-loud）；按 id 幂等
+  - **管道 B 重建（cold→hot）**：`scripts/rebuild_hot_index.py --from-cold` 从 md 重建 `hotspots` + FTS + `hotspot_tags` → 这是「取消备份」的**唯一合法性基础**
+  - **账**：`wiki_events` 扩语义为沉降/重建留痕 + `scripts/retention.json` 台账**四层收敛为两层**（HOT=DB / COLD=wiki）
+- **热层口径（两类，因实测而分）**: ① 真源实体 `hotspots` / `hotspot_tags` / `hotspots_fts` → **时间窗 30 天**（实测砍 85% 体积）；② 行动页+资讯页直读的 `v1_signals` / `v1_cases` / `v1_materials` / `favorites` → **永久留库**；③ 日志/投影类（`job_runs` / `admission_log` / `llm_usage_log` / `wiki_events` / `ai_scores`）→ **环形截断**（实测 `job_runs` 30 天内占 99.8% → **30 天窗对其无效，必须环形截断**）
+- **空间目标**: DB + 备份 **794 MB → ≤ 120 MB（−85%）**；含冷层总占用 799.6 MB → **180–200 MB（−75%）**
+- **文档变更**:
+  - 新增 `docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`（完整设计规格：现状实测基线 / 两层模型 / 两管道流程 / 备份退役清单 / 空间账 / 5 项待定 / 6 项待核对）
+  - PRD 七处：§1.1 追加 `v0.8.8-design.1` + §1 状态行、§3.1 新增 **S-12**、§3.2 新增 **X-10**（磁盘故障单副本风险显式排除）、§4.17 新增 **R-17** 完整需求段（含现状/裁决/需求/9 条技术约束/9 条验收/空间目标/回滚/3 条已知限制）、§6.3.1 新增**数据生命周期兼容性**、§8.1 新增 **P2.5 数据架构** 阶段行 + P2 行状态、§6.5 迁移步骤第 8 步、§8.3 发布门加 R-17 项、§9 新增 **RA-14~RA-16** 三条风险、附录 A.5 新增 **18 条实测事实**、附录 B 新增 3 条术语、附录 C 新增 R-16 / R-17 两行
+- **关键约束（实现时必须正面处理，非假设）**: ① `hotspots_fts` 是 **contentless FTS5**（`content=''`，`migrations/003_github_category.sql:53-59`）→ DELETE/UPDATE 被禁；`hotspots_ad` 触发器已由 `migrations/078_fix_hotspots_fts_delete_triggers.sql:14-17` 修好为**带旧值**删除，故普通 `DELETE FROM hotspots` 即自动同步 FTS，**严禁手写不带旧值的 FTS delete**（078 注释记录：不报错但词条静默残留 → 搜索假阳性），**严禁改触发器**；② `favorites.hotspot_id` 是**无 CASCADE 的逻辑外键**（`migrations/006.sql:13-14`）→ 收藏命中的热点**永不下沉**；③ `ai_scores` 的 FK **已被剥离**（`migrations/132_ai_scores_drop_fk.sql`）→ 删热点后成悬空引用，须**显式同步删除**；④ `hotspot_tags` 随 `hotspots` 级联删（`migrations/024.sql:16`）→ 冷层 md 必须自带 tags 否则重建不完整；⑤ md **不得被改写或删除**（§6.3 wiki-first）→ 沉降只**新增** `feed/` 目录；⑥ `wiki_events.kind` 是自由文本无 CHECK 约束 → 新增 `sink`/`rebuild` 事件类型**不需 migration**（与「表结构不动」一致）
+- **未执行（边界）**: **P2.5 五子阶段的全部代码实施**（备份链退役 / 日志环截 / 沉降管道 / 重建管道 / 台账两层化）；R-17 属「取消备份」方向性裁决，**实施需单独启动指令**；P2 消融矩阵仍待跑完留档
+- **风险留档**: RA-14（沉降删行后不可逆，顺序强制「重建管道先于任何删行」）/ RA-15（删行连带 FTS + 级联 + 悬空引用）/ RA-16（环截误伤 OpsRunsPanel 消费）；X-10 显式声明磁盘硬件故障导致冷数据全失的风险**由 owner 接受**，本项目代码内不做异盘同步
+
+## [DEV-0335] v0.8.8 P1 裁决阶段关闭 — 18 项批准 + 3 项修订 + 三项补证回写 (v088-p1-verdict)
+
+- **时间**: 2026-11-11
+- **类型**: 纯文档（零代码变更、零 schema 变更、零端点增减、**零删除动作**）
+- **依据**: [`docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-11.md`](docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-11.md) §6 批准清单；[`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §8.1 P1 退出条件
+- **批准结果**: **18 项裁决全部批复**（P1-01a ~ P1-18），其中 3 项按用户指令修订（见下）；**P1-17 例外**：其 §6 建议原本就是「待确认」，「按建议批准」不构成 R-14 `/garden` 的删除授权，记为保留项
+- **三项修订**:
+  1. **P1-03a → R-03 整链下线**（原 PRD「删 router 保留 service」作废）：`api/weekly_report.py` + `weekly_report_service.py` + `weekly_report_repo.py`（先核验无其他表访问 + job 41 `daily_snapshot_job` / job 42 `weekly_report_job`）+ `scheduler.py` 两行注册；`trend_daily_snapshots` / `weekly_reports` **停写保留、不 DROP**（遵 X-6）
+  2. **P1-16 → M-2 目标修订为 ≤ 97**：口径 `100 − R-01 − R-02 − R-03`（R-04 保留不计；R-13 生效使基线由 PRD 原稿 101 变为实测 100）
+  3. **P1-18 → R-13 补回 `410 Gone` 垫片**（不接受现网 404 偏差）：`/api/todos*` 统一 410，体含 `deprecated_since=0.8.8` / `replacement=/action` / `sunset_date=0.9.0`；首选 `main.py` 应用级 catch-all（不新增 `include_router`，M-2 计数不受影响）；归 P3 执行
+- **三项补证结论（P1-01b / P1-03b / P1-05-U-4，全部闭环）**:
+  - `trend_snapshots`：唯一读取链 `trend_repo.py:220 → TrendService → api/trends.py`（链尾即 R-01），**无第三方读取方** → R-01 同 commit 摘除 `collection_service.py:121/:187` 写链，并同步改 `test_e2e_collect.py:173-206` / `test_collection_service.py:226-236` 的 192 行断言
+  - `trend_daily_snapshots` / `weekly_reports`：唯一读取面分别为 `weekly_report_service.py:103`（job 42 自身）与 `api/weekly_report.py` 5 端点，**无第三方读取方** → 整链下线成立
+  - `legacy_migrate_v1_api` (U-4)：**保留**。`RUNBOOK.md` / `ADMIN_MANUAL.md` 均 0 命中，但 `docs/v1.0/c13-switchback-runbook.md:38-44` 仍为现行锁期契约 + `ACCEPTANCE.md:38` D4 生产 853 行迁移未完成 + job 58/59 活跃 + `services/legacy_migrate_v1.py` 24 消费者
+- **其他裁决落档**: R-04 事实修正（`observability_records` 表不存在，端点读 `audit_log`，近 30 天 6,906 行）→ 保留；R-05 三项全部保留并加 docstring 标注；新立 **R-16 孤立资产清理**（4 orphan service / 24 死封装 / 13 孤儿组件，排期 P4.5）
+- **文档变更**:
+  - 审计文档新增 **§6.1 批准结果与补证闭环**（三项修订表 + 三项补证 file:line + §7.2 局限 #2 关闭声明 + 未采纳方案），§6 表头加「批准结果见 §6.1」，§7.2 局限 #2 / §8 下一步同步改为已完成
+  - PRD 六处：§1.1 追加 `v0.8.8-exec.4`、§2.2 router 101→100、§4.3 R-03 整链下线改写、§4.4 R-04 事实修正+保留、§4.5 R-05 三项保留、§4.13 追加 P1-18 410 垫片子项、§4.16 新增 R-16、§5.2 M-2 → ≤97、§8.1 P1 退出标记已满足 + P3/P4.5 行同步
+- **未执行（边界）**: P2 消融（待指令）/ P3 任何删除 / R-14 `/garden` 退役（P1-17 待确认）/ R-15 遗留验收（三主题走查、M-4 复测）
+- **关联文件**: `docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-11.md` / `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`
+- **下一可用号**: DEV-0336
+
+## [DEV-0334] v0.8.8 P0 基线阶段关闭 — R-06~R-09 盘点 + M-1~M-8 基线落表 (v088-p0-baseline)
+
+- **时间**: 2026-11-10
+- **类型**: 只读盘点 + 指标基线（零代码变更、零 schema 变更、零新增端点）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §5.1（指标定义）/ §5.2（目标）/ §5.3（采集纪律）/ §8.1（P0 退出条件）
+- **交付物（5 份，全部 `docs/audit/`）**:
+  - `P0_BASELINE_METRICS_2026-11-10.md` — M-1~M-10 基线主表 + §5.2 绝对门限换算 + P0 关闭结论
+  - `P0_R06_SERVICE_ORPHANS_2026-11-10.md` — 161 service 主表：孤儿 1（`crawler_seed.py`，0.6%）/ 单消费者 22 / 多消费者 101 / UNKNOWN 37（反射路径）
+  - `P0_R07_JOB_INVENTORY_2026-11-10.md` — 59 job 主表：无 gate 归属 0；判闭环非必需 3（`source_revival_check` / `collect_validations_cleanup` / `source_probe`）
+  - `P0_R08_COLLECTOR_INVENTORY_2026-11-10.md` — 19 collector 主表：30 日零产出 4（`hn` / `hfdailypapers` / `ossinsight` / `telegram`）；同 category 重复抓取 145 条/7 日；`paper` 类 169 条/7 日不进首页 Feed
+  - `P0_R09_FRONTEND_API_MAP_2026-11-10.md` — 520 端点：前端有消费 276 / 零调用 244（纯零 67）/ 调用点 379；含 3 例误报复盘（`/api/search`、`/api/commands`、`/api/v1/signals`）
+- **基线值（采集树 `/tmp/hotspot-baseline-v087` @ `8bb960b`，工作树干净）**:
+  - M-1 冷启动 **5,706 ms**（3 次中位）｜M-2 路由 **101**｜M-3 Feed P95 **215.5 ms**（10 次）｜M-4 包体 **756,187 B** gzip（77 产物）
+  - M-5 RSS **15,280 KB**（空载 5 min × 10 次）｜M-6 pytest **1,364.46 s**（3 次：979.54 / 1,364.46 / 1,898.41）｜M-7 采集 **33,180 ms**（`job_runs` 近 60 次中位）｜M-8 重建 **3.496 s**（活体）
+  - M-9 / M-10 登记「—（P4 采集，依赖 R-10）」，非「待测」
+- **两条必须随基线传播的口径约束（fail loud）**:
+  1. **M-6 非「全绿」口径**：worktree 隔离环境确定性失败 13 项（11 项缺 `.venv` / `runtime/upstreams/{pi,dsh}` + 2 项数据态，后者在主仓同样失败已复现）；三轮失败集完全一致，故 M-6 口径为「同一失败集墙钟中位数」，P6 复测须同口径
+  2. **M-7 非活体口径**：本机外网不通，改用 `job_runs` 真实历史（n=757 全 ok，近 60 次中位数），P6 复测须同口径
+- **发现缺陷（记录在案，P0 只读不修）**: `v0.8.7` tag 指向 `5a8057f`，其 `frontend/src/routes/lazy-imports.ts:177` 引用的 `KnowledgeLibraryPage` 组件缺失 → **该 tag 前端不可构建**；组件在 `8bb960b`（v0.8.7-2）补，故前端指标（M-3/M-4）基线取自 `8bb960b`。后续需修复 tag 指向或补发 `v0.8.7.1`
+- **关联文件**: `docs/audit/P0_BASELINE_METRICS_2026-11-10.md` / `docs/audit/P0_R06_SERVICE_ORPHANS_2026-11-10.md` / `docs/audit/P0_R07_JOB_INVENTORY_2026-11-10.md` / `docs/audit/P0_R08_COLLECTOR_INVENTORY_2026-11-10.md` / `docs/audit/P0_R09_FRONTEND_API_MAP_2026-11-10.md` / `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`（修订历史 exec.3 + §5.2 基线列 + §8.1 P0 关闭标记）
+- **下一可用号**: DEV-0335
+
+## [DEV-0333] v0.8.8 前端类型漂移修复 — api/v1.ts 枚举回归 codegen 真源 (v088-artifact-type-drift)
+
+- **时间**: 2026-11-10
+- **类型**: 类型一致性修复（无运行时行为变更、无新增端点、无新增字段）；关闭 DEV-0332「未完成 / 已知偏差」第 5 项
+- **根因**: `frontend/src/api/v1.ts` 手写了 `ArtifactFormat` / `ArtifactStatus` / `ArtifactKind` / `VerificationResult` 四条副本，其中 `ArtifactFormat` 多出 `'html' | 'xml'` 且缺 `'zip'`，与 codegen 真源 `frontend/src/domain/v1_0.ts`（`md|json|csv|png|pdf|txt|zip`，源自 `backend/domain/v1_0_models.py::ArtifactFormat`）不一致 → 后端 Enum 不接受 html/xml
+- **修法（Rule 3 手术刀，仅动 1 文件 2 处）**:
+  - 枚举：删除四条手写 alias，改为自 `domain/v1_0` import 后 `export type` 转出（导出面不变，全仓无外部 import 该四名）；手写副本不再存在，物理上无法再漂移
+  - `Artifact` 接口：改为 `extends Omit<DomainArtifact, 'status' | 'revision'>` 并显式收敛 `status: ArtifactStatus`（必填）/ `revision: number`（必填）/ `reason?: string | null`；依据 `backend/api/artifact_api.py::_artifact_to_dict` 恒返回 status/revision 且附加响应专属 `reason`，故三处差异是响应形状的准确描述而非漂移
+  - 不采用未使用的编译期 guard 常量（`tsconfig` `noUnusedLocals: true`）；不引入 `revision ?? 1` 假回退（`CaseDetail.tsx` 三处 `expected_revision: art.revision` 依赖必填语义，回退会掩盖 CAS 冲突）
+  - 未扩散：`Action` / `Run` / `Knowledge` 同类手写副本未登记为漂移，本轮不动
+- **测试验证**:
+  - `npx tsc --noEmit`：0 error
+  - `npx vitest run`：**106 文件 / 741 用例全绿**（与 DEV-0332 基线持平，零跳过）
+  - `npx vite build --logLevel error`：通过
+- **已知遗留（fail loud）**:
+  - `backend/api/artifact_api.py::CreateArtifactRequest.format` 的 pattern 仍允许 `html|xml`（服务层按 `ArtifactFormat` 校验会拒绝）；属**后端**入参校验宽松，非前端漂移，未在本轮改动范围
+  - R-14 退役泳道页 `/garden` 仍未执行；R-15 验收 ④ 三主题人工走查 / ⑥ M-4 包体对比仍缺
+- **关联文件**: `frontend/src/api/v1.ts` / `frontend/src/components/sentinel/action/ArtifactStage.tsx`（过期注释同步） / `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`（修订历史 exec.2 + 偏差项 ⑤ 关闭）
+- **下一可用号**: DEV-0334
+
+## [DEV-0332] v0.8.8 R-13 待办域退役 + R-15 四菜单前端结构优化 (v088-r13-r15-exec)
+
+- **时间**: 2026-11-10
+- **类型**: 能力退役 (R-13) + 前端结构优化 (R-15)；无新增业务能力、无新增一级入口、无后端新增端点
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.13（R-13）/ §4.15（R-15）；硬约束 C-1 壳冻结 / C-2 主干冻结 / C-3 ai_hub 红线 / C-4 wiki-first 均未触碰
+- **R-13 待办域退役**:
+  - 前端 6 处：删 `components/TodosPage.tsx` + `hooks/useTodos.ts` + `lazy-imports.ts` 导出；`routes/index.tsx` `/todos` → `<QueryRedirect to="/action" />`（透传 query）；`SentinelShell` 删 chip 与 `menuOf()` 分支；`SentinelRail` 删 `TodoRow`/`todos` prop/「今日行动」节；`SentinelHomePage` 删 todos state 与 `/api/todos` 拉取；`SentinelActionPage` 删待办清单与七日点阵
+  - 知识侧替代：`KnowledgeActionBar`「转待办」→「转 Case」并置 disabled（无 Case 创建端点前不静默删入口）
+  - 后端：删 `backend/api/todos.py` + `_registry_core.py` 注册行 + `backend/core/routers.py` 白名单条目
+  - sync：`sync_bundle.py` 三处改「显式跳过 + WARN + 计数」，`stats["todos"] = {"inserted": 0, "skipped": N, "retired": True}`
+  - B 档保留（未删）：`repository/todo_repo.py` / `migrations/011_todos.sql` / `015_todos_deadline.sql` / `skill_registry/builtin.py` 反射引用 / `todos` 数据表（X-6）
+  - 实测偏差：`GET /api/todos` 现返回 **404**（router 整删）而非 410，验收按 404 分支判定
+- **R-15 四菜单结构优化**:
+  - 行动 `/action`：新建 `components/sentinel/action/`（`stageStyles.ts` / `CaseStage` / `ClaimStage` / `RunStage` / `ArtifactStage` / `ActionCommandConsole`）四段执行指挥台（Case → Claim → Run → Artifact）接入页首；数据全走既有 v1 端点（`listCases` / `getCaseAggregate` / `startAction`），四段恒渲染，「发起运行」仅在 approved 且无 run 时出现，outcome 只映射真实 status
+  - 资讯 `/`：feed 改「今日必读 → 待读 → 已读」三段 + 页首「今日一句话」（头条 summary 首句，缺失回退，不硬编码）+ 右栏 `SignalPanel compact`（`days:1&limit:3`）
+  - 知识 `/knowledge`：tabs 之上加「知识主路径」hero（SM-2 复习 / 深度阅读）；条目表加「动作」列「深读」+「→ 行动」（透传 `source/knowledge_id/title`）
+  - 设置 `/settings`：侧栏 17 分区 → 四组（数据源 / 管道与门控 / AI 与模型 / 运维与诊断）+ 组构成摘要；`DatabaseMaintenance` 危险区（VACUUM / 去重 / 历史清理）两阶段二次确认，确认前零请求
+- **测试验证**:
+  - `npx tsc --noEmit`：0 error
+  - `npx vitest run`：**106 文件 / 741 用例全绿**（基线 104 / 730，净增 2 文件 11 用例，零跳过）
+  - `npx vite build --logLevel error`：通过
+  - `python scripts/generate_meta.py --check`：OK（jobs 59 / collectors 19 / routers **100** / services 161 / core_routers **68**；R-13 前为 101 / 69）
+  - 后端定向 pytest（feature_gates / sync_bundle_v1_7 / sync_transaction / api_layer_guard / todos_repo）：136 passed；全量 5389 passed / 2 failed，两项为环境相关（`test_check_temp_db_sizes` 本地 DB 超阈值、`test_kpi_api::test_triage_latency_p50` 种子日期滑出 30 天窗），与本次无关
+- **未完成 / 已知偏差（fail loud）**:
+  - **R-14 退役泳道页 `/garden` 本轮未执行**（PRD §4.14 仍为待办）
+  - R-15 验收 ④ 三主题人工走查未做、⑥ M-4 包体对比未测（缺基线产物，未声称通过）
+  - 四段组件测试组织为 2 个测试文件（15 用例），未严格一组件一测试；`KnowledgeLayout` 主路径 hero 无 colocated 测试
+  - 「已读」段为会话内推导，刷新归零（仓库无已读字段/接口，未新增后端）
+  - `frontend/src/api/v1.ts` 的 `ArtifactFormat` 与 codegen 真源 `domain/v1_0.ts` 漂移（多 html/xml），未顺手修，独立清理项
+- **关联文件**: `frontend/src/{routes/index.tsx,components/sentinel/**,components/knowledge/**,components/settings/**,components/v1/panels/SignalPanel.tsx,api/v1.ts}` / `backend/api/_registry_core.py` / `backend/core/routers.py` / `backend/services/sync_bundle.py` / `backend/tests/**` / `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md` / `docs/v0.8.5/V0.8.5_PLAN.md` / `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` / `CLAUDE.md`
+- **备注**: PRD 修订历史中的 DEV-0330 / DEV-0331 仅作为起草期编号记录于 PRD 表内，未单独建 DEV_LOG 条目；本次执行统一留痕为本条
+- **下一可用号**: DEV-0333
+
 ## [DEV-0329] v0.8.7 公开仓库交付收口 — PII 卫生清理 + 版本/文档/资产全链对齐 (v087-public-repo-closeout)
 
 - **时间**: 2026-10-14

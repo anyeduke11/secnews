@@ -1,4 +1,30 @@
 
+## [DEV-0341] v0.8.8 P2.5 启动 — C2.3a 沉降「只写阶段」落地 + 实施顺序二次裁决 (v088-p25-c23a)
+
+- **时间**: 2026-11-11
+- **类型**: 新增能力 + 文档同步（**1 service 扩展 / 0 新 service / 0 新 job / 0 schema 变更 / 0 端点增减**）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17；[`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §4.1 / §4.2 / §9；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **授权**: owner 2026-11-11 二次裁决「**先 C2.3 只写阶段，再 C2.4**」（AskUserQuestion 三选一）
+- **顺序修订（覆盖 DEV-0340 末行的「C2.4 最先」表述）**:
+  - 原：`C2.4 重建 → C2.1 备份退役 → C2.2 日志环截 → C2.3 沉降 → C2.5 台账`
+  - 现：`C2.3a 沉降(只写) → C2.4 重建 → C2.1 备份退役 → C2.2 日志环截 → C2.3b 沉降(删行) → C2.5 台账`
+  - 理由：首轮裁决（重建先于备份退役，RA-14）成立，但 **C2.4 的输入 `feed/*.md` 由沉降产出**；实测 `items/*.md` frontmatter **缺 `category` / `published_at`**，且 `hotspot_repo.upsert_many` 只覆盖 16 列 → items 无法独立重建 `hotspots` → T4「删库 → 重建 → 行数一致」在沉降落地前**无真实数据可验**。故沉降拆 **a（只写 md、不删 DB 行）/ b（删行，T4 通过后开启）**，a 提到最前 —— 两条约束（重建先于备份退役 / 重建输入先就位）同时满足。
+- **代码（4 文件）**:
+  1. `backend/wiki_fs/paths.py` — 新增 `FEED_DIR = wiki_root() / "feed"`（`__all__` 同步）
+  2. `backend/services/wiki_archiver.py` — 新增 `sink_hotspots_to_feed()` + 7 个私有 helper（`_feed_month` / `_json_list` / `_feed_record` / `_parse_feed_records` / `_render_feed_doc` / `_load_tag_links` / `_select_sink_candidates`）与常量 `FEED_RECORD_MARKER` / `FEED_SCHEMA_VERSION`；模块 docstring 增补职责边界
+  3. `backend/scheduler/jobs/knowledge.py` — `wiki_archiver_job` 追加 sink 调用（**复用既有调度位，不新增 job**）；`ok` 判定纳入 `sink_stats.errors`
+  4. `backend/tests/test_hot_cold_sink.py` — 新增 6 测试
+- **冷层记录契约**: `llm-wiki-2.0/feed/{yyyy-mm}.md` = frontmatter（`doc: feed` / `schema: 1` / `month` / `records` / `updated_at`）+ 每行 `<!--hsc:{json}-->`（sort_keys + ensure_ascii=False），JSON **逐列保真**：`hotspots` 20 列 + `tags` + `tag_links`；按月聚合、按 id 去重、原子重写
+- **沉降口径**: `COALESCE(ingested_at, fetched_at) < now-30d` 且不在 `favorites` 且无 `wiki_events(kind='sink')`；单批 ≤500；**收藏永不下沉**
+- **边界（RA-14）**: **本阶段只写不删** —— 不执行 `DELETE FROM hotspots`，删行待 C2.4 重建通过 T4 后由 C2.3b 开启
+- **架构数字（`generate_meta.py --check` 通过）**: jobs 57 / collectors 19 / routers 97 / services 159 / core_routers 65 —— **零漂移**（不新建 service/job 文件是刻意选择）
+- **验证**:
+  - `pytest backend/tests/test_hot_cold_sink.py -q` → **6 passed**（覆盖：只写不删 / 收藏与 30 天窗排除 / 幂等 / dry-run 不建文件 / 15 标量列 + tags 往返保真 / `kind='sink'` 记账）
+  - `py_compile` 四个改动文件 OK；`ruff check` 四文件 All checks passed
+  - `generate_meta.py --check` OK（数字 + AGENTS.md 7/7 一致 + 版本一致）
+  - 生产库**只读 dry-run**：`{'selected': 500, 'sunk': 0, 'skipped': 0, 'errors': 0, 'months': 0}` —— 选批 SQL 在 4.3 万行真实库可用
+- **未完成（fail-loud）**: ① C2.4 重建管道未开始；② 后端**全量** pytest 仍在后台运行，结论未取回（已出现的 `F` / `EE` 标记待 triage，本条目**不宣称全量全绿**）
+
 ## [DEV-0340] v0.8.8 P3 移除阶段关闭 — 六 commit 退役 trends/categories/weekly_report/garden + 410 垫片 (v088-p3-retire)
 
 - **时间**: 2026-11-11

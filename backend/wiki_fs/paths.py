@@ -45,6 +45,9 @@ ITEMS_DIR: Path = wiki_root() / "items"
 # Concepts
 CONCEPTS_DIR: Path = wiki_root() / "concepts"
 
+# Feed (v0.8.8 R-17 冷层: hotspots 沉降归档, 按 feed/{yyyy-mm}.md 聚合)
+FEED_DIR: Path = wiki_root() / "feed"
+
 # Inbox / Quarantine (WikiFs 内置, 保留兼容别名)
 INBOX_DIR: Path = wiki_root() / "inbox"
 QUARANTINE_DIR: Path = wiki_root() / "quarantine"
@@ -81,7 +84,7 @@ DEPRECATED_LEGACY_FILES = {
 
 __all__ = [
     "CALENDAR_PATH", "CONCEPTS_DIR", "CONTENT_DIR", "DEPRECATED_LEGACY_FILES",
-    "DRAFTS_DIR", "GRAPH_PATH", "INBOX_DIR",
+    "DRAFTS_DIR", "FEED_DIR", "GRAPH_PATH", "INBOX_DIR",
     "ITEMS_DIR", "LEARNING_DIR", "LEARNING_DONE_DIR", "LEARNING_FAILED_DIR",
     "LEARNING_PENDING_DIR", "LEARNING_TASKS_DIR", "QUARANTINE_DIR",
     "SOUL_PATH", "SUMMARIES_DIR", "wiki_root",

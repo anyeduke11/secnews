@@ -296,24 +296,38 @@ async def wiki_archiver_job() -> None:
     """每日扫描 SQLite 知识条目, 把 ingested_at < now-30d 且未收藏的条目
     原子写入 ``llm-wiki-2.0/items/{id}.md``, 同时建 sources/ 抓取快照 + retention 初始 entry。
 
+    v0.8.8 R-17 (C2.3 只写阶段): 同一调度位追加 ``hotspots`` → ``feed/{yyyy-mm}.md``
+    冷层沉降, 复用本 job 而不新增 job 计数 (设计 §4.1); 本阶段不删 DB 行。
+
     关闭策略: ``config.llm_wiki_v2=False`` 时直接跳过。
     """
+    from pathlib import Path
+
     from backend.config import config
 
     if not config.llm_wiki_v2:
         _logger.info("wiki_archiver_job skipped (llm_wiki_v2 disabled)")
         return
 
-    from backend.services.wiki_archiver import archive_overdue_items
+    from backend.services.wiki_archiver import (
+        archive_overdue_items,
+        sink_hotspots_to_feed,
+    )
 
+    sink_stats: dict[str, int] = {}
     _t0 = datetime.now(tz=timezone.utc)
     try:
         stats = archive_overdue_items(
             wiki_root=config.llm_wiki_v2_path,
             days=30,
         )
+        sink_stats = sink_hotspots_to_feed(
+            wiki_root=Path(config.llm_wiki_v2_path),
+            days=30,
+        )
         _logger.info(
-            f"wiki_archiver_job: {stats} (wiki_root={config.llm_wiki_v2_path})"
+            f"wiki_archiver_job: {stats} sink={sink_stats} "
+            f"(wiki_root={config.llm_wiki_v2_path})"
         )
     except Exception as e:
         _logger.error(f"wiki_archiver_job crashed: {e}")
@@ -323,7 +337,7 @@ async def wiki_archiver_job() -> None:
             pass
         return
     duration_ms = int((datetime.now(tz=timezone.utc) - _t0).total_seconds() * 1000)
-    ok = stats.get("errors", 0) == 0
+    ok = stats.get("errors", 0) == 0 and sink_stats.get("errors", 0) == 0
     try:
         job_done_event("wiki_archiver", "wiki_archiver", duration_ms, ok=ok)
     except Exception:

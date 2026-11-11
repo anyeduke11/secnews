@@ -181,16 +181,36 @@ P2 消融（20 对象 × 约 23 min）正在当前工作树运行，改 `db.py` 
 
 **流程**（每批 ≤500 条，与 `wiki_archiver.py:241` 的 limit 一致）：
 
+> **实施状态（p2.5.1）**：**只写阶段（C2.3a）已落地**——步骤 1/2/3/5 已实现于 `services/wiki_archiver.py::sink_hotspots_to_feed()`（`_atomic_write_text` 原子写 + 读回校验 + `kind='sink'` 记账），**步骤 4（删行）未开启**，待 C2.4 重建管道通过 T4 后以 C2.3b 开启（RA-14）。选批口径与下方 SQL 的差异：实现用 `COALESCE(ingested_at, fetched_at)` 兜空值，并加 `NOT EXISTS(wiki_events kind='sink')` 排除已记账行（保证重跑幂等、已沉批次不再选）。
+
+**冷层记录契约（`feed/{yyyy-mm}.md`，实现即此格式）**：
+
+```
+---
+doc: feed
+schema: 1
+month: 2026-08
+records: 1234
+updated_at: 2026-11-11T...
+---
+
+<!--hsc:{"v":1,"id":"...","title":"...","summary":"...","source":"...","url":"...",...,"tags":[...],"tag_links":[{"tag_id":"...","label":"...","confidence":0.9}]}-->
+<!--hsc:{...}-->
+```
+
+- 每行一条记录，`<!--hsc:{json}-->` 包裹 JSON（sort_keys + ensure_ascii=False），JSON 内**逐列保真**携带 `hotspots` 20 列 + `tags` + `tag_links`；坏行解析时跳过并计入 errors。
+- 按月聚合，追加写（先读现有记录 → 按 id 去重 → 原子重写整文件）。
+
 ```
 1. 选批    SELECT * FROM hotspots
-           WHERE ingested_at < now-30d
+           WHERE COALESCE(ingested_at, fetched_at) < now-30d
              AND id NOT IN (SELECT hotspot_id FROM favorites)   ← 收藏永不下沉
-           ORDER BY ingested_at LIMIT 500
+             AND NOT EXISTS (wiki_events kind='sink' ...)       ← 已沉批次不再选
+           ORDER BY ... LIMIT 500
 2. 写 md   原子写 llm-wiki-2.0/feed/{yyyy-mm}.md（append 段，非覆盖）
            前置校验：目标 md 已含该 id → 跳过（幂等）
-3. 校验    重新读回 md，确认 id 存在且 body 非空
-           ↓ 校验失败 → 不删行，计入 errors，本批中止（fail-loud）
-4. 删行    DELETE FROM hotspots WHERE id = ?
+3. 校验    重新读回 md，确认 id 存在（失败 → 计入 errors，本批中止，fail-loud）
+4. 删行    DELETE FROM hotspots WHERE id = ?      ← C2.3b，T4 通过后才开启
            ↓ 同时处理 FK 级联与 FTS
 5. 记账    wiki_events(kind='sink', wiki_path='feed/xxx.md', db_table='hotspots', db_row_id=id)
 ```
@@ -215,13 +235,16 @@ P2 消融（20 对象 × 约 23 min）正在当前工作树运行，改 `db.py` 
 
 **流程**：
 ```
-1. 扫冷层  遍历 llm-wiki-2.0/feed/*.md + items/*.md，解析 frontmatter
+1. 扫冷层  hotspots 只从 feed/*.md 重建（逐行 <!--hsc:{json}--> 记录）
+           items/*.md 仅用于重建 knowledge_items（不可用于 hotspots，见下）
 2. 回填    UPSERT hotspots / hotspot_tags / knowledge_items
 3. 重建索引 REINDEX hotspots_fts / wiki_items_fts
 4. 对账    md 条数 vs DB 行数 → 差异入 wiki_events(kind='rebuild_diff')
 ```
 
 **依赖前提**：`feed/{yyyy-mm}.md` 必须携带足够信息重建 `hotspots` 行（`title` / `url` / `summary` / `category` / `published_at` / `ingested_at` / `score` / `quality_score` / `tags`）。**这是 §4.1 管道 A 的 schema 约束，必须在实现时严格遵守**。
+
+> **实测补充（p2.5.1）**：`llm-wiki-2.0/items/*.md` 的 frontmatter **缺 `category` / `published_at`**，且 `hotspot_repo.upsert_many` 仅覆盖 16 列（未含 `tags` / `last_read_at` / `lifecycle` / `pick_score` / `quality_*`）→ **items 无法独立重建 `hotspots`**。故 `hotspots` 的唯一冷层来源是 `feed/*.md` 的 `<!--hsc:{json}-->` 全列记录（这是把 C2.3a 提到 C2.4 之前的原因）。
 
 ### 4.3 两管道的可核验性
 
@@ -336,15 +359,18 @@ P2 消融（20 对象 × 约 23 min）正在当前工作树运行，改 `db.py` 
 
 ---
 
-## 9. 实施顺序（下一轮，P2 消融完成后）
+## 9. 实施顺序（p2.5.1 二次裁决后，按序执行）
 
 | 阶段 | 内容 | 前置门 |
 |---|---|---|
-| **P2.5-1** | 备份链退役（§6.1 + §6.2） | T2 全绿 + `grep backup` 0 残留 |
+| **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试） |
+| **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | 3a 已产出真实 `feed/*.md` → 删库 → 重建 → 行数一致 |
+| **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 |
 | **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 |
-| **P2.5-3** | 冷层 `feed/` 目录 + 管道 A（§4.1） | T2 全绿 + 重建验收通过 |
-| **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | 删库 → 重建 → 行数一致 |
+| **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 + 备份链已退役 |
 | **P2.5-5** | `retention.json` 台账两层化重写 | `generate_meta --check` 通过 + 台账与实际表一致 |
+
+> **顺序修订说明**：原稿把 P2.5-4 排在 P2.5-1 之前（RA-14），但 P2.5-4 的输入 `feed/*.md` 由 P2.5-3 产出 → 「删库 → 重建 → 行数一致」在 3 落地前无真实数据可验。故 3 拆为 **3a 只写 / 3b 删行**，3a 提到最前；「重建先于备份退役」（4 先于 1）与「删行最后」（3b 最后）两条约束同时满足。
 
 **每阶段必须**：单独 commit + T2/T3/T4 全绿 + `DEV_LOG` 记录 + PRD §8.1 P2.5 行更新。
 

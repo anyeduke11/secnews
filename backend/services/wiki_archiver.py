@@ -7,6 +7,10 @@
 - 在 ``retention.json`` 写入初始 entry (initial_score=1.0, current_score=1.0)
 - 调 ``wiki_event_repo`` 留痕 (kind=agent_write, agent=job:wiki_archiver)
 
+v0.8.8 R-17 追加职责: ``sink_hotspots_to_feed()`` 把 ``hotspots`` 同口径
+(30 天外 + 未收藏) 沉降到 ``feed/{yyyy-mm}.md``, 留痕 kind=sink。
+当前为**只写阶段** — 不删 DB 行, 删行待 C2.4 重建管道通过 T4 验收后开启。
+
 关闭策略: ``config.llm_wiki_v2=False`` 时整个模块返回空集 (上层 job 直接跳过)。
 
 设计边界:
@@ -272,4 +276,258 @@ def archive_overdue_items(
     return stats
 
 
-__all__ = ["_atomic_write_text", "archive_item", "archive_overdue_items"]
+# ---------------------------------------------------------------------------
+# v0.8.8 R-17 冷层沉降 (C2.3 只写阶段: hot → cold feed/, **不删 DB 行**)
+# ---------------------------------------------------------------------------
+
+# feed md 契约: 每条 hotspot 一行, 行内 JSON 由 HTML 注释包裹 —
+# 机器可逆解析, 且 md 预览器/编辑器会忽略注释, 不影响可读性。
+FEED_RECORD_MARKER = "<!--hsc:"
+FEED_SCHEMA_VERSION = 1
+
+
+def _feed_month(iso_ts: str) -> str:
+    """ISO 时间串 → ``yyyy-mm`` 分月键 (解析失败回退 UTC 当月)。"""
+    try:
+        return datetime.fromisoformat(iso_ts).strftime("%Y-%m")
+    except (TypeError, ValueError):
+        return datetime.now(tz=timezone.utc).strftime("%Y-%m")
+
+
+def _json_list(raw: Any) -> list:
+    """``hotspots.tags`` / ``quality_flags`` 等 JSON 数组列 → list (坏值 → [])。"""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _feed_record(row: Any, tag_links: list[dict]) -> dict:
+    """hotspots 行 → feed 记录 (逐列保真, 供 C2.4 重建还原整行)。"""
+    return {
+        "v": FEED_SCHEMA_VERSION,
+        "id": row["id"],
+        "title": row["title"],
+        "summary": row["summary"] or "",
+        "source": row["source"],
+        "url": row["url"],
+        "category": row["category"],
+        "published_at": row["published_at"],
+        "score": row["score"],
+        "fetched_at": row["fetched_at"],
+        "ingested_at": row["ingested_at"],
+        "is_fallback": int(row["is_fallback"] or 0),
+        "quality_score": row["quality_score"],
+        "quality_flags": _json_list(row["quality_flags"]),
+        "quality_checked_at": row["quality_checked_at"],
+        "url_check_status": row["url_check_status"],
+        "lifecycle": row["lifecycle"],
+        "is_hidden": int(row["is_hidden"] or 0),
+        "pick_score": row["pick_score"],
+        "last_read_at": row["last_read_at"],
+        "tags": _json_list(row["tags"]),
+        "tag_links": tag_links,
+    }
+
+
+def _parse_feed_records(text: str) -> list[dict]:
+    """从 feed md 解析全部记录 (坏行跳过, 不抛)。"""
+    records: list[dict] = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not (s.startswith(FEED_RECORD_MARKER) and s.endswith("-->")):
+            continue
+        try:
+            rec = json.loads(s[len(FEED_RECORD_MARKER) : -3])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(rec, dict) and rec.get("id"):
+            records.append(rec)
+    return records
+
+
+def _render_feed_doc(month: str, records: list[dict]) -> str:
+    """渲染 ``feed/{yyyy-mm}.md`` 全文 (frontmatter + 逐行记录)。"""
+    head = [
+        "---",
+        "doc: feed",
+        f"schema: {FEED_SCHEMA_VERSION}",
+        f"month: {month}",
+        f"records: {len(records)}",
+        f"updated_at: {datetime.now(tz=timezone.utc).isoformat()}",
+        "---",
+        "",
+    ]
+    body = [
+        f"{FEED_RECORD_MARKER}{json.dumps(r, ensure_ascii=False, sort_keys=True)}-->"
+        for r in records
+    ]
+    return "\n".join(head + body) + "\n"
+
+
+def _load_tag_links(conn: Any, hotspot_ids: list[str]) -> dict[str, list[dict]]:
+    """批量取 ``hotspot_tags`` + ``tags.label``, 按 hotspot_id 分组。"""
+    if not hotspot_ids:
+        return {}
+    placeholders = ",".join("?" * len(hotspot_ids))
+    rows = conn.execute(
+        f"""
+        SELECT ht.hotspot_id, ht.tag_id, ht.confidence, t.label
+        FROM hotspot_tags ht
+        LEFT JOIN tags t ON t.id = ht.tag_id
+        WHERE ht.hotspot_id IN ({placeholders})
+        """,
+        hotspot_ids,
+    ).fetchall()
+    out: dict[str, list[dict]] = {}
+    for r in rows:
+        out.setdefault(r["hotspot_id"], []).append(
+            {
+                "tag_id": r["tag_id"],
+                "label": r["label"] or "",
+                "confidence": r["confidence"],
+            }
+        )
+    return out
+
+
+def _select_sink_candidates(cutoff_iso: str, limit: int) -> list[Any]:
+    """选批: 30 天外 + 未收藏 + 尚未沉降 (无 ``kind='sink'`` 事件)。"""
+    from backend.repository.db import get_connection
+
+    return (
+        get_connection()
+        .execute(
+            """
+            SELECT h.* FROM hotspots h
+            WHERE COALESCE(h.ingested_at, h.fetched_at) < ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM favorites f WHERE f.hotspot_id = h.id
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM wiki_events w
+                  WHERE w.kind = 'sink' AND w.db_table = 'hotspots'
+                    AND w.db_row_id = h.id
+              )
+            ORDER BY COALESCE(h.ingested_at, h.fetched_at) ASC
+            LIMIT ?
+            """,
+            (cutoff_iso, limit),
+        )
+        .fetchall()
+    )
+
+
+def sink_hotspots_to_feed(
+    *,
+    wiki_root: Path,
+    days: int = 30,
+    limit: int = 500,
+    dry_run: bool = False,
+) -> dict[str, int]:
+    """C2.3 只写阶段: 把 30 天外未收藏热点沉降到 ``feed/{yyyy-mm}.md``。
+
+    本阶段**不删除** ``hotspots`` 行 —— 删行必须等 C2.4 重建管道上线并通过
+    「删库 → 重建 → 行数一致」验收后开启 (RA-14: 重建能力是取消备份的前提)。
+
+    写的顺序遵循「先写 md, 再回读校验, 最后记账」: 回读缺记录时本批不计账
+    (下一轮 job 会重试), 并计入 ``errors`` 让 job 标记失败 (fail-loud)。
+
+    Args:
+        wiki_root: llm-wiki-2.0 根目录
+        days: 沉降阈值天数 (默认 30)
+        limit: 单批上限 (默认 500)
+        dry_run: True 时只统计不写盘
+
+    Returns:
+        {selected, sunk, skipped, errors, months}
+    """
+    from datetime import timedelta
+
+    from backend.repository.db import get_connection
+    from backend.repository.wiki_event_repo import wiki_event_repo
+
+    stats = {"selected": 0, "sunk": 0, "skipped": 0, "errors": 0, "months": 0}
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    rows = _select_sink_candidates(cutoff.isoformat(), limit)
+    stats["selected"] = len(rows)
+    if not rows or dry_run:
+        return stats
+
+    conn = get_connection()
+    tag_links = _load_tag_links(conn, [r["id"] for r in rows])
+    # 已记账 id 集合: 账不留洞 (md 已写但事件写失败的行, 下一轮补账)
+    logged = {
+        str(r["db_row_id"])
+        for r in conn.execute(
+            "SELECT db_row_id FROM wiki_events "
+            "WHERE kind = 'sink' AND db_table = 'hotspots'"
+        ).fetchall()
+    }
+
+    by_month: dict[str, list[dict]] = {}
+    for row in rows:
+        rec = _feed_record(row, tag_links.get(row["id"], []))
+        key = _feed_month(str(rec["ingested_at"] or rec["fetched_at"]))
+        by_month.setdefault(key, []).append(rec)
+
+    for month, recs in by_month.items():
+        path = wiki_root / "feed" / f"{month}.md"
+        existing = (
+            _parse_feed_records(path.read_text(encoding="utf-8"))
+            if path.exists()
+            else []
+        )
+        known = {str(r.get("id")) for r in existing}
+        fresh = [r for r in recs if str(r["id"]) not in known]
+        stats["skipped"] += len(recs) - len(fresh)
+
+        if fresh:
+            _atomic_write_text(path, _render_feed_doc(month, existing + fresh))
+            readback = {
+                str(r.get("id"))
+                for r in _parse_feed_records(path.read_text(encoding="utf-8"))
+            }
+            missing = [r for r in fresh if str(r["id"]) not in readback]
+            if missing:
+                stats["errors"] += len(missing)
+                log.error(
+                    f"feed readback mismatch {path}: {len(missing)} record(s) missing, "
+                    "batch not logged"
+                )
+                continue
+
+        for rec in recs:
+            rec_id = str(rec["id"])
+            if rec_id in logged:
+                continue
+            try:
+                wiki_event_repo.log(
+                    kind="sink",
+                    wiki_path=f"feed/{month}.md",
+                    db_table="hotspots",
+                    db_row_id=rec_id,
+                    agent="job:wiki_archiver",
+                    payload={"month": month, "schema": FEED_SCHEMA_VERSION},
+                )
+                logged.add(rec_id)
+            except Exception as e:
+                stats["errors"] += 1
+                log.warning(f"wiki_events sink log failed for {rec_id}: {e}")
+
+        stats["sunk"] += len(fresh)
+        if fresh:
+            stats["months"] += 1
+
+    return stats
+
+
+__all__ = [
+    "_atomic_write_text",
+    "archive_item",
+    "archive_overdue_items",
+    "sink_hotspots_to_feed",
+]

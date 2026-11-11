@@ -10,7 +10,7 @@ Batch 4 Task C 从 ``collection_service.py`` 物理搬出 (行为零变更, SQL 
   计算 / 逐条异常隔离 / 日志)。
 - **去重指纹** 见 ``collection_dedup`` (content_fingerprints)。
 - **run 内步骤** — ``inject_custom_sources`` / ``enrich_and_recheck`` /
-  ``rebuild_trend_and_log`` / ``invalidate_caches`` /
+  ``invalidate_caches`` /
   ``schedule_url_content_check`` / ``publish_collect_done`` /
   ``evaluate_source_coverage_logged``。
 - **单粒度执行** — ``run_one_collector_safe`` (单 collector 异常隔离) /
@@ -118,15 +118,6 @@ async def enrich_and_recheck(items: list[HotspotItem], logger) -> list[HotspotIt
     except Exception as e:
         logger.warning(f"summary enrichment failed: {e}")
     return items
-
-
-async def rebuild_trend_and_log(trend, logger) -> None:
-    """重建 24h 趋势网格 (同步 sqlite3 操作, 放 thread pool)。"""
-    try:
-        trend_count = await asyncio.to_thread(trend.rebuild, 24)
-        logger.debug(f"trend rebuilt: {trend_count} points")  # P0-10: 例行成功
-    except Exception as e:
-        logger.error(f"trend rebuild failed: {e}")
 
 
 def invalidate_caches(logger) -> None:
@@ -383,7 +374,6 @@ async def run_category_locked(
     since: str | None,
     collectors: dict,
     repo,
-    trend,
     logger,
 ) -> CollectionReport:
     """单分类执行 (原 CollectionService._run_one_locked 持锁路径)。
@@ -431,8 +421,6 @@ async def run_category_locked(
             await asyncio.to_thread(write_fingerprints, merged_items, logger)
         except Exception as e:
             logger.warning(f"fingerprint write skipped: {e}")
-
-    await rebuild_trend_and_log(trend, logger)
 
     # 逐 collector 写 collection_runs 审计行
     for r in results:

@@ -22,7 +22,9 @@ from backend.extensions import EXTENSION_ROUTERS
 # 无条件注册 (register_all 顶层 include_router) — 启动即注册, 不受任何开关影响
 CORE_ROUTERS: frozenset[str] = frozenset({
     # 采集管道
-    "hotspots", "trends", "categories", "sources", "health",
+    # R-01: "trends" 已随趋势端点退役移除 (trend_repo/表保留, 仅 router 退场)
+    # R-02: "categories" 已随分类元数据端点退役移除 (count_by_category 保留)
+    "hotspots", "sources", "health",
     "health_stats",  # Batch 2: /api/stats 自 health.py 拆出 (P0-8 补登记)
     "export", "proxy", "quality", "refresh", "catchup",
     # 知识库
@@ -34,7 +36,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # DEV-0178: "bid_alert" 已随标讯剔除移除 (core 白名单同步)
     # R-13: "todos" 已随待办域退役移除 (repo/表保留, 仅 router 退场)
     "content", "secrets", "skills",
-    "reports", "weekly_report", "maintenance",
+    "reports", "maintenance",
     # 复利引擎 (kl_* core 域)
     "kl_compounding_api", "kl_metrics_api", "kl_rollback_api", "kl_planning_api",
     "attention_events_api",

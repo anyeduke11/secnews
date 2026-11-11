@@ -65,18 +65,6 @@ export interface CategoryInfo {
   count?: number;
 }
 
-export interface TrendPoint {
-  label: string;
-  hours_ago: number;
-  ai: number;
-  security: number;
-  finance: number;
-  startup: number;
-  github: number;
-  total: number;
-  // DEV-0183: bid 字段已随标讯全线下线移除 (后端 trend 网格按 Category 枚举生成)
-}
-
 export interface HotspotResponse {
   version: string;
   total: number;
@@ -94,15 +82,6 @@ export interface HotspotResponse {
   latest_ingestion_at?: string | null;
   // DEV-0176 T0.4: 本次排序加权所用的兴趣域 (空数组 = 无画像)
   interest_domains?: string[];
-}
-
-export interface TrendResponse {
-  version: string;
-  hours: number;
-  trends: TrendPoint[];
-  by_category?: boolean;
-  data?: Record<string, TrendPoint[]>;
-  fetched_at: string;
 }
 
 export interface HealthResponse {

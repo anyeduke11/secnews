@@ -30,8 +30,6 @@ CORE_PATHS = [
     "/api/knowledge/items",
     "/api/search",
     "/api/hotspots",
-    "/api/trends",
-    "/api/categories",
     "/api/favorites",
     "/api/content/calendar",
     "/api/export",
@@ -44,7 +42,6 @@ CORE_PATHS = [
     "/api/settings/features",
     "/api/secrets/status",
     "/api/skills",
-    "/api/weekly-report",
     "/api/tags",
     "/api/annotations",
     "/api/digests/latest",
@@ -205,15 +202,16 @@ class TestJobGating:
     def test_core_jobs_never_gated(self, monkeypatch):
         monkeypatch.setattr("backend.extensions._load_gates", lambda: ALL_OFF)
         from backend.scheduler.scheduler import _is_job_enabled
-        for core_id in ["collect_all", "trend_rebuild", "daily_snapshot", "digest_generator"]:
+        for core_id in ["collect_all", "trend_rebuild", "stats_daily", "digest_generator"]:
             assert _is_job_enabled(core_id), f"core job {core_id} must always run"
 
     def test_registered_job_count_matches_scheduler(self):
-        """scheduler.py 中 add_job 数 = 59 (v1.0 T09 +2 worker_queue_pump + legacy_hold_reap,
+        """scheduler.py 中 add_job 数 = 57 (v1.0 T09 +2 worker_queue_pump + legacy_hold_reap,
         T13 +1 knowledge_review_due, C13 +2 legacy_promote_due + legacy_migrate_resume,
         v0.8.5 D1 +1 v1_signal_intake_tick; 前值 52 — v0.8.2 Y-A4 +1 backup_verify;
         DEV-0178: bid_expiry_check 移除 58→57; DEV-0241: wiki_projection_rebuild 57→58;
-        MP-2: mp2_extract 采集→抽取→入池 58→59)。"""
+        MP-2: mp2_extract 采集→抽取→入池 58→59; R-03a: daily_snapshot + weekly_report
+        整链下线 59→57)。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -224,7 +222,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 59
+        assert n == 57
 
 
 class TestFeaturesEndpoint:

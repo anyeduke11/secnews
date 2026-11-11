@@ -5,7 +5,7 @@
   - run_once 返回合法的 CollectionReport
   - run_once 走 upsert 路径（mock repo 避免外部依赖）
   - run_once 写 5 行 collection_runs
-  - run_once 重建 trend_snapshots（120 行 = 24h × 5 分类）
+  - run_once 不再重建 trend_snapshots（R-01 退役, 由 trend_rebuild_job 维护）
   - run_one 单分类执行与其他分类隔离
   - 单 collector 抛异常时全局仍能跑通
 
@@ -223,18 +223,21 @@ async def test_run_once_writes_collection_runs(temp_db):
 
 
 # ---------------------------------------------------------------------------
-# 5. run_once 重建 trend_snapshots (192 行 = 24h × 8 分类; 2026-09-26 +paper)
+# 5. R-01: run_once 不再重建 trend_snapshots (改由 trend_rebuild_job 维护)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_run_once_calls_trend_rebuild(temp_db):
-    """run_once 完成后 trend_snapshots 应有 24 × 8 = 192 行。"""
+async def test_run_once_does_not_rebuild_trend(temp_db):
+    """R-01: 采集链不再写 trend_snapshots。
+
+    退役的是「API 读链 + 采集链写链」; trend_repo 与表本身保留。
+    """
     svc = CollectionService()
     _patch_all_collectors(svc)
     await svc.run_once()
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
-    assert int(rows[0][0]) == 192
+    assert int(rows[0][0]) == 0
 
 
 # ---------------------------------------------------------------------------

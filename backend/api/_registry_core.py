@@ -16,7 +16,6 @@ def register_core(app: FastAPI) -> None:
     import backend.api.attention_events_api as attention_events_api  # v1.7: 注意力事件追踪
     from backend.api import (
         cache,  # v1.9: 缓存管理 (clear/stats)
-        categories,
         codegarden,  # v1.5+: CodeGarden 代码花园 (Phase 2a)
         codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
         compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
@@ -47,14 +46,10 @@ def register_core(app: FastAPI) -> None:
         skills,  # Phase 41: Skill 管理
         sources,
         sync,  # Phase 42: 跨端配置同步 (WebDAV)
-        trends,
-        weekly_report,  # v1.3.0 Phase 4: 周报
     )
     from backend.extensions import is_extension_enabled
 
     app.include_router(hotspots.router, tags=["hotspots"])
-    app.include_router(trends.router, tags=["trends"])
-    app.include_router(categories.router, tags=["categories"])
     app.include_router(health.router, tags=["health"])
     app.include_router(health_stats.router, tags=["health"])
     app.include_router(export.router, tags=["export"])
@@ -80,7 +75,6 @@ def register_core(app: FastAPI) -> None:
     if is_extension_enabled("sync"):
         app.include_router(sync.router, tags=["sync"])
     app.include_router(reports.router, tags=["reports"])
-    app.include_router(weekly_report.router, tags=["weekly-report"])
     app.include_router(deep_read.router, tags=["deep-read"])
     app.include_router(cve_analytics.router, tags=["cve-analytics"])
     app.include_router(compliance.router, tags=["compliance"])

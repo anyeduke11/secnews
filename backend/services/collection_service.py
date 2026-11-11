@@ -8,9 +8,7 @@ point for running a full collection cycle. The service:
    collector crash never aborts the whole run.
 2. **Repository writes** — successful collector outputs are flattened
    and passed to :meth:`HotspotRepository.upsert_many` in one batch.
-3. **Trend rebuild** — after a successful upsert, the 24h trend grid
-   is recomputed from the freshly-written hotspots.
-4. **Audit log** — each per-category outcome is written to
+3. **Audit log** — each per-category outcome is written to
    ``collection_runs`` with a derived status (``SUCCESS`` / ``PARTIAL`` / ``FAILED``).
 
 Batch 4 Task C: 本文件是编排 facade (run_once 主流程 + run_one/run_one_source
@@ -53,7 +51,6 @@ from backend.domain.enums import Category
 from backend.domain.models import HotspotItem
 from backend.logging_config import logger
 from backend.repository.hotspot_repo import HotspotRepository
-from backend.repository.trend_repo import TrendRepository
 from backend.services.collection_dedup import (
     _from_signed_64,
     _to_signed_64,
@@ -66,7 +63,6 @@ from backend.services.collection_pipeline import (
     inject_custom_sources,
     invalidate_caches,
     publish_collect_done,
-    rebuild_trend_and_log,
     run_category_locked,
     run_one_collector_safe,
     run_single_source,
@@ -118,7 +114,6 @@ class CollectionService:
             ],
         }
         self.repo = HotspotRepository()
-        self.trend = TrendRepository()
         self.logger = logger.bind(component="collection_service")
         # Phase 32: asyncio.Lock 防 run_once 重叠 — scheduler 周期跑和 POST
         # /api/refresh 手动触发共用同一把锁, 同一时刻只允许一个采集在跑.
@@ -182,9 +177,6 @@ class CollectionService:
                 await asyncio.to_thread(write_raw_items, all_items, results, self.logger)
             except Exception as e:
                 self.logger.warning(f"raw_items write skipped: {e}")
-
-        # 重建趋势 — 同步 sqlite3 操作放 thread pool
-        await rebuild_trend_and_log(self.trend, self.logger)
 
         # 写 collection_runs — Phase 9 修复：同步 DB 写，放 thread pool
         for r in results:
@@ -261,7 +253,6 @@ class CollectionService:
             since=since,
             collectors=self.collectors,
             repo=self.repo,
-            trend=self.trend,
             logger=self.logger,
         )
 

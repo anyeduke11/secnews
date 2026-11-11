@@ -95,7 +95,11 @@ class HotspotItem(BaseModel):
 class TrendPoint(BaseModel):
     """One hourly bucket in the trend heatmap.
 
-    ``hours_ago`` 的上界必须与 ``/api/trends`` 声明的 ``hours ≤ 168`` 一致：
+    R-01: ``/api/trends`` 端点已退役 (404), 本模型随 ``trend_service.py``
+    一并失去运行时消费者; ``trend_repo`` 与 ``trend_snapshots`` 表保留
+    (由 ``trend_rebuild_job`` 写入)。
+
+    ``hours_ago`` 的上界历史须与 ``/api/trends`` 声明的 ``hours ≤ 168`` 一致：
     旧值 ``le=23`` 把数据层锁死在 24 桶, 而 ``trend_snapshots.hours_ago`` 本身
     没有 CHECK 约束 → 超出 24h 的请求只能被 service 补成假 0, "没有快照"于是被
     渲染成"零资讯" (实测 ``/api/trends?hours=168`` 168 点仅 19 个非零)。

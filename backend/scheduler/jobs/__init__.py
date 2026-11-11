@@ -86,13 +86,11 @@ from backend.scheduler.jobs.knowledge import (
 )
 from backend.scheduler.jobs.digest import (
     consume_compile_tasks_job,
-    daily_snapshot_job,
     digest_generator_job,
     sm2_daily_push_job,
     scheduled_compile_job,
     scheduled_soul_job,
     scheduled_summary_job,
-    weekly_report_job,
 )
 from backend.scheduler.jobs.maintenance import (
     _force_full_backup_rotate,
@@ -151,7 +149,6 @@ __all__ = [
     "collect_all_job",
     "consume_compile_tasks_job",
     "daily_db_backup_job",  # P1: 每日数据库自动备份
-    "daily_snapshot_job",
     "db_diet_job",
     "export_rebuild_job",
     "instrument_job",
@@ -176,7 +173,6 @@ __all__ = [
     "url_content_check_job",
     "v1_signal_intake_tick_job",  # v0.8.5 D1 点火
     "weekly_maintenance_job",
-    "weekly_report_job",
     "wiki_items_fts_sync_job",
 ]
 __all__.extend([

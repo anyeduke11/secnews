@@ -4,10 +4,10 @@
   - GET /
   - GET /api/health
   - GET /api/stats
-  - GET /api/categories
+  - GET /api/categories (R-02 已退役 → 404)
   - GET /api/hotspots (cursor 分页 + cache 命中)
   - GET /api/hotspots/{id}
-  - GET /api/trends
+  - GET /api/trends (R-01 已退役 → 404)
   - GET /api/quality/summary
   - GET /api/quality/rules
   - PUT /api/quality/rules
@@ -39,7 +39,6 @@ from backend.api.middleware import TRACE_HEADER, TraceIDMiddleware
 from backend.cache import (
     detail_cache,
     invalidate,
-    static_cache,
 )
 from backend.config import config
 from backend.domain.enums import Category
@@ -182,33 +181,28 @@ def test_stats_returns_cache_and_db(client, seeded_db):
 
 
 # ---------------------------------------------------------------------------
-# 4. /api/categories
+# 4. /api/categories — R-02 已退役 (端点 404, count_by_category 保留)
 # ---------------------------------------------------------------------------
-def test_categories_returns_6(client, seeded_db):
+def test_categories_retired(client, seeded_db):
+    """R-02: /api/categories 端点退役 → 404。
+
+    退役的是「分类元数据端点」; count_by_category (hotspot_service /
+    hotspot_repo) 保留 — 由 /api/hotspots 的 category_counts 与
+    /api/favorites、/api/health 继续消费。
+    """
     r = client.get("/api/categories")
+    assert r.status_code == 404
+
+
+def test_category_counts_still_served_via_hotspots(client, seeded_db):
+    """R-02 回归护栏: 分类计数改由 /api/hotspots 的 category_counts 承载。"""
+    r = client.get("/api/hotspots")
     assert r.status_code == 200
-    data = r.json()
-    cats = data["categories"]
-    # Phase 35: tech 合并到 ai, 主分类 6 个
-    # Phase X:  新增 ai_security (AI 安全交叉) → 总数 7
-    # DEV-0183: bid 移除 → 总数 6
-    # 2026-09-26: paper 论文分类加入 → 总数 7
-    assert len(cats) == 7
-    ids = {c["id"] for c in cats}
-    assert ids == {"ai", "ai_security", "security", "finance", "startup", "github", "paper"}
-    assert "tech" not in ids
-    for c in cats:
-        assert "label" in c
-        assert "color" in c
-        assert "count" in c
-
-
-def test_categories_cached(client, seeded_db):
-    r1 = client.get("/api/categories")
-    r2 = client.get("/api/categories")
-    assert r1.json() == r2.json()
-    # 第二次应走 static_cache (同样的数据 + fetched_at 也可能变化, 验证 keys 至少被填上)
-    assert "categories:all" in static_cache or len(static_cache) >= 1
+    counts = r.json()["category_counts"]
+    # 6 主分类 (tech 已合并到 ai; bid 已下线) — 具体集合由后端口径决定,
+    # 此处只断言「分类计数非空且含主分类 ai」
+    assert counts
+    assert "ai" in counts
 
 
 # ---------------------------------------------------------------------------
@@ -354,33 +348,16 @@ def test_hotspots_cursor_pagination(client, seeded_db):
 
 
 # ---------------------------------------------------------------------------
-# 8. /api/trends
+# 8. /api/trends — R-01 已退役 (端点 404, trend_repo/表保留)
 # ---------------------------------------------------------------------------
-def test_trends_default(client, temp_db):
+def test_trends_retired(client, temp_db):
+    """R-01: /api/trends 端点退役 → 404。
+
+    退役的是「API 读链」; trend_snapshots 表与 trend_repo 保留
+    (trend_rebuild_job 仍写入)。
+    """
     r = client.get("/api/trends")
-    assert r.status_code == 200
-    data = r.json()
-    assert data["version"] == API_VERSION
-    assert "trends" in data
-    assert "hours" in data
-    assert data["hours"] == 24
-    assert isinstance(data["trends"], list)
-    assert len(data["trends"]) == 24  # 24h * 1 point/h
-
-
-def test_trends_by_category(client, temp_db):
-    r = client.get("/api/trends", params={"by_category": "true"})
-    assert r.status_code == 200
-    data = r.json()
-    assert "data" in data  # category -> points
-    assert isinstance(data["data"], dict)
-    # v1.9: 加 ai_security; DEV-0183: 移除 bid; 2026-09-26: 加 paper → 8 个分类
-    assert len(data["data"]) == 8
-
-
-def test_trends_invalid_hours(client):
-    r = client.get("/api/trends", params={"hours": 0})
-    assert r.status_code == 422  # FastAPI Query 校验
+    assert r.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -565,14 +542,15 @@ def test_error_format_includes_version_and_trace_id(client):
 
 
 def test_trace_id_middleware_propagates_header(client):
-    r = client.get("/api/categories")
+    # R-02: 原用 /api/categories (端点已退役) → 改用存活端点做 trace 冒烟
+    r = client.get("/api/hotspots")
     assert TRACE_HEADER in r.headers
     assert r.headers[TRACE_HEADER]
 
 
 def test_trace_id_middleware_uses_provided_header(client):
     r = client.get(
-        "/api/categories",
+        "/api/hotspots",
         headers={TRACE_HEADER: "my-trace-id-123"},
     )
     assert r.headers[TRACE_HEADER] == "my-trace-id-123"
@@ -598,10 +576,8 @@ def test_all_responses_have_version(client, seeded_db):
         "/",
         "/api/health",
         "/api/stats",
-        "/api/categories",
         "/api/hotspots",
         "/api/hotspots/item-1",
-        "/api/trends",
         "/api/quality/summary",
         "/api/quality/rules",
         "/api/proxy/settings",

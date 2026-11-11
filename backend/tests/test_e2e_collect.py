@@ -170,12 +170,15 @@ async def test_e2e_collection_runs_records_each_category(temp_db):
 
 
 # ---------------------------------------------------------------------------
-# 3. 端到端：trend_rebuild 后 trend_snapshots 有 192 行 (v1.9; 2026-09-26 8 分类)
-# trend 网格按 Category 全枚举建列, 与采集器下线无关 (DEV-0178)
+# 3. 端到端：R-01 退役后采集链不再重建 trend_snapshots
+# trend 网格改由 trend_rebuild_job 单独维护 (trend_repo/表保留)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_e2e_trend_rebuild_after_collect(temp_db):
-    """端到端跑一次 run_once 后，trend_snapshots 应有 24 × 8 = 192 行。"""
+async def test_e2e_trend_not_rebuilt_by_collect(temp_db):
+    """R-01: 采集链不再写 trend_snapshots (该表改由 trend_rebuild_job 维护)。
+
+    退役的是「API 读链 + 采集链写链」; trend_repo 与表本身保留。
+    """
     svc = CollectionService()
     _patch_collectors_keep_hotspot_items(svc)
 
@@ -183,27 +186,6 @@ async def test_e2e_trend_rebuild_after_collect(temp_db):
 
     conn = get_connection()
     rows = conn.execute("SELECT COUNT(*) FROM trend_snapshots").fetchall()
-    assert int(rows[0][0]) == 192
-
-    # 8 个分类都应在 trend grid 中 (trend 按全枚举建列, 与采集器下线无关)
-    cat_rows = conn.execute(
-        "SELECT DISTINCT category FROM trend_snapshots"
-    ).fetchall()
-    cats = {r[0] for r in cat_rows}
-    assert cats == {
-        "ai",
-        "ai_security",
-        "security",
-        "finance",
-        "startup",
-        "github",
-        "tech",
-        "paper",
-    }
-
-    # 24 个 hours_ago 都应有数据
-    hour_rows = conn.execute(
-        "SELECT DISTINCT hours_ago FROM trend_snapshots"
-    ).fetchall()
-    hours = {r[0] for r in hour_rows}
-    assert hours == set(range(24))
+    assert int(rows[0][0]) == 0, (
+        "R-01: 采集链不应再重建 trend_snapshots (由 trend_rebuild_job 负责)"
+    )

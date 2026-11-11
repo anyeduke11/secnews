@@ -30,30 +30,6 @@ async def sm2_daily_push_job() -> None:
         _logger.error(f"sm2_daily_push crashed: {e}")
 
 
-async def daily_snapshot_job() -> None:
-    """v1.3.0 Phase 4: 日级趋势快照（每天 00:30 UTC）。"""
-    try:
-        from backend.services.weekly_report_service import WeeklyReportService
-
-        svc = WeeklyReportService()
-        count = await asyncio.to_thread(svc.take_daily_snapshot)
-        _logger.info(f"daily_snapshot_job: {count} categories snapshotted")
-    except Exception as e:
-        _logger.error(f"daily_snapshot_job crashed: {e}")
-
-
-async def weekly_report_job() -> None:
-    """v1.3.0 Phase 4: 周报自动生成（每周一 02:00 UTC）。"""
-    try:
-        from backend.services.weekly_report_service import WeeklyReportService
-
-        svc = WeeklyReportService()
-        report = await asyncio.to_thread(svc.generate_report)
-        _logger.info(f"weekly_report_job: generated for {report.get('week_start', '?')}")
-    except Exception as e:
-        _logger.error(f"weekly_report_job crashed: {e}")
-
-
 async def scheduled_compile_job() -> None:
     """Phase 1d: 定时编译任务 — 检测 stale items 并创建编译任务。
 

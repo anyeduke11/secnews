@@ -507,23 +507,10 @@ class HotspotScheduler:
             )
 
     def _register_digest_jobs(self, _now_utc: datetime) -> None:
-        """简报 / 报告域: 快照 + 周报 + 发布回收 + 每日简报 + 草稿生成。"""
-        # v1.3.0 Phase 4: job 7 — 日级趋势快照 (每天 00:30 UTC)
-        self.scheduler.add_job(
-            jobs.daily_snapshot_job,
-            trigger=CronTrigger(hour=0, minute=30, timezone="UTC"),
-            id="daily_snapshot",
-            name="daily trend snapshot (00:30 UTC)",
-            replace_existing=True,
-        )
-        # v1.3.0 Phase 4: job 8 — 周报自动生成 (每周一 02:00 UTC)
-        self.scheduler.add_job(
-            jobs.weekly_report_job,
-            trigger=CronTrigger(day_of_week="mon", hour=2, minute=0, timezone="UTC"),
-            id="weekly_report",
-            name="weekly report generation (Mon 02:00 UTC)",
-            replace_existing=True,
-        )
+        """简报 / 报告域: 发布回收 + 每日简报 + 草稿生成。
+
+        R-03a: job 41 `daily_snapshot` / job 42 `weekly_report` 已随周报整链下线退役。
+        """
         # Phase 1f Task 6.9: job 12 — 发布后数据回收 (每日 06:00 Asia/Shanghai)
         self.scheduler.add_job(
             jobs.scheduled_stats_job,

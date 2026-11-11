@@ -238,7 +238,7 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
 
 describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
   // 文本层断言: SentinelShell.tsx 必须显式包含对应 startsWith 分支.
-  // 运行时层由 SentinelShell.test.tsx 已有的 /settings /action /todos 覆盖 (运行时行为验证).
+  // 运行时层由 SentinelShell.test.tsx 已有的 /settings /action /report 覆盖 (运行时行为验证).
 
   it("knowledge 分支覆盖 /knowledge /deep /reviews /tags /extract /search /dashboard /skill-store", () => {
     // line 162: /knowledge /deep /reviews → knowledge
@@ -253,11 +253,12 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/skill-store['"]\)/);
   });
 
-  it("action 分支覆盖 /action /garden /report /todos", () => {
+  it("action 分支覆盖 /action /garden /report (R-13: /todos 已退役)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/action['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/garden['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/report['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/todos['"]\)/);
+    // 反向断言: 待办域退役后 menuOf 不再把 /todos 归到行动菜单
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/todos['"]\)/);
   });
 
   it("settings 分支覆盖 /settings /secrets /sync /skills /codegarden /maint", () => {

@@ -27,9 +27,6 @@ export const SettingsPage = React.lazy(() =>
 export const HistoryPage = React.lazy(() =>
   import('../components/HistoryPage').then(m => ({ default: m.HistoryPage }))
 );
-export const TodosPage = React.lazy(() =>
-  import('../components/TodosPage').then(m => ({ default: m.TodosPage }))
-);
 export const SkillsPage = React.lazy(() =>
   import('../components/SkillsPage').then(m => ({ default: m.SkillsPage }))
 );

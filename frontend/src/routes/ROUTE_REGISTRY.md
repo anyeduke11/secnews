@@ -44,7 +44,7 @@
 | `/action/events` | EventsReviewPage | 通稿审核（MP-2 候选人工审定, 全真实端点; Phase 4） |
 | `/cases/:caseId` | CaseDetailPage | 案件详情（壳改 action 高亮） |
 | `/cases` | → `/action` (QueryRedirect 透传 query) | 案件列表归行动 |
-| `/todos` | TodosPage | 待办 |
+| `/todos` | → `/action` (QueryRedirect 透传 query) | 待办域已退役（R-13）, 仅保留重定向兼容 |
 | `/report` | ReportPage | 周报/月报（产出物） |
 | `/garden` | SentinelGardenPage | 泳道（gate `codegarden`） |
 | `/secnews/analyze` | SecNewsAnalyze | P1 拆挂 PageLayout（SecNewsShell 退役） |

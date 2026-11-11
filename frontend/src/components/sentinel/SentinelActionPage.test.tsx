@@ -2,12 +2,12 @@
  * SentinelActionPage — 行动层「今日行动」测试
  *
  * 测试意图:
- *  - 三栏契约 (复习 / 待办 / 判读待办) 与七日强度点阵必须来自真实接口, 不接受示意稿
- *  - **写操作是本屏核心**: 勾选待办 → PATCH /api/todos/{id}; 快速捕获 → POST /api/todos;
- *    推进判读待办 → PUT .../status 且必须两步链 (pending→in_progress→completed);
- *    复习评分 → POST /api/reviews/{type}/{id}/grade。全部断言乐观更新 + 失败回滚。
+ *  - 双栏契约 (复习 / 判读待办) 必须来自真实接口, 不接受示意稿
+ *  - **写操作是本屏核心**: 推进判读待办 → PUT .../status 且必须两步链
+ *    (pending→in_progress→completed); 复习评分 → POST /api/reviews/{type}/{id}/grade。
+ *    全部断言乐观更新 + 失败回滚。
  *  - planning_actions / reviews 空数据 → 如实渲染空态, 不造假数据
- *  - API href 白名单: 非 http(s) 的 url 不得渲染成链接 (禁 javascript: 注入)
+ *  - R-13: 待办清单 (/api/todos) 已退役, 本屏不再有该数据源与写操作
  *  - 全程 mock fetch, 不发真实网络请求、不写库
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,40 +18,6 @@ import { SentinelActionPage } from './SentinelActionPage';
 
 const DAY = (offsetDays: number, base = new Date()) =>
   new Date(base.getTime() + offsetDays * 86400000).toISOString();
-
-/** 本地日期字符串 'YYYY-MM-DD' (避免 UTC/本地跨日导致断言随运行时刻漂移) */
-const DATE = (offsetDays: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
-
-const TODOS_FIXTURE = {
-  version: 'test',
-  total: 3,
-  items: [
-    {
-      id: 12, source_type: 'manual', source_id: null, title: '把云 WAF 绕过复盘拆成 3 条加固项',
-      url: 'https://example.com/waf', source: null, category: null,
-      urgent: 1, important: 1, deadline: DATE(-2), note: null,
-      status: 'open', created_at: DAY(-3), updated_at: DAY(-1), completed_at: null,
-    },
-    {
-      id: 13, source_type: 'favorite', source_id: 'f9', title: '复核 LLM 网关加固笔记',
-      // 恶意 URL: 必须被 ^https?: 白名单拦掉, 不渲染为 <a>
-      url: 'javascript:alert(1)', source: 'FreeBuf', category: 'security',
-      urgent: 0, important: 0, deadline: '', note: null,
-      status: 'open', created_at: DAY(-2), updated_at: DAY(-2), completed_at: null,
-    },
-    {
-      id: 14, source_type: 'manual', source_id: null, title: '晨读过完 12 条快讯',
-      url: null, source: null, category: null,
-      urgent: 0, important: 0, deadline: '', note: null,
-      status: 'done', created_at: DAY(-4), updated_at: DAY(-1), completed_at: `${DATE(0)}T12:00:00`,
-    },
-  ],
-};
 
 /** planning-actions 顶层就是数组 (无包裹对象) */
 const ACTIONS_FIXTURE = [
@@ -107,38 +73,8 @@ function makeFetch(opts: {
   const fn = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     calls.push({ url, init });
-    const method = (init?.method ?? 'GET').toUpperCase();
     if (opts.fail?.(url)) {
       return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response);
-    }
-    if (url.startsWith('/api/todos') && method === 'GET') {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(TODOS_FIXTURE) } as Response);
-    }
-    if (url.startsWith('/api/todos') && method === 'PATCH') {
-      const body = JSON.parse(String(init!.body));
-      const id = Number(url.split('/').pop());
-      const src = TODOS_FIXTURE.items.find(i => i.id === id)!;
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          version: 'test',
-          item: { ...src, ...body, completed_at: body.status === 'done' ? DAY(0) : null },
-        }),
-      } as Response);
-    }
-    if (url.startsWith('/api/todos') && method === 'POST') {
-      const body = JSON.parse(String(init!.body));
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          version: 'test', created: true,
-          item: {
-            id: 99, source_type: 'manual', source_id: null, title: body.title, url: null,
-            source: null, category: null, urgent: 0, important: 0, deadline: '', note: null,
-            status: 'open', created_at: DAY(0), updated_at: DAY(0), completed_at: null,
-          },
-        }),
-      } as Response);
     }
     if (url.startsWith('/api/kl/planning-actions')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(opts.actions ?? ACTIONS_FIXTURE) } as Response);
@@ -203,39 +139,33 @@ describe('SentinelActionPage — 行动层今日行动', () => {
     vi.restoreAllMocks();
   });
 
-  it('渲染三栏骨架 + ACTION FLOOR kicker + 壳层导航 (layer=action)', async () => {
+  it('渲染双栏骨架 + ACTION FLOOR kicker + 壳层导航 (layer=action)', async () => {
     const { container } = render_();
-    await waitFor(() => expect(screen.getByText('待办清单')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('判读待办')).toBeInTheDocument());
 
     expect(screen.getByText('ACTION FLOOR')).toBeInTheDocument();
-    for (const h of ['ac-h-review', 'ac-h-todo', 'ac-h-out']) {
+    for (const h of ['ac-h-review', 'ac-h-out']) {
       expect(container.querySelector(`#${h}`)).toBeInTheDocument();
     }
     expect(container.querySelector('.ac-grid')).toBeInTheDocument();
-    expect(container.querySelector('.ac-days')).toBeInTheDocument();
+    // R-13: 待办清单已退役 → 不再有 todos 面板与七日强度点阵
+    expect(container.querySelector('#ac-h-todo')).toBeNull();
+    expect(container.querySelector('.ac-days')).toBeNull();
     expect(screen.getByText('复习栈')).toBeInTheDocument();
     screen.getByText('判读待办');
     // 壳: 行动菜单 active (Phase 2 编辑部导航 .nv, active = accent 下划线)
     expect(container.querySelector('.nv.active')).toHaveTextContent('行动');
   });
 
-  it('真实数据驱动: 待办/判读队列/复习卡片与今日收录均来自接口', async () => {
+  it('真实数据驱动: 判读队列/复习卡片与今日收录均来自接口', async () => {
     const { container } = render_();
-    await waitFor(() => expect(screen.getByText(/2 OPEN · 1 DONE/)).toBeInTheDocument());
-
-    // todos 标题 + 编号等宽承载
-    screen.getByText('把云 WAF 绕过复盘拆成 3 条加固项');
-    screen.getByText('复核 LLM 网关加固笔记');
-    expect(screen.getByText('#12')).toBeInTheDocument();
-    // 逾期用 amber 文案 (纪律: red 专属漏洞告警)
-    expect(screen.getByText('逾期 2 天')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('2 PENDING')).toBeInTheDocument());
 
     // planning_actions 顶层数组直接消费
     screen.getByText('精读入库: PDF 解析库内存越界');
     expect(screen.getByText('#4258')).toBeInTheDocument();
     expect(screen.getByText('P8')).toBeInTheDocument();
     expect(screen.getByText('kl:raw → kl:refine')).toBeInTheDocument();
-    expect(screen.getByText('2 PENDING')).toBeInTheDocument();
 
     // 复习卡: 接口只有 entity_id, 如实渲染实体标识
     expect(screen.getByText('concept-gamma')).toBeInTheDocument();
@@ -243,68 +173,9 @@ describe('SentinelActionPage — 行动层今日行动', () => {
 
     // 今日收录来自 /api/secnews/stats
     expect(screen.getByText('18 篇')).toBeInTheDocument();
-  });
 
-  it('七日强度点阵由 todos.completed_at 派生', async () => {
-    render_();
-    await waitFor(() => expect(screen.getByText(/本周节奏/)).toBeInTheDocument());
-    // fixture: 仅 id=14 于今日中午完成 → 本周 1 天达标
-    expect(screen.getByText('1 / 7 达标')).toBeInTheDocument();
-    expect(screen.getByText('今日完成 1 项 · 本周累计 1 项')).toBeInTheDocument();
-  });
-
-  it('本周无完成记录 → 点阵 0 / 7 达标, 不编造强度', async () => {
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).startsWith('/api/todos')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ version: 't', total: 0, items: [] }) } as Response);
-      }
-      return api.fn(input, init);
-    }));
-    render_();
-    await waitFor(() => expect(screen.getByText('0 / 7 达标')).toBeInTheDocument());
-    expect(screen.getByText('本周尚无完成记录 · 口径为待办完成时间')).toBeInTheDocument();
-  });
-
-  it('勾选待办 → PATCH /api/todos/{id} {status:done} 并乐观标记完成', async () => {
-    render_();
-    await waitFor(() => expect(screen.getByText('把云 WAF 绕过复盘拆成 3 条加固项')).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /把云 WAF 绕过复盘/ }));
-    await waitFor(() => {
-      const call = api.calls.find(c => c.url === '/api/todos/12' && c.init?.method === 'PATCH');
-      expect(call).toBeTruthy();
-      expect(JSON.parse(String(call!.init!.body))).toEqual({ status: 'done' });
-    });
-    // 乐观更新: 该行进入 done 分组 → open 计数从 2 变 1
-    await waitFor(() => expect(screen.getByText(/1 OPEN · 2 DONE/)).toBeInTheDocument());
-  });
-
-  it('待办写入失败 → 回滚乐观态并给出 amber 失败提示 (不用 red)', async () => {
-    vi.stubGlobal('fetch', makeFetch({ fail: url => url.includes('/api/todos/13') }).fn);
-    render_();
-    await waitFor(() => expect(screen.getByText('复核 LLM 网关加固笔记')).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /复核 LLM 网关加固笔记/ }));
-    await waitFor(() => expect(screen.getByText('保存失败')).toBeInTheDocument());
-    // 回滚后仍是未完成态 (open 计数不变)
-    expect(screen.getByText(/2 OPEN · 1 DONE/)).toBeInTheDocument();
-    expect(document.querySelector('.ac-tstate.fail')).toBeInTheDocument();
-  });
-
-  it('快速捕获 → POST /api/todos {source_type:manual,title} 并置顶新行', async () => {
-    render_();
-    await waitFor(() => expect(screen.getByText('复核 LLM 网关加固笔记')).toBeInTheDocument());
-
-    const input = screen.getByLabelText('快速捕获新待办');
-    fireEvent.change(input, { target: { value: '周五前交防钓抽查名单' } });
-    fireEvent.click(screen.getByRole('button', { name: /添加/ }));
-
-    await waitFor(() => {
-      const call = api.calls.find(c => c.url === '/api/todos' && c.init?.method === 'POST');
-      expect(call).toBeTruthy();
-      expect(JSON.parse(String(call!.init!.body))).toMatchObject({ source_type: 'manual', title: '周五前交防钓抽查名单' });
-    });
-    await waitFor(() => expect(screen.getByText('周五前交防钓抽查名单')).toBeInTheDocument());
+    // R-13: 退役的待办域不再发起请求
+    expect(api.calls.some(c => c.url.startsWith('/api/todos'))).toBe(false);
   });
 
   it('完成判读待办走服务端状态机两步链 pending→in_progress→completed', async () => {
@@ -395,17 +266,6 @@ describe('SentinelActionPage — 行动层今日行动', () => {
     expect(document.querySelectorAll('.ac-card')).toHaveLength(0);
   });
 
-  it('非 http(s) 的 todo url 不渲染为链接 (白名单拦截)', async () => {
-    render_();
-    await waitFor(() => expect(screen.getByText('复核 LLM 网关加固笔记')).toBeInTheDocument());
-    const link = document.querySelector('a[href="javascript:alert(1)"]');
-    expect(link).toBeNull();
-    // 合法 https 仍保留外链
-    const ok = document.querySelector('a[href="https://example.com/waf"]');
-    expect(ok).not.toBeNull();
-    expect(ok).toHaveAttribute('rel', 'noopener noreferrer');
-  });
-
   it('某数据源不可用 → 顶部 amber 提示但页面不崩', async () => {
     vi.stubGlobal('fetch', makeFetch({
       fail: url => url.startsWith('/api/secnews/stats'),
@@ -416,7 +276,7 @@ describe('SentinelActionPage — 行动层今日行动', () => {
       expect(banner).not.toBeNull();
       expect(banner!.textContent).toContain('个数据源本次未返回');
     });
-    expect(screen.getByText('待办清单')).toBeInTheDocument();
+    expect(screen.getByText('判读待办')).toBeInTheDocument();
   });
 
   /* ============ 复习栈能力丰富 (migration 120) ============ */
@@ -484,7 +344,11 @@ describe('SentinelActionPage — 行动层今日行动', () => {
     render_();
     await waitFor(() => expect(screen.getByText('ai_小互AI_1b8d52a1396d')).toBeInTheDocument());
 
-    const input = screen.getByLabelText('快速捕获新待办');
+    // R-13: 页面级「快速捕获」输入框已随待办域退役, 改用复习栈弹层内的搜索框守卫同一意图
+    fireEvent.click(screen.getByRole('button', { name: '专注复习' }));
+    const dialog = await screen.findByRole('dialog', { name: '复习栈工作台' });
+    fireEvent.click(within(dialog).getByRole('tab', { name: '管理' }));
+    const input = within(dialog).getByLabelText('搜索加入复习卡');
     fireEvent.keyDown(input, { key: '5' });
     expect(api.calls.some(c => c.url.includes('/grade'))).toBe(false);
   });

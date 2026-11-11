@@ -62,18 +62,21 @@ def _counts(conn) -> dict[str, int]:
 # ── F1-6 验收主断言 ─────────────────────────────────────────────────
 
 def test_apply_bundle_success_commits_all_tables(temp_db):
-    """成功路径: 全表落库 (事务提交), 与既有行为一致。"""
+    """成功路径: favorites 落库 (事务提交); todos 已退役 (R-13) → 显式跳过。"""
     stats = apply_bundle(_bundle())
     assert stats["favorites"]["inserted"] == 2
-    assert stats["todos"]["inserted"] == 2
+    # R-13: bundle 中残留的 todos 不再写库, 只计数上报 (retired 标记)
+    assert stats["todos"]["inserted"] == 0
+    assert stats["todos"]["skipped"] == 2
+    assert stats["todos"]["retired"] is True
     conn = get_connection()
-    assert _counts(conn) == {"favorites": 2, "todos": 2}
+    assert _counts(conn) == {"favorites": 2, "todos": 0}
 
 
 def test_apply_bundle_midway_failure_rolls_back_half_writes(
     temp_db, monkeypatch,
 ):
-    """F1-6 验收: todos 阶段注入失败 → favorites 阶段的写入必须回滚。
+    """F1-6 验收: favorites 阶段注入失败 → 已写数据必须回滚。
 
     此前 favorites 已随 repo 内部 commit 落库 (半写); 事务化后任一异常
     整体 ROLLBACK — 数据未半写。
@@ -84,13 +87,13 @@ def test_apply_bundle_midway_failure_rolls_back_half_writes(
         raise RuntimeError("injected midway failure")
 
     # 注入点 = FavoriteRepository.add (apply 的 favorites 循环无 try 包裹,
-    # 异常必上抛; todos 循环有 except 吞异常不可作注入点)
+    # 异常必上抛)
     monkeypatch.setattr(sync_bundle.FavoriteRepository, "add", boom)
     with pytest.raises(RuntimeError, match="injected midway failure"):
         apply_bundle(_bundle())
 
     conn = get_connection()
-    # favorites 阶段自身 + 之后的 todos 都必须不存在 (整体回滚)
+    # favorites 阶段必须不存在 (整体回滚); todos 已退役 (R-13) 恒为 0
     assert _counts(conn) == {"favorites": 0, "todos": 0}
 
 

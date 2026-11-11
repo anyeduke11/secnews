@@ -550,11 +550,11 @@ def test_sm2_helper_later_due_wins():
 def test_apply_deletions_removes_remote_deleted_records(db):
     """P1: 删除通道 — apply merged bundle 后, 对端已删除的记录在本端删除.
 
-    构造: 本地 favorites/todos 各 1 条; merged bundle 中两者缺席
-    (对端删除语义) → apply_bundle 后本地应删除, 且 stats.deletions 计数。
+    构造: 本地 favorites 1 条; merged bundle 中缺席 (对端删除语义)
+    → apply_bundle 后本地应删除, 且 stats.deletions 计数。
+    R-13: todos 已退役, 不再参与跨端删除 (其 deletions 计数恒为 0)。
     """
     from backend.repository.favorite_repo import FavoriteRepository
-    from backend.repository.todo_repo import TodoRepository
     from backend.services.sync_bundle import apply_bundle
 
     # 本地写入待删除数据
@@ -562,15 +562,8 @@ def test_apply_deletions_removes_remote_deleted_records(db):
         hotspot_id="del-fav", category="ai", title="to-delete",
         source="test", url="https://example.com/del-fav",
     )
-    TodoRepository().add_or_get(
-        source_type="manual", source_id="del-todo",
-        title="todo-to-delete", url=None, source=None, category=None,
-        important=0,
-    )
     # 确认本地存在
     assert any(f.hotspot_id == "del-fav" for f in FavoriteRepository().list(limit=10))
-    local_todos, _ = TodoRepository().list(limit=10)
-    assert any(getattr(t, "title", None) == "todo-to-delete" for t in local_todos)
 
     # merged bundle: favorites/todos 均为空 (对端删除)
     bundle = {
@@ -584,11 +577,10 @@ def test_apply_deletions_removes_remote_deleted_records(db):
     }
     result = apply_bundle(bundle, master_key="test-master-key-strong-1234")
     assert result["deletions"]["favorites"] >= 1
-    assert result["deletions"]["todos"] >= 1
+    # R-13: todos 已退役, 不参与删除
+    assert result["deletions"]["todos"] == 0
     # 本地已删除
     assert not any(f.hotspot_id == "del-fav" for f in FavoriteRepository().list(limit=10))
-    local_todos_after, _ = TodoRepository().list(limit=10)
-    assert not any(getattr(t, "title", None) == "todo-to-delete" for t in local_todos_after)
 
 
 # ---------------------------------------------------------------------------

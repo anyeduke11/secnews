@@ -52,24 +52,6 @@ vi.mock('./hooks/useHotspotData', () => ({
   }),
 }));
 
-vi.mock('./hooks/useTodos', () => ({
-  useTodos: () => ({
-    items: [],
-    total: 0,
-    count: null,
-    availableFavorites: [],
-    filter: { status: 'all', urgent: null, important: null, keyword: '' },
-    loading: false,
-    error: null,
-    setFilter: vi.fn(),
-    refresh: vi.fn(),
-    add: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-    isFavoriteInTodo: vi.fn(() => false),
-  }),
-}));
-
 vi.mock('./hooks/useRefreshInterval', () => ({
   useRefreshInterval: () => ({
     interval: 5,
@@ -100,7 +82,6 @@ const ROUTES = [
   // v0.7: /category/:cat 跳哨兵首页 (workbench 已于 v0.6.3 并入 SecNews 并删除)
   // 移出 ROUTES (依赖异步 Navigate, MemoryRouter 渲染不稳定, 端到端 e2e 验证)
   // { path: '/category/ai', label: /正在排版|工作台/ },
-  { path: '/todos', label: /正在排版/ },
   { path: '/history', label: /正在排版/ },
   { path: '/skills', label: /正在排版/ },
   { path: '/secrets', label: /正在排版/ },

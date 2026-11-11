@@ -20,7 +20,7 @@ interface SyncHistoryProps {
 
 const TABLE_LABELS: Record<string, string> = {
   favorites: '收藏',
-  todos: '待办',
+  todos: '待办（已退役）',
   skills: 'Skill',
   custom_sources: '自定义源',
   secrets: '密钥',

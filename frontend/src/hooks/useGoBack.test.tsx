@@ -39,7 +39,7 @@ describe('useGoBack', () => {
 
   it('无来路 (history.state 无 idx) → 回默认 fallback /', () => {
     render(
-      <MemoryRouter initialEntries={['/todos']}>
+      <MemoryRouter initialEntries={['/report']}>
         <Probe />
       </MemoryRouter>,
     );

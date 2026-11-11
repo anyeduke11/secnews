@@ -8,12 +8,12 @@
  *  - 精选视图 = /api/hotspots/picked 按 pick_score DESC Top-N (P2 2026-09-27);
  *    深度视图 = 当前条目长文过滤 (summary≥200 或 title 命中深度词)
  *  - 头条叙事 + 次级重点 + 快讯流 (alert 模式渲染真告警列表 NewsAlertList, P1 2026-09-27)
- *  - 右栏: 源监控 / 质量门禁 24h / 今日行动
+ *  - 右栏: 源监控 / 质量门禁 24h
  *
  * 数据源 (全部真实 API):
  *  - GET /api/hotspots?category&time_range&keyword&limit&cursor —— 经 useHotspotData
  *  - GET/POST/DELETE /api/favorites —— 经 useFavorites (模块级单例 store)
- *  - GET /api/quality/summary · GET /api/todos (右栏)
+ *  - GET /api/quality/summary (右栏)
  *  - GET /api/settings/refresh-interval (页脚/空态展示真实采集间隔)
  *  - SSE /api/events (经 src/hooks/realtime.ts 统一注册, 只订阅 collect_done: 采集完成后只读重拉, 不再回触 POST /api/refresh)
  *
@@ -50,12 +50,6 @@ interface QualityGateStat {
 }
 interface QualitySummaryRaw {
   summary?: Record<string, QualityGateStat>;
-}
-
-interface TodoRow {
-  id: number;
-  title: string;
-  status: string;
 }
 
 /** 频道 chips: 分类 → 哨兵短标签 + 分类色 */
@@ -144,9 +138,9 @@ function safeHref(url: string | null | undefined): string | null {
 }
 
 /** 必须是独立组件: 在 SentinelHomePage 函数体内调用 usePipe 会落在 Provider 之外, 永远读到 null */
-function RailWithPipe({ quality, todos }: { quality: QualitySummaryRaw | null; todos: TodoRow[] }) {
+function RailWithPipe({ quality }: { quality: QualitySummaryRaw | null }) {
   const { pipe } = usePipe();
-  return <SentinelRail sources={pipe?.sources ?? []} quality={quality} todos={todos} />;
+  return <SentinelRail sources={pipe?.sources ?? []} quality={quality} />;
 }
 
 /**
@@ -311,7 +305,6 @@ export function SentinelHomePage() {
   const [keyword, setKeyword] = useState('');
 
   const [quality, setQuality] = useState<QualitySummaryRaw | null>(null);
-  const [todos, setTodos] = useState<TodoRow[]>([]);
   const [collectMinutes, setCollectMinutes] = useState<number>(DEFAULT_COLLECT_MINUTES);
 
   const reloadPipe = usePipeReloadOnSse();
@@ -337,13 +330,8 @@ export function SentinelHomePage() {
   // 右栏数据 (一次性 + SSE 刷新时重拉)
   const loadSide = useCallback(async () => {
     try {
-      // apiFetch 非 ok 抛错 → 失败的一路置 null / 空 (对应原 r.ok 分支检查)
-      const [qs, ts] = await Promise.all([
-        getJSON<QualitySummaryRaw>('/api/quality/summary').catch(() => null),
-        getJSON<{ items?: TodoRow[] }>('/api/todos').catch(() => ({ items: [] as TodoRow[] })),
-      ]);
-      setQuality(qs);
-      setTodos(((ts.items || []) as TodoRow[]).filter(i => i.status !== 'done').slice(0, 6));
+      // R-13: 待办域退役, 右栏只剩质量门禁 (todos 不再拉取)
+      setQuality(await getJSON<QualitySummaryRaw>('/api/quality/summary'));
     } catch { /* 右栏失败不阻塞主列 */ }
   }, []);
 
@@ -740,7 +728,7 @@ export function SentinelHomePage() {
 
         {/* 右栏 */}
         <aside className="rail">
-          <RailWithPipe quality={quality} todos={todos} />
+          <RailWithPipe quality={quality} />
         </aside>
       </div>
 

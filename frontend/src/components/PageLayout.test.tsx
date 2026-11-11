@@ -26,16 +26,16 @@ describe('PageLayout', () => {
 
   it('renders child via nested route matching', () => {
     render(
-      <MemoryRouter initialEntries={['/todos']}>
+      <MemoryRouter initialEntries={['/report']}>
         <Routes>
           <Route element={<PageLayout />}>
             <Route path="/" element={<div>Home</div>} />
-            <Route path="/todos" element={<div>Todos Page</div>} />
+            <Route path="/report" element={<div>Report Page</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
     );
-    expect(screen.getByText('Todos Page')).toBeInTheDocument();
+    expect(screen.getByText('Report Page')).toBeInTheDocument();
     expect(screen.queryByText('Home')).not.toBeInTheDocument();
   });
 

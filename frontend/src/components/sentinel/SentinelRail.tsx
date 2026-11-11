@@ -1,10 +1,9 @@
 /**
  * SentinelRail — 哨兵终端首页右栏
  *
- * 三个模块 (数据由 SentinelHomePage 注入):
+ * 两个模块 (数据由 SentinelHomePage 注入):
  *  - 源监控: 按累计产出排序的采集源 + 三态状态灯
  *  - 质量门禁 24h: 检查量 / 通过率 / 平均分 / 首要拒绝原因
- *  - 今日行动: 未完成待办 + 跳转入口
  */
 import { useNavigate } from 'react-router-dom';
 
@@ -25,12 +24,6 @@ interface QualityGateStat {
 /** /api/quality/summary 真实结构: {summary: {gate: {pass, total, avg_deduction}}} */
 interface QualitySummaryRaw {
   summary?: Record<string, QualityGateStat>;
-}
-
-interface TodoRow {
-  id: number;
-  title: string;
-  status: string;
 }
 
 /** 汇总 24h 门禁统计: 检查量 / 最弱门禁 (通过率最低) 及其扣分 */
@@ -58,10 +51,9 @@ function gateStats(q: QualitySummaryRaw | null): { checked: number; weakest: str
   };
 }
 
-export function SentinelRail({ sources, quality, todos }: {
+export function SentinelRail({ sources, quality }: {
   sources: SourceHealthRow[];
   quality: QualitySummaryRaw | null;
-  todos: TodoRow[];
 }) {
   const navigate = useNavigate();
   const qs = gateStats(quality);
@@ -123,29 +115,6 @@ export function SentinelRail({ sources, quality, todos }: {
         </div>
         <a className="rail-link" href="/quality/rejection" onClick={e => { e.preventDefault(); navigate('/quality/rejection'); }}>
           查看质量拒绝流
-          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </a>
-      </section>
-
-      {/* 今日行动 */}
-      <section className="rail-mod">
-        <h3>
-          今日行动
-          <span className="rail-note">{todos.length} OPEN</span>
-        </h3>
-        <ul className="act-list">
-          {todos.length === 0 && (
-            <li className="act-row" style={{ color: 'var(--sn-ink-3)' }}>暂无待办事项</li>
-          )}
-          {todos.map(t => (
-            <li className="act-row" key={t.id}>
-              <span className="act-box" aria-hidden="true" />
-              <span style={{ minWidth: 0 }}>{t.title}</span>
-            </li>
-          ))}
-        </ul>
-        <a className="rail-link" href="/todos" onClick={e => { e.preventDefault(); navigate('/todos'); }}>
-          打开行动清单
           <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </a>
       </section>

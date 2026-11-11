@@ -29,7 +29,6 @@ CORE_PATHS = [
     "/api/health",
     "/api/knowledge/items",
     "/api/search",
-    "/api/todos",
     "/api/hotspots",
     "/api/trends",
     "/api/categories",

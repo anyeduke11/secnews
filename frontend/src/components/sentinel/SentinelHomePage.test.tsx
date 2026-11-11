@@ -164,9 +164,6 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
         AuthorVerification: { pass: 30, total: 40, avg_deduction: 0.65 },
       } }) } as Response);
     }
-    if (url.startsWith('/api/todos')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], total: 0 }) } as Response);
-    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
   });
 }

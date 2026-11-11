@@ -140,7 +140,8 @@ export function AppRoutes() {
         {/* v1.0.1 一致性重构: /weekly-report 残留 redirect 删除 (无外部引用, redirect 与 /report 重复) */}
 
         {/* ── 保留的旧路由 (内容尚未迁移) ── */}
-        <Route path="/todos" element={<Suspense fallback={<PageFallback />}><P.TodosPage /></Suspense>} />
+        {/* R-13: 待办域退役 — /todos 仅保留重定向兼容 (透传 query → /action) */}
+        <Route path="/todos" element={<QueryRedirect to="/action" />} />
         <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
         <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goBack} /></Suspense>} />
         {/* v0.8 Phase A (A4): 技能商店 (/skill-registry) — /skills 已被 Phase 41 技能库占用, 故用 /skill-store */}

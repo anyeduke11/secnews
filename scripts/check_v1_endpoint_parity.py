@@ -27,7 +27,6 @@ EXPECTED: list[tuple[str, str, str]] = [
     ("GET",  "/api/kl/pipeline/stats",             "心跳条漏斗+队列"),
     ("GET",  "/api/favorites",                     "收藏"),
     ("GET",  "/api/quality/summary",               "右栏质量门禁"),
-    ("GET",  "/api/todos",                         "右栏今日行动"),
     ("POST", "/api/kl/import/url",                 "URL 导入"),
     ("GET",  "/api/v1/signals",                    "v1 受管信号区块"),
     ("POST", "/api/v1/cases",                      "信号立项 → /cases/{id}"),
@@ -72,8 +71,6 @@ EXPECTED: list[tuple[str, str, str]] = [
     ("POST",   "/api/v1/knowledge/{knowledge_id}/outcome",   "采用结果回填"),
     ("GET",    "/api/v1/knowledge/{knowledge_id}/recall",    "case 适用性召回"),
     # -- 行动层 /action (§6.4) --
-    ("PATCH", "/api/todos/{todo_id}",                        "待办勾选"),
-    ("POST",  "/api/todos",                                  "待办新增"),
     ("GET",   "/api/kl/planning-actions",                    "规划行动队列"),
     ("PUT",   "/api/kl/planning-actions/{action_id}/status", "规划推进"),
     ("GET",   "/api/reviews/due",                            "SM-2 到期"),

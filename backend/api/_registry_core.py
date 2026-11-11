@@ -47,7 +47,6 @@ def register_core(app: FastAPI) -> None:
         skills,  # Phase 41: Skill 管理
         sources,
         sync,  # Phase 42: 跨端配置同步 (WebDAV)
-        todos,  # Phase 36: /api/todos 待办 (Todos) CRUD
         trends,
         weekly_report,  # v1.3.0 Phase 4: 周报
     )
@@ -71,7 +70,6 @@ def register_core(app: FastAPI) -> None:
     app.include_router(favorites.router, tags=["favorites"])
     app.include_router(history.router, tags=["history"])
     app.include_router(refresh.router, tags=["refresh"])
-    app.include_router(todos.router, tags=["todos"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])

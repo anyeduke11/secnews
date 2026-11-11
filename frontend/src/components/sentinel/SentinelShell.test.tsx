@@ -77,14 +77,14 @@ describe('SentinelShell', () => {
 
   it('ingested 未传 → 壳自取 24h total 显示 "7 篇"; 传 null → 保持 "…"', async () => {
     const { unmount } = render(
-      <MemoryRouter initialEntries={['/todos']}>
+      <MemoryRouter initialEntries={['/report']}>
         <SentinelShell layer={null}><div>x</div></SentinelShell>
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByText('7 篇')).toBeInTheDocument());
     unmount();
     render(
-      <MemoryRouter initialEntries={['/todos']}>
+      <MemoryRouter initialEntries={['/report']}>
         <SentinelShell layer={null} ingested={null}><div>x</div></SentinelShell>
       </MemoryRouter>,
     );
@@ -118,14 +118,14 @@ describe('SentinelShell 版面条 bandnav (Phase 2 编辑部形态, DEV-0181)', 
     expect(nav.querySelector('.bn-chip.current')).toHaveTextContent('情报流');
   });
 
-  it('工具页 (layer=null + /todos): menuOf 自动归属行动菜单, 待办 chip current', () => {
+  it('工具页 (layer=null + /report): menuOf 自动归属行动菜单, 报告 chip current', () => {
     render(
-      <MemoryRouter initialEntries={['/todos']}>
+      <MemoryRouter initialEntries={['/report']}>
         <SentinelShell layer={null} ingested={null}><div>x</div></SentinelShell>
       </MemoryRouter>,
     );
     const nav = screen.getByRole('navigation', { name: '版面条' });
-    expect(nav.querySelector('.bn-chip.current')).toHaveTextContent('待办');
+    expect(nav.querySelector('.bn-chip.current')).toHaveTextContent('报告');
   });
 
   it('点击 chip 走 react-router 导航', () => {
@@ -152,7 +152,7 @@ describe('SentinelShell 版面条 bandnav (Phase 2 编辑部形态, DEV-0181)', 
       const chips = Array.from(
         screen.getByRole('navigation', { name: '版面条' }).querySelectorAll('.bn-chip'),
       ).map(c => c.textContent);
-      expect(chips).toEqual(['今日行动', '通稿审核', '待办', '报告']); // 泳道 (codegarden) 被 gate 过滤
+      expect(chips).toEqual(['今日行动', '通稿审核', '报告']); // 泳道 (codegarden) 被 gate 过滤 · R-13: 待办 chip 已退役
     });
   });
 

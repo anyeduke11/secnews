@@ -3,7 +3,6 @@ import { test, expect, Page } from '@playwright/test';
 /**
  * 行动层 (/action) e2e 测试
  * - /action/report
- * - /action/todos
  * - /action/review
  *
  * 路由参考: frontend/src/routes/index.tsx
@@ -28,7 +27,6 @@ function attachErrorListener(page: Page, errors: string[]) {
 const PAGES = [
   { path: '/action', name: '行动层入口' },
   { path: '/action/report', name: 'Report 报告' },
-  { path: '/action/todos', name: 'Todos 待办' },
   { path: '/action/review', name: 'Review 复盘' },
 ] as const;
 

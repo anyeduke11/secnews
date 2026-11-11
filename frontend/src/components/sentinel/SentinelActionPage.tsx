@@ -1,17 +1,17 @@
 /**
  * SentinelActionPage — 哨兵终端 · 行动层「今日行动」(V2 设计稿 ACTION FLOOR 屏)
  *
- * 信息架构: 三层工作流的行动层 — 计划、学习、输出。三栏布局契约 ac-grid:
+ * 信息架构: 三层工作流的行动层 — 计划、学习、输出。双栏布局契约 ac-grid:
  *  - 复习栈   ← SM-2 间隔重复 (可评分: POST /api/reviews/{type}/{id}/grade)
- *  - 待办清单 ← todos        (可勾选/新增: PATCH · POST /api/todos)
  *  - 判读待办 ← planning_actions (可推进: PUT /api/kl/planning-actions/{id}/status)
+ * R-13: 待办清单 (todos) 已随待办域退役移除, 本屏不再消费 /api/todos。
+ *
  *
  * 本屏要点: planning_actions 历史上 100% pending、无 UI 完成入口,
  * 这里是「推进行动队列」首次成为一等公民 → 全部写操作走乐观更新 + 失败回滚,
  * 不做只读展示。复习卡片仅有 entity_type/entity_id (接口无标题字段), 如实渲染。
  *
  * 数据源 (全部真实 API, 单一入口 load()):
- *  - GET /api/todos?limit=200            {version,total,items[]}
  *  - GET /api/kl/planning-actions?status=pending   顶层数组 (接口固定上限 50 条)
  *  - GET /api/reviews/due?limit=20&enrich=1   {version,count,items[]}(migration 120 enrich)
  *  - GET /api/reviews/stats              {version,stats:{total,due,avg_easiness,...}}
@@ -33,27 +33,8 @@ import './sentinel.css';
 import './sentinel-action.css';
 
 /* ---------------------------------------------------------------------
- * 接口响应类型 (与 backend/api/{todos,kl_planning_api,reviews}.py 对齐)
+ * 接口响应类型 (与 backend/api/{kl_planning_api,reviews}.py 对齐)
  * ------------------------------------------------------------------- */
-interface TodoRow {
-  id: number;
-  source_type: string;
-  source_id: string | null;
-  title: string;
-  url: string | null;
-  source: string | null;
-  category: string | null;
-  /** Phase 46: 服务端由 deadline 派生后返回 */
-  urgent: number;
-  important: number;
-  deadline: string | null;
-  note: string | null;
-  status: string;
-  created_at: string | null;
-  updated_at: string | null;
-  completed_at: string | null;
-}
-
 type ActionStatus = 'pending' | 'in_progress' | 'completed' | 'dismissed';
 
 interface PlanningAction {
@@ -111,10 +92,6 @@ interface ReviewStats {
 /** 每行写入态: saving / fail / ok; 判读待办另带 done|dismissed */
 type WriteState = 'saving' | 'fail' | 'ok' | 'done' | 'dismissed';
 
-/** 快速捕获表单自身的写入态键 (todo.id 从 1 起, 负键不会与真实行冲突) */
-const CAPTURE_KEY = -1;
-
-const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 /** planning_actions 接口单次固定返回 50 条, 本屏按优先级取前 N 条呈现 */
 const ACTION_SHOWN = 8;
 /** 复习栈视觉层数 (顶层可操作, 其后为队列中的真实后续卡) */
@@ -134,17 +111,6 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-/** 'YYYY-MM-DD' 本地日键; 非法 → null */
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function isoDayKey(iso?: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : dayKey(d);
-}
-
 function stamp(iso?: string | null): string {
   if (!iso) return '--';
   const d = new Date(iso);
@@ -162,36 +128,6 @@ function relTime(iso?: string | null): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h} 小时前`;
   return `${Math.floor(h / 24)} 天前`;
-}
-
-/** 本周一 00:00 (本地), 用于七日强度点阵定窗 */
-function mondayOf(now: Date): Date {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const wd = d.getDay(); // 0=周日
-  d.setDate(d.getDate() - (wd === 0 ? 6 : wd - 1));
-  return d;
-}
-
-/** deadline 'YYYY-MM-DD' → 逾期/今日徽标文案 (逾期按纪律用 amber, 不占用 red) */
-function deadlineText(deadline?: string | null): { text: string; warn: boolean } | null {
-  const key = isoDayKey(deadline);
-  if (!key) return null;
-  const today = dayKey(new Date());
-  const d = new Date(`${key}T00:00:00`);
-  const t = new Date(`${today}T00:00:00`);
-  const diff = Math.round((d.getTime() - t.getTime()) / 86400000);
-  if (diff < 0) return { text: `逾期 ${Math.abs(diff)} 天`, warn: true };
-  if (diff === 0) return { text: '今日到期', warn: true };
-  if (diff <= 3) return { text: `${diff} 天后到期`, warn: true };
-  return { text: `截止 ${key.slice(5).replace('-', '/')}`, warn: false };
-}
-
-/** 待办按 未完成 → 已完成 分组 (组内保持服务端 urgent/important/created 排序) */
-function partitionTodos(rows: TodoRow[]): { open: TodoRow[]; done: TodoRow[] } {
-  const open: TodoRow[] = [];
-  const done: TodoRow[] = [];
-  for (const t of rows) (t.status === 'done' || t.status === 'archived' ? done : open).push(t);
-  return { open, done };
 }
 
 /** SM-2 自评三档 → grade (0-2 未记住, 3-5 记住) */
@@ -215,8 +151,6 @@ const ACTION_TYPE_LABEL: Record<string, string> = {
 export function SentinelActionPage() {
   const navigate = useNavigate();
 
-  const [todos, setTodos] = useState<TodoRow[]>([]);
-  const [todoTotal, setTodoTotal] = useState(0);
   const [actions, setActions] = useState<PlanningAction[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
@@ -224,7 +158,6 @@ export function SentinelActionPage() {
 
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
   const [graded, setGraded] = useState(0);
   /** ReviewOverlay 当前视图 (null = 关闭) */
   const [overlayView, setOverlayView] = useState<RvView | null>(null);
@@ -232,34 +165,28 @@ export function SentinelActionPage() {
   const [justGraded, setJustGraded] = useState<JustGraded | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** 行级写入态: key 为 todo id / planning action id / review id */
-  const [todoState, setTodoState] = useState<Record<number, WriteState>>({});
+  /** 行级写入态: key 为 planning action id / review id */
   const [actionState, setActionState] = useState<Record<number, WriteState>>({});
   const [reviewState, setReviewState] = useState<Record<string, WriteState>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setNotice(null);
-    const [td, pa, rv, rs, st] = await Promise.all([
+    const [pa, rv, rs, st] = await Promise.all([
       // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
-      getJSON<{ items?: TodoRow[]; total?: number } | null>('/api/todos?limit=200').catch(() => null),
       getJSON<PlanningAction[] | null>('/api/kl/planning-actions?status=pending').catch(() => null),
       getJSON<{ items?: ReviewRow[] } | null>('/api/reviews/due?limit=20&enrich=1').catch(() => null),
       getJSON<{ stats?: ReviewStats } | null>('/api/reviews/stats').catch(() => null),
       getJSON<{ new_today?: number } | null>('/api/secnews/stats').catch(() => null),
     ]);
 
-    if (td) {
-      setTodos(Array.isArray(td.items) ? td.items : []);
-      setTodoTotal(Number(td.total) || 0);
-    }
     setActions(Array.isArray(pa) ? pa : []);
     setReviews(rv && Array.isArray(rv.items) ? rv.items : []);
     setReviewStats(rs?.stats ?? null);
     setNewToday(st && typeof st.new_today === 'number' ? st.new_today : null);
     setGraded(0);
 
-    const failed = [td, pa, rv, st].filter(v => v == null).length;
+    const failed = [pa, rv, st].filter(v => v == null).length;
     if (failed > 0) setNotice(`${failed} 个数据源本次未返回，显示的是可用数据`);
     setLoading(false);
   }, []);
@@ -270,97 +197,11 @@ export function SentinelActionPage() {
   // 管道心跳条由 SentinelShell 自身维护。
 
   /* ---------------- 派生视图 ---------------- */
-  const { open, done } = useMemo(() => partitionTodos(todos), [todos]);
-
-  /** 七日强度点阵: 口径 = todos.completed_at 的每日完成数 (真实字段, 无估算) */
-  const rhythm = useMemo(() => {
-    const now = new Date();
-    const monday = mondayOf(now);
-    // 用「本地零点」相减求日序: now 含时分秒会让 round 在下午/周一两种场景漂一天
-    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayIdx = Math.min(6, Math.max(0, Math.round((todayMidnight.getTime() - monday.getTime()) / 86400000)));
-    const counts = new Array(7).fill(0) as number[];
-    let recorded = 0;
-    for (const t of todos) {
-      const key = isoDayKey(t.completed_at);
-      if (!key || t.status !== 'done') continue;
-      const idx = Math.round((new Date(`${key}T00:00:00`).getTime() - monday.getTime()) / 86400000);
-      if (idx >= 0 && idx < 7) { counts[idx] += 1; recorded += 1; }
-    }
-    const hit = counts.filter(c => c > 0).length;
-    const note = recorded > 0
-      ? `今日完成 ${counts[todayIdx] ?? 0} 项 · 本周累计 ${recorded} 项`
-      : '本周尚无完成记录 · 口径为待办完成时间';
-    return {
-      note,
-      days: DAY_LABELS.map((label, i) => ({
-        label,
-        count: counts[i],
-        on: counts[i] > 0,
-        future: i > todayIdx,
-        today: i === todayIdx,
-      })),
-      hit,
-      todayDone: counts[todayIdx] ?? 0,
-      recorded,
-    };
-  }, [todos]);
-
   const shownActions = useMemo(() => actions.slice(0, ACTION_SHOWN), [actions]);
   const stack = useMemo(() => reviews.slice(0, STACK_DEPTH), [reviews]);
   const top = stack[0] ?? null;
 
   /* ---------------- 写操作 ---------------- */
-
-  /** 勾选/取消待办 → PATCH /api/todos/{id} {status} */
-  const toggleTodo = useCallback(async (todo: TodoRow) => {
-    if (todoState[todo.id] === 'saving') return;
-    // archived 与 done 同属「已结束」: 取消勾选一律回到 open
-    const finished = todo.status === 'done' || todo.status === 'archived';
-    const next = finished ? 'open' : 'done';
-    const prev = todo.status;
-    const iso = new Date().toISOString();
-
-    setTodoState(s => ({ ...s, [todo.id]: 'saving' }));
-    setTodos(list => list.map(t => (t.id === todo.id
-      ? { ...t, status: next, completed_at: next === 'done' ? iso : null }
-      : t)));
-
-    try {
-      const data = await apiFetch<{ item?: Partial<TodoRow> }>(`/api/todos/${todo.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: next }),
-      });
-      if (data?.item) setTodos(list => list.map(t => (t.id === todo.id ? { ...t, ...data.item } : t)));
-      setTodoState(s => ({ ...s, [todo.id]: 'ok' }));
-    } catch {
-      setTodos(list => list.map(t => (t.id === todo.id ? { ...t, status: prev } : t)));
-      setTodoState(s => ({ ...s, [todo.id]: 'fail' }));
-    }
-  }, [todoState]);
-
-  /** 快速捕获 → POST /api/todos {source_type:'manual', title, important} */
-  const addTodo = useCallback(async () => {
-    const title = draft.trim();
-    if (!title) return;
-    setTodoState(s => ({ ...s, [CAPTURE_KEY]: 'saving' }));
-    try {
-      const data = await postJSON<{ item?: TodoRow }>('/api/todos', {
-        source_type: 'manual',
-        title,
-        important: 0,
-      });
-      if (data.item) {
-        const created = data.item;
-        setTodos(list => [created, ...list]);
-        setTodoTotal(n => n + 1);
-      }
-      setDraft('');
-      setTodoState(s => ({ ...s, [CAPTURE_KEY]: 'ok' }));
-    } catch {
-      setTodoState(s => ({ ...s, [CAPTURE_KEY]: 'fail' }));
-    }
-  }, [draft]);
 
   /**
    * 推进判读待办 → PUT /api/kl/planning-actions/{id}/status {status}
@@ -472,41 +313,15 @@ export function SentinelActionPage() {
   }, [overlayView, top, gradeReview]);
 
   /* ---------------- 渲染 ---------------- */
-  const addState = todoState[CAPTURE_KEY];
 
   return (
     <SentinelShell layer="action" ingested={newToday}>
-      <section className="ac-scr" aria-label="行动层 · 今日行动：复习栈、待办清单与判读待办">
+      <section className="ac-scr" aria-label="行动层 · 今日行动：复习栈与判读待办">
         <header className="ac-head">
           <div>
             <span className="ac-kicker">ACTION FLOOR</span>
             <h1 className="ac-h1">今日<b>行动</b><span> / 04</span></h1>
-            <p className="ac-sub">读完之后，动手的部分：复习、待办、判读队列都在这里推进。</p>
-          </div>
-          <div
-            className="ac-rhythm"
-            role="img"
-            aria-label={`本周节奏：周一至周日中 ${rhythm.hit} 天有待办完成记录，今日完成 ${rhythm.todayDone} 项`}
-          >
-            <div className="ac-rh-head">
-              <span className="ac-rh-t">本周节奏</span>
-              <span className="ac-rh-c num">{rhythm.hit} / 7 达标</span>
-            </div>
-            <div className="ac-rh-cells">
-              <span className="heat-cells" aria-hidden="true">
-                {rhythm.days.map(d => (
-                  <b
-                    key={d.label}
-                    className={`${d.on ? 'on' : ''} ${d.today ? 'ac-live' : ''}`.trim()}
-                    title={d.count > 0 ? `${d.label}：完成 ${d.count} 项` : `${d.label}：无完成记录`}
-                  />
-                ))}
-              </span>
-              <span className="ac-days" aria-hidden="true">
-                {rhythm.days.map(d => <i key={d.label}>{d.label}</i>)}
-              </span>
-            </div>
-            <p className="ac-rh-note">{rhythm.note}</p>
+            <p className="ac-sub">案件从主张到产物的执行闭环在上方指挥台推进；复习栈与判读队列在其下同步维护。</p>
           </div>
         </header>
 
@@ -634,90 +449,6 @@ export function SentinelActionPage() {
             </div>
           </section>
 
-          {/* ===== 待办清单 · /api/todos ===== */}
-          <section className="ac-panel ac-todo" aria-labelledby="ac-h-todo">
-            <header className="ac-ph">
-              <h2 id="ac-h-todo">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M4.5 6.6l1.7 1.7 3-3.4" stroke="currentColor" strokeWidth="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                待办清单
-              </h2>
-              <span className="ac-phn num">{open.length} OPEN · {done.length} DONE</span>
-            </header>
-
-            {loading ? (
-              <div className="ac-load" aria-busy="true"><div className="skel-line w2" /><div className="skel-line w1" /><div className="skel-line w3" /></div>
-            ) : todos.length === 0 ? (
-              <div className="ac-empty">
-                <div className="ac-empty-ring" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="3" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" /></svg>
-                </div>
-                <h3>还没有待办</h3>
-                <p>在下方快速捕获丢一条进来，或从判断层把条目归档为待办。</p>
-              </div>
-            ) : (
-              <ul className="ac-tlist">
-                {[...open, ...done].map(t => {
-                  const href = safeHref(t.url);
-                  const dl = t.status === 'open' ? deadlineText(t.deadline) : null;
-                  const state = todoState[t.id];
-                  const isDone = t.status === 'done' || t.status === 'archived';
-                  return (
-                    <li key={t.id} className={isDone ? 'is-done' : undefined}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={isDone}
-                          disabled={state === 'saving'}
-                          onChange={() => toggleTodo(t)}
-                          aria-label={`${isDone ? '取消完成' : '标记完成'}：${t.title}`}
-                        />
-                        <span className="ac-tbody">
-                          <span className="ac-tt">
-                            {href ? <a href={href} target="_blank" rel="noopener noreferrer">{t.title}</a> : t.title}
-                          </span>
-                          <span className="ac-tmeta">
-                            <span>#{String(t.id).padStart(2, '0')}</span>
-                            <span>{t.source_type === 'favorite' ? 'COLLECT' : 'MANUAL'}</span>
-                            {t.important === 1 && <span>重要</span>}
-                            {t.urgent === 1 && !isDone && <span className="due-warn">紧急</span>}
-                            {dl && <span className={dl.warn ? 'due-miss' : undefined}>{dl.text}</span>}
-                            <span>{stamp(t.completed_at ?? t.updated_at ?? t.created_at)}</span>
-                            {state === 'saving' && <span className="ac-tstate saving">写入中</span>}
-                            {state === 'fail' && <span className="ac-tstate fail" role="status">保存失败</span>}
-                          </span>
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            <div className="ac-qcap">
-              <label className="sr-only" htmlFor="ac-qc">快速捕获新待办</label>
-              <input
-                id="ac-qc"
-                type="text"
-                value={draft}
-                placeholder="想到什么，先丢进来"
-                autoComplete="off"
-                maxLength={500}
-                disabled={addState === 'saving'}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTodo(); } }}
-              />
-              <button className="ac-add" type="button" disabled={!draft.trim() || addState === 'saving'} onClick={() => addTodo()}>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 2.5v8M2.5 6.5h8" stroke="currentColor" strokeWidth="1.5" stroke-linecap="round" /></svg>
-                {addState === 'saving' ? '添加中' : '添加'}
-              </button>
-            </div>
-            <p className={`ac-qnote${addState === 'fail' ? ' is-fail' : ''}`} role="status">
-              {addState === 'fail'
-                ? '新增未写入成功，请重试。'
-                : `共 ${todoTotal || todos.length} 条 · 新捕获按 manual 置顶，紧急由截止日期自动派生`}
-            </p>
-          </section>
-
           {/* ===== 判读待办 · planning_actions ===== */}
           <section className="ac-panel ac-out" aria-labelledby="ac-h-out">
             <header className="ac-ph">
@@ -811,10 +542,8 @@ export function SentinelActionPage() {
 
         <p className="endnote">
           <span>行动层 · ACTION / 04</span>
-          <span>待办 {open.length} 未结</span>
           <span>复习 {reviewStats?.due ?? '--'} 到期</span>
           <span>判读待办 {actions.length} 待推进</span>
-          <span>本周达标 {rhythm.hit} / 7 天</span>
         </p>
 
         {/* v0.8.6 M3 副驾四卡 (P1-3): 起草入口 → 下方审批收件箱人审 → 双签 Run + 产物 */}

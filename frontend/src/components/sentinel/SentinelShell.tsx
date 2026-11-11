@@ -171,7 +171,6 @@ const BANDNAV_DEFS: Record<SentinelLayer, BandItem[]> = {
   action: [
     { label: '今日行动', to: '/action' },
     { label: '通稿审核', to: '/action/events' },
-    { label: '待办', to: '/todos' },
     { label: '报告', to: '/report' },
     { label: '泳道', to: '/garden', gate: 'codegarden' },
   ],
@@ -221,7 +220,7 @@ export function menuOf(pathname: string): SentinelLayer | null {
   if (pathname.startsWith('/action') || pathname.startsWith('/garden')) return 'action';
   if (pathname.startsWith('/settings') || pathname.startsWith('/secrets') || pathname.startsWith('/sync') || pathname.startsWith('/skills') || pathname.startsWith('/codegarden') || pathname.startsWith('/maint')) return 'settings';
   // 工具页按语义归属
-  if (pathname.startsWith('/report') || pathname.startsWith('/todos')) return 'action';
+  if (pathname.startsWith('/report')) return 'action';
   if (pathname.startsWith('/tags') || pathname.startsWith('/extract') || pathname.startsWith('/search') || pathname.startsWith('/dashboard') || pathname.startsWith('/skill-store')) return 'knowledge';
   if (pathname.startsWith('/quality') || pathname.startsWith('/history')) return 'data';
   if (pathname.startsWith('/secnews')) {

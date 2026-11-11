@@ -48,7 +48,6 @@ _LINE_EXEMPTIONS: dict[str, int] = {
     "skill_registry_api.py": 154,
     "skills.py": 177,
     "sync.py": 364,
-    "todos.py": 332,
     "wiki_tools.py": 233,
 }
 

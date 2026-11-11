@@ -25,6 +25,9 @@ from backend.repository.favorite_repo import FavoriteRepository
 from backend.repository.secrets_repo import SecretRepository
 from backend.repository.settings_repo import SettingsRepository
 from backend.repository.skills_repo import SkillRepository
+
+# B 档保留 (R-13): todo_repo 文件/表均保留 (skill_registry 以字符串反射消费);
+# 同步链路已退役 todos, 本处 import 仅用于计数上报 "跳过了多少条待办"
 from backend.repository.todo_repo import TodoRepository
 
 _SYNC_BUNDLE_MAX_ROWS = 100_000  # P1: 全量同步上限 — 消除 LIMIT 1000 截断导致的 absence-as-deletion 误判 (个人库远小于此值)
@@ -529,13 +532,18 @@ def build_bundle(*, device_id: str | None = None) -> dict:
             if cfg is not None:
                 SyncConfigRepository().update_device_id(cfg.id, device_id)
 
+    # R-13: 待办域已退役 — 不再跨端同步 todos。显式跳过 + 计数上报 (不静默丢弃)
+    _, local_todo_total = TodoRepository().list(limit=1)
+    if local_todo_total:
+        logger.warning(
+            f"sync export: skip {local_todo_total} todos (待办域已退役, R-13; 不进入 bundle)"
+        )
+
     records: dict[str, Any] = {
         "favorites": [
             it.to_dict() for it in FavoriteRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
         ],
-        "todos": [
-            it.to_dict() for it in TodoRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)[0]
-        ],
+        "todos": [],
         "skills": [
             it.to_dict() for it in SkillRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)[0]
         ],
@@ -625,20 +633,11 @@ def _apply_deletions(records: dict) -> dict:
         except Exception as e:
             logger.warning(f"deletion favorites {hid} failed: {e}")
 
-    # todos: 键 = source_type::source_id
-    bundle_keys = {
-        f"{r.get('source_type')}::{r.get('source_id')}"
-        for r in records.get("todos", [])
-    }
-    local_todos, _ = TodoRepository().list(limit=_SYNC_BUNDLE_MAX_ROWS)
-    for t in local_todos:
-        key = f"{t.source_type}::{t.source_id}"
-        if key not in bundle_keys:
-            try:
-                TodoRepository().delete(t.id)
-                stats["todos"] += 1
-            except Exception as e:
-                logger.warning(f"deletion todo {t.id} failed: {e}")
+    # todos: R-13 待办域已退役 — 不参与跨端删除 (stats 保留 0 以维持结果形状)
+    if records.get("todos"):
+        logger.warning(
+            f"sync deletion: skip {len(records.get('todos'))} todos (待办域已退役, R-13)"
+        )
 
     # skills: 键 = name
     bundle_names = {r.get("name") for r in records.get("skills", []) if r.get("name")}
@@ -803,25 +802,13 @@ def _apply_bundle_impl(bundle: dict, *, master_key: str | None = None) -> dict:
                title=f.get("title", ""), source=f.get("source", ""), url=f.get("url", ""))
         fav_stats["inserted"] += 1
 
-    # --- todos ---
-    tr = TodoRepository()
-    todo_stats = {"inserted": 0, "skipped": 0}
-    for t in records.get("todos", []):
-        try:
-            # P1-6 顺手修 (Phase 46 遗留): add_or_get 已不接受 urgent
-            # (紧急由 deadline 派生) — 旧调用传 urgent kwarg 每条必
-            # TypeError 被吞成 skipped, todos 跨端同步从未生效过。
-            tr.add_or_get(
-                source_type=t.get("source_type", "manual"),
-                source_id=t.get("source_id"), title=t.get("title", ""),
-                url=t.get("url"), source=t.get("source"), category=t.get("category"),
-                important=int(t.get("important", 0) or 0),
-                deadline=t.get("deadline"),
-                note=t.get("note"),
-            )
-            todo_stats["inserted"] += 1
-        except Exception:
-            todo_stats["skipped"] += 1
+    # --- todos (R-13: 待办域已退役 — 显式跳过 + 计数上报, 不写库) ---
+    skipped_todos = len(records.get("todos", []))
+    if skipped_todos:
+        logger.warning(
+            f"sync apply: skip {skipped_todos} todos (待办域已退役, R-13; 未写入本地)"
+        )
+    todo_stats = {"inserted": 0, "skipped": skipped_todos, "retired": True}
 
     # --- skills ---
     skr = SkillRepository()

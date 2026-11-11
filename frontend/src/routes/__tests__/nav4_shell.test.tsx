@@ -253,12 +253,12 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/skill-store['"]\)/);
   });
 
-  it("action 分支覆盖 /action /garden /report (R-13: /todos 已退役)", () => {
+  it("action 分支覆盖 /action /report (R-13: /todos 已退役, R-14: /garden 已退役)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/action['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/garden['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/report['"]\)/);
-    // 反向断言: 待办域退役后 menuOf 不再把 /todos 归到行动菜单
+    // 反向断言: 退役路径不再由 menuOf 归属
     expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/todos['"]\)/);
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/garden['"]\)/);
   });
 
   it("settings 分支覆盖 /settings /secrets /sync /skills /codegarden /maint", () => {

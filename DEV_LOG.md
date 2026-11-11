@@ -1,4 +1,23 @@
 
+## [DEV-0340] v0.8.8 P3 移除阶段关闭 — 六 commit 退役 trends/categories/weekly_report/garden + 410 垫片 (v088-p3-retire)
+
+- **时间**: 2026-11-11
+- **类型**: 代码删除 + 文档同步（**七个 router 端点下线 / 2 个 job 退役 / 0 表结构变更**）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.1 / §4.2 / §4.3 / §4.13 / §4.14；逐 commit 清单 [`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §2
+- **授权**: owner 2026-11-11「按这个方案执行 P3 授权并启动 P2.5」—— 同时构成 P1-17（R-14 `/garden`）的显式删除授权
+- **六个 commit**:
+  1. **C3-1 R-01** `trends` 路由退役（`api/trends.py` + `trend_service.py`；`trend` 为 `collection_pipeline.run_category_locked` 贯穿形参，需改函数签名，非删 2 行 —— D-A 偏差已实测确认）
+  2. **C3-2 R-02** `categories` 路由退役（仅删 router；`hotspot_service.count_by_category` / `hotspot_repo.count_by_category(_db)` **保留**，消费者 = favorites / health_query_service / hotspot_service —— D-B 偏差）
+  3. **C3-3 R-03a** `weekly_report` 整链下线（`api/weekly_report.py` / `services/weekly_report_service.py` / `repository/weekly_report_repo.py`）
+  4. **C3-4 R-03b** job 41 `daily_snapshot` / job 42 `weekly_report` 摘除（`digest.py` 函数 + `jobs/__init__.py` 导出 + `scheduler.py` 注册）。**与 C3-3 合并交付**：函数删除即令 `add_job(jobs.xxx_job)` AttributeError，拆两个 commit 会破坏「单 commit 可 revert」
+  5. **C3-5 R-13** `/api/todos` 补回 `410 Gone` 垫片（B 档兼容，观察至 v0.9.0）。**前置补丁**：`exceptions.py::_STATUS_TO_CODE` 补 `410: "E_GONE"`（原缺键会把 410 映成 `E_INTERNAL`，D-E 偏差）；垫片走应用级 `api_route` 而非 `include_router`，故 router 计数不受影响
+  6. **C3-6 R-14** `/garden` 退役（页面 + css + colocated test + lazy import + 路由 + 菜单项 + `menuOf` 分支 + `CgPanel`/`fetchCodegardenPanel` 死封装），保留 `/garden` → `/action` 的 `QueryRedirect` 透传 query
+- **架构数字（`generate_meta.py --check` 通过）**: jobs **59 → 57** / routers **100 → 97** / services **161 → 159** / core_routers **67 → 65**；collectors 19 不变
+- **数据面**: `weekly_reports` / `trend_daily_snapshots` **停写保留不 DROP**（X-6 先例，migration 116）；`trend_snapshots` 变为「只写不读」（`trend_rebuild_job` 仍写），已确认为可接受口径
+- **验证**: `ruff check backend/ scripts/` 通过；`import backend.main` OK；`generate_meta.py --check` OK；`test_feature_gates` / `test_api` / `test_collection_service` / `test_e2e_collect` 聚焦回归全绿；前端 `tsc --noEmit` + `vitest run`（nav4_shell + sentinel 域）+ `vite build` 通过；`grep -rn "SentinelGardenPage|sentinel-garden" frontend/src/` 0 命中
+- **未动**: `/api/codegarden/*` 端点、`codegarden` gate 默认值（仍开启）、`weekly_report_overview_service.py`（另一条链，被 `api/reports.py` + `skill_registry/builtin.py` 消费）
+- **阶段解锁**: **P2.5 数据架构（R-17）可启动，顺序以 C2.4 重建管道最先**（RA-14：重建能力是取消备份的唯一合法性基础）
+
 ## [DEV-0339] v0.8.8 P2 消融阶段关闭 — 20 对象矩阵跑完 + 三条结论回写 + 逃生口还原 (v088-p2-ablation)
 
 - **时间**: 2026-11-11

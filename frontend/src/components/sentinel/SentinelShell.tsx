@@ -76,7 +76,7 @@ function clockText(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** 今日收录兜底口径 (与 SentinelGraphPage / SentinelGardenPage 同源): 只取 24h total */
+/** 今日收录兜底口径 (与 SentinelGraphPage 同源): 只取 24h total */
 async function fetchIngested24h(): Promise<number | null> {
   try {
     const data = await listHotspots({ category: 'all', time_range: '24h', limit: 1 });
@@ -172,7 +172,6 @@ const BANDNAV_DEFS: Record<SentinelLayer, BandItem[]> = {
     { label: '今日行动', to: '/action' },
     { label: '通稿审核', to: '/action/events' },
     { label: '报告', to: '/report' },
-    { label: '泳道', to: '/garden', gate: 'codegarden' },
   ],
   settings: [
     { label: '全局配置', to: '/settings' },
@@ -217,7 +216,7 @@ export function menuOf(pathname: string): SentinelLayer | null {
   // 精确匹配 / action / knowledge / settings → 直接归属
   if (pathname === '/' || pathname.startsWith('/judge') || pathname.startsWith('/cases')) return 'data';
   if (pathname.startsWith('/knowledge') || pathname.startsWith('/deep') || pathname.startsWith('/reviews') || pathname.startsWith('/reader')) return 'knowledge';
-  if (pathname.startsWith('/action') || pathname.startsWith('/garden')) return 'action';
+  if (pathname.startsWith('/action')) return 'action';
   if (pathname.startsWith('/settings') || pathname.startsWith('/secrets') || pathname.startsWith('/sync') || pathname.startsWith('/skills') || pathname.startsWith('/codegarden') || pathname.startsWith('/maint')) return 'settings';
   // 工具页按语义归属
   if (pathname.startsWith('/report')) return 'action';

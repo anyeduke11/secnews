@@ -28,7 +28,6 @@
  *   - src/components/sentinel/SentinelHomePage.tsx  (collect_done → 心跳条 + 右栏 10s 节流 + 主列 3s 合并)
  *   - src/components/sentinel/SentinelJudgePage.tsx (collect_done → 心跳条 + 30s 节流 load; 已删 DEV-0258, 历史迁移记录)
  *   - src/components/sentinel/SentinelGraphPage.tsx (全量事件 → 心跳条 + 30s 节流 load)
- *   - src/components/sentinel/SentinelGardenPage.tsx (全量事件 → 15s 节流 reloadPipe + load)
  *   - src/components/sentinel/SentinelShell.tsx usePipeReloadOnSse: 非 SSE 消费方 (不带连接),
  *     10s 节流 + 模块级 mountedReload 优先 (DEV-0167) 原样保留, 由各页 realtime handler 调用。
  */

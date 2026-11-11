@@ -16,9 +16,6 @@ export const SentinelGraphPage = React.lazy(() =>
 export const SentinelActionPage = React.lazy(() =>
   import('../components/sentinel/SentinelActionPage').then(m => ({ default: m.SentinelActionPage }))
 );
-export const SentinelGardenPage = React.lazy(() =>
-  import('../components/sentinel/SentinelGardenPage').then(m => ({ default: m.SentinelGardenPage }))
-);
 
 // 全局工具页
 export const SettingsPage = React.lazy(() =>

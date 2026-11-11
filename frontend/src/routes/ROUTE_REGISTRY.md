@@ -46,7 +46,7 @@
 | `/cases` | → `/action` (QueryRedirect 透传 query) | 案件列表归行动 |
 | `/todos` | → `/action` (QueryRedirect 透传 query) | 待办域已退役（R-13）, 仅保留重定向兼容 |
 | `/report` | ReportPage | 周报/月报（产出物） |
-| `/garden` | SentinelGardenPage | 泳道（gate `codegarden`） |
+| `/garden` | → `/action` (QueryRedirect 透传 query) | 泳道页已退役（R-14）, 仅保留重定向兼容 |
 | `/secnews/analyze` | SecNewsAnalyze | P1 拆挂 PageLayout（SecNewsShell 退役） |
 
 ### 设置 `/settings`

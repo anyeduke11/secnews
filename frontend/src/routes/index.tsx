@@ -124,9 +124,8 @@ export function AppRoutes() {
         <Route path="/action" element={<Suspense fallback={<PageFallback />}><P.SentinelActionPage /></Suspense>} />
         {/* 判断层深链接: Case 详情 (URL 真相源, ?section= 定位; spec §5/§6.3) */}
         <Route path="/cases/:caseId" element={<Suspense fallback={<PageFallback />}><P.CaseDetailPage /></Suspense>} />
-        {features.codegarden && (
-          <Route path="/garden" element={<Suspense fallback={<PageFallback />}><P.SentinelGardenPage /></Suspense>} />
-        )}
+        {/* v0.8.8 R-14: 泳道页退役 (只读 CodeGarden 投影), 保留重定向兼容 */}
+        <Route path="/garden" element={<QueryRedirect to="/action" />} />
       </Route>
 
       {/* ===== v0.8.5: 旧 v1 四入口重定向 (透传 query; /cases/:caseId 深链见下方 PageLayout 组) =====

@@ -149,28 +149,6 @@ export function importFromKnowledge(body: FromKnowledgeRequest): Promise<CgProje
   return postJSON<CgProject>(FROM_KNOWLEDGE_URL, body);
 }
 
-/** 面板态: loading / ready / absent (404/405 = 扩展门控关闭, 路由未注册) / failed — SentinelGardenPage 只读观测台专用 */
-export type CgPanel<T> =
-  | { state: 'loading' }
-  | { state: 'ready'; data: T }
-  | { state: 'absent'; status: number }
-  | { state: 'failed' };
-
-/**
- * 面板级只读 GET, 保留原始 HTTP status 语义 — apiFetch 会把非 ok 归一为 throw,
- * 而观测台需要区分 404 (端点未注册) 与其他失败, 故走显式 Response 处理。
- */
-export async function fetchCodegardenPanel<T>(url: string): Promise<CgPanel<T>> {
-  try {
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (resp.status === 404 || resp.status === 405) return { state: 'absent', status: resp.status };
-    if (!resp.ok) return { state: 'failed' };
-    return { state: 'ready', data: (await resp.json()) as T };
-  } catch {
-    return { state: 'failed' };
-  }
-}
-
 /**
  * 同 importFromKnowledge, 但附带 HTTP status — ItemDetailDialog 的提示语需要
  * 区分 201 (首次加入) 与 200 (已存在)。错误路径与原裸 fetch 实现逐字对齐:

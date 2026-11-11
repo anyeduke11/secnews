@@ -128,6 +128,10 @@ def client(temp_db):
         }
 
     register_routers(app)
+    # 与 backend/main.py 同序: 退役端点 410 垫片必须挂上才算「生产同构」
+    from backend.main import register_retired_endpoint_shims
+
+    register_retired_endpoint_shims(app)
 
     # 桩住 scheduler / collectors 的副作用
     with patch("backend.scheduler.scheduler.get_scheduler", return_value=None):
@@ -358,6 +362,26 @@ def test_trends_retired(client, temp_db):
     """
     r = client.get("/api/trends")
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 8b. /api/todos — R-13 退役垫片 (410 Gone, 观察至 v0.9.0)
+# ---------------------------------------------------------------------------
+def test_todos_gone_shim(client, temp_db):
+    """R-13: 待办域退役走 B 档 → 410 + 替代指引, 而非 404。
+
+    410 与 404 的语义差是本契约的全部意义: "已退役" 必须可与 "从未存在" 区分,
+    否则前端 / 外部调用方无法按替代路径迁移 (PRD §4.13 P1-18)。
+    """
+    for method in ("GET", "POST", "PATCH", "DELETE"):
+        r = client.request(method, "/api/todos")
+        assert r.status_code == 410, f"{method} /api/todos 应返回 410"
+        body = r.json()
+        assert body["code"] == "E_GONE"
+        assert body["replacement"] == "/action"
+        assert body["deprecated_since"] == "0.8.8"
+    # 子路径同垫片
+    assert client.get("/api/todos/123").status_code == 410
 
 
 # ---------------------------------------------------------------------------

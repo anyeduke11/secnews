@@ -120,6 +120,7 @@ _STATUS_TO_CODE: dict[int, str] = {
     403: "E_FORBIDDEN",
     404: "E_NOT_FOUND",
     409: "E_CONFLICT",
+    410: "E_GONE",  # v0.8.8 R-13: 退役端点垫片
     422: "E_VALIDATION",
     429: "E_RATE_LIMIT",
 }

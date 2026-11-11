@@ -19,6 +19,7 @@ from datetime import timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.api import register_routers
 from backend.api.mcp_config import (
@@ -438,6 +439,30 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
     }
+
+
+# v0.8.8 R-13 (PRD §4.13 P1-18): 待办域退役垫片 — B 档兼容, 观察一版后于
+# v0.9.0 移除。不经 include_router, 故 generate_meta 的 router 计数不受影响。
+_TODOS_GONE_BODY = {
+    "detail": "todos 域已于 v0.8.8 退役",
+    "code": "E_GONE",
+    "deprecated_since": "0.8.8",
+    "replacement": "/action",
+    "sunset_date": "0.9.0",
+}
+
+
+def register_retired_endpoint_shims(app: FastAPI) -> None:
+    """注册已退役端点的 410 Gone 垫片 (B 档兼容期, 观察至 v0.9.0)。"""
+    methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+
+    @app.api_route("/api/todos", methods=methods, include_in_schema=False)
+    @app.api_route("/api/todos/{rest:path}", methods=methods, include_in_schema=False)
+    async def todos_retired(rest: str = ""):
+        return JSONResponse(status_code=410, content=_TODOS_GONE_BODY)
+
+
+register_retired_endpoint_shims(app)
 
 
 if __name__ == "__main__":  # pragma: no cover

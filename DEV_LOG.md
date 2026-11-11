@@ -1,4 +1,35 @@
 
+## [DEV-0342] v0.8.8 P2.5 — C2.4 重建管道 + T4 实测通过 (v088-p25-c24)
+
+- **时间**: 2026-11-11
+- **类型**: 新增能力 + 文档同步（**0 新 service / 0 新 job / 0 schema 变更 / 0 端点增减**；新增 1 脚本 + 1 测试文件）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17 / §6.3.1；[`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §4.2 / §6 / §9；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **授权**: owner 2026-11-11 二次裁决顺序「先 C2.3a 只写阶段，再 C2.4」（前置 C2.3a 已交付 DEV-0341 / `f44ec6b`）
+- **RA-14 意义**: 重建能力是「取消备份」的唯一合法性基础 → 本条目通过后 C2.1（备份链退役）才具备启动条件
+- **代码（2 文件）**:
+  1. `scripts/rebuild_hot_index.py` — 冷层 `feed/{yyyy-mm}.md` → `hotspots` 重建。CLI：`--from-cold`（默认，`ON CONFLICT(id) DO UPDATE` 覆盖）/ `--sync`（`INSERT OR IGNORE` 仅补缺，与 `--from-cold` 互斥）/ `--db` / `--wiki-root` / `--dry-run` / `--allow-partial` / `--json`；退出码 0 正常 / 1 存在对账差异 / 2 DB 不存在（不建表）
+  2. `backend/tests/test_rebuild_hot_index.py` — 隔离库内闭环：sink → 幂等复跑 → 删 `hotspot_tags` + `hotspots`（验 FTS 触发器归零）→ 子进程跑真实脚本 → 断言冷层/热层/FTS/tag/对账五路
+- **关键设计**:
+  - **20 列自持 UPSERT**：不复用 `hotspot_repo.upsert_many`（只 16 列，会丢 `tags` / `last_read_at` / `lifecycle` / `pick_score` / `quality_*`）
+  - **复写器同源**：直接引用 `wiki_archiver._parse_feed_records`（不 fork 第二份解析器），保证写端与读端契约同一
+  - **FTS 不手写**：由 migration 078 的 `hotspots_ai/au/ad` 触发器随普通行 DML 同步；**不写 FTS DML、不 REINDEX**
+  - **tag 还原边界**：`hotspot_tags` 仅回填 `tags` 表已存在的 `tag_id`（冷层未持久化 `tags.type`，凭空建 `tags` 行会伪造概念图）；缺失计入 `skipped_tag_links` 并计入退出码
+  - **免新增 service/job** → 架构数字零漂移（脚本不计入 `generate_meta.py` 统计面）
+- **T4 实测（生产库副本，零生产污染）**:
+  - 副本方式：`sqlite3.connect("file:...?mode=ro", uri=True).backup(dst)`（WAL 安全快照，363 MB）
+  - 链路：`hotspots before sink: 43,442` → `sunk total: 36,855`（4 个月文件，dup=0）→ 删热层后 `hotspots=0` / `hotspots_fts=0` → `rebuild exit: 0`
+  - 独立 SQL 复核（不信脚本自报）：`cold_records=36,855` / `hotspots_rows=36,855` / `fts_rows=36,855` / `rows_match=true` / `fts_match=true` / `fts_match_security=253` / `tag_links=34,423` / `rebuild_diff_events=0`
+  - 结论：**T4「删库 → 重建 → 行数一致」容差 0 通过**，RA-14 的合法性前提成立
+- **架构数字（`generate_meta.py --check` 通过）**: jobs 57 / collectors 19 / routers 97 / services 159 / core_routers 65 —— 零漂移
+- **验证**:
+  - `pytest backend/tests/test_rebuild_hot_index.py -q` → **1 passed**
+  - `ruff check scripts/rebuild_hot_index.py backend/tests/test_rebuild_hot_index.py` → All checks passed
+  - T4 闭环脚本 exit 0（见上）
+- **边界**: 本阶段**不删 `hotspots` 行**（删行归 C2.3b，须待 C2.1 备份链退役后开启）；脚本不建 `tags` 行、不建 `knowledge_items`
+- **遗留（fail-loud）**: P3 全量 pytest 结果为 `2 failed, 5421 passed, 7 skipped, 2 errors`，两项失败经 `git diff --name-only HEAD~7 HEAD` 证明**未被 P3 六 commit 触碰**，属既有问题，本 commit 未修（超出 C2.4 范围）：
+  1. `test_kpi_api.py::test_triage_latency_p50` — **日期腐烂**：种子时间写死 2026-10-07/09，查询按 `now - 30 days`（今日 cutoff≈2026-10-12）→ 样本出窗 → `assert 0 == 2`。建议改相对时间 `datetime.now() - timedelta(...)`
+  2. `test_cold_db_crypto.py::test_encrypt_decrypt_verify_roundtrip` / `::test_verify_wrong_master_key_exits` — 与 T01 守卫**结构性冲突**：该脚本无 `--db` 覆盖口，被 audit hook 拒绝连接生产路径。建议给脚本加路径参数，或测试内按守卫条件 skip
+
 ## [DEV-0341] v0.8.8 P2.5 启动 — C2.3a 沉降「只写阶段」落地 + 实施顺序二次裁决 (v088-p25-c23a)
 
 - **时间**: 2026-11-11

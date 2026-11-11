@@ -237,14 +237,26 @@ updated_at: 2026-11-11T...
 ```
 1. 扫冷层  hotspots 只从 feed/*.md 重建（逐行 <!--hsc:{json}--> 记录）
            items/*.md 仅用于重建 knowledge_items（不可用于 hotspots，见下）
-2. 回填    UPSERT hotspots / hotspot_tags / knowledge_items
-3. 重建索引 REINDEX hotspots_fts / wiki_items_fts
+2. 回填    UPSERT hotspots / hotspot_tags（`knowledge_items` 不在本脚本范围，由既有 wiki 链路负责）
+3. 索引    hotspots_fts 由 migration 078 触发器随行 DML 自动同步（**不手写 FTS DML、不 REINDEX**）
 4. 对账    md 条数 vs DB 行数 → 差异入 wiki_events(kind='rebuild_diff')
 ```
 
 **依赖前提**：`feed/{yyyy-mm}.md` 必须携带足够信息重建 `hotspots` 行（`title` / `url` / `summary` / `category` / `published_at` / `ingested_at` / `score` / `quality_score` / `tags`）。**这是 §4.1 管道 A 的 schema 约束，必须在实现时严格遵守**。
 
 > **实测补充（p2.5.1）**：`llm-wiki-2.0/items/*.md` 的 frontmatter **缺 `category` / `published_at`**，且 `hotspot_repo.upsert_many` 仅覆盖 16 列（未含 `tags` / `last_read_at` / `lifecycle` / `pick_score` / `quality_*`）→ **items 无法独立重建 `hotspots`**。故 `hotspots` 的唯一冷层来源是 `feed/*.md` 的 `<!--hsc:{json}-->` 全列记录（这是把 C2.3a 提到 C2.4 之前的原因）。
+
+**实施状态（p2.5.2，已交付）**：
+
+| 项 | 落地事实 |
+|---|---|
+| 脚本 | `scripts/rebuild_hot_index.py`；CLI = `--from-cold`（默认，覆盖同 id 行）/ `--sync`（`INSERT OR IGNORE`，仅补缺）/ `--db` / `--wiki-root` / `--dry-run` / `--allow-partial` / `--json` |
+| 写入面 | 自持 **20 列** UPSERT（不复用 `hotspot_repo.upsert_many` 的 16 列，避免丢 `tags` / `last_read_at` / `lifecycle` / `pick_score` / `quality_*`） |
+| FTS | **不手写 FTS DML、不 REINDEX** —— 由 migration 078 的 `hotspots_ai/au/ad` 触发器随普通 `INSERT/UPDATE/DELETE FROM hotspots` 自动同步；T4 中「删热层后 `hotspots_fts` 归零」即触发器健康证明 |
+| tag 边界 | `hotspot_tags` 仅回填 `tags` 表中**已存在**的 `tag_id`（冷层未持久化 `tags.type`，凭空建 `tags` 行会伪造概念图）；缺失计入 `skipped_tag_links` 并影响退出码 |
+| 对账 | 冷层记录数 vs `hotspots` 行数 vs `hotspots_fts` 行数；差异写 `wiki_events(kind='rebuild_diff')`，`diff_total > 0` 时 exit 1（`--allow-partial` 可放行） |
+| T4 实测 | 生产库副本（未触碰生产）：`hotspots` 43,442 → 沉降 36,855（4 个月文件，dup 0）→ 删热层（`hotspots=0` / `fts=0`）→ 重建 36,855 = 冷层 36,855（**容差 0**）；FTS 36,855 一致、`MATCH 'security'` 253 命中、`hotspot_tags` 回填 34,423、`rebuild_diff` 事件 0、脚本 exit 0 |
+| CI 门禁 | `backend/tests/test_rebuild_hot_index.py`（隔离库内 sink → 删 → 子进程跑真实脚本 → 行/FTS/tag/对账四路断言） |
 
 ### 4.3 两管道的可核验性
 
@@ -364,7 +376,7 @@ updated_at: 2026-11-11T...
 | 阶段 | 内容 | 前置门 |
 |---|---|---|
 | **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试） |
-| **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | 3a 已产出真实 `feed/*.md` → 删库 → 重建 → 行数一致 |
+| **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | ✅ **已交付**：`scripts/rebuild_hot_index.py` + `test_rebuild_hot_index.py`；T4 实测 36,855 冷层记录 → 重建 36,855 行（容差 0）、FTS 一致、对账差异 0 |
 | **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 |
 | **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 |
 | **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 + 备份链已退役 |

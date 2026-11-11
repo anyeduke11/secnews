@@ -6,13 +6,21 @@
  * 设计原则:
  * - 顶部 4 格状态卡 (SIZE / FRAG / LOGS / DUPS) 取代零碎分布
  * - 维护动作区 st-section + st-rule 编辑行 + st-actionbar footer
- * - 危险动作 (清理历史) 用 st-dangerline + danger label 区分
+ * - 危险区 (VACUUM / 去重 / 历史清理) 统一收口 + st-dangerline, 全部二次确认后才发请求
  * - 重复数据详情用 st-table 列表
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useCallback, useEffect } from 'react';
 import { getJSON, postJSON } from '../../lib/api';
 import '../settings/settings-shell.css';
+
+type DangerAction = 'vacuum' | 'dedup' | 'cleanup';
+
+const DANGER_LABELS: Record<DangerAction, string> = {
+  vacuum: 'VACUUM 压缩',
+  dedup: '重复数据去重',
+  cleanup: '清理历史数据',
+};
 
 export function DatabaseMaintenance() {
   const [dbHealth, setDbHealth] = useState<{ size_mb?: number; fragmentation_pct?: number; journal_mode?: string } | null>(null);
@@ -28,6 +36,8 @@ export function DatabaseMaintenance() {
   const [cleaning, setCleaning] = useState(false);
   const [retentionDays, setRetentionDays] = useState(90);
   const [qualityLogDays, setQualityLogDays] = useState(7);
+  /** R-15: 危险区二次确认 — 首次点击只登记待确认动作, 不触达后端 */
+  const [pendingDanger, setPendingDanger] = useState<DangerAction | null>(null);
 
   type Msg = { kind: 'ok' | 'bad' | 'mute'; text: string } | null;
   const [vacuumMsg, setVacuumMsg] = useState<Msg>(null);
@@ -125,6 +135,15 @@ export function DatabaseMaintenance() {
     finally { setCacheClearing(false); }
   };
 
+  /** 二次确认后分发到具体危险动作 (确认前不长任何请求) */
+  const runPendingDanger = () => {
+    const action = pendingDanger;
+    setPendingDanger(null);
+    if (action === 'vacuum') handleVacuum();
+    else if (action === 'dedup') handleDedup();
+    else if (action === 'cleanup') handleCleanup();
+  };
+
   const topTables = tableStats?.filter(t => t.rows > 0).sort((a, b) => b.rows - a.rows).slice(0, 10) || [];
   const dupCount = duplicates?.hotspots?.length ?? 0;
   const kiDupCount = duplicates?.knowledge_items?.length ?? 0;
@@ -220,35 +239,19 @@ export function DatabaseMaintenance() {
             <div className="st-ctrlrow" style={{ flexWrap: 'wrap', gap: 6 }}>
               <button
                 className="st-btn"
-                onClick={handleVacuum}
-                disabled={vacuuming}
-              >
-                {vacuuming ? '压缩中...' : 'VACUUM 压缩'}
-              </button>
-              <button
-                className="st-btn"
                 onClick={handleClearCache}
                 disabled={cacheClearing}
               >
                 {cacheClearing ? '清除中...' : '清除缓存'}
               </button>
-              <button
-                className="st-btn"
-                onClick={handleDedup}
-                disabled={deduping}
-              >
-                {deduping ? '去重中...' : '重复数据去重'}
-              </button>
             </div>
           </div>
 
-          {(vacuumMsg || cacheMsg || dedupMsg) && (
+          {cacheMsg && (
             <div className="st-rule" style={{ borderBottom: 'none' }}>
               <span className="st-label">结果</span>
               <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                {vacuumMsg && <span className={`st-ab-msg ${vacuumMsg.kind}`}>{vacuumMsg.text}</span>}
-                {cacheMsg && <span className={`st-ab-msg ${cacheMsg.kind}`}>{cacheMsg.text}</span>}
-                {dedupMsg && <span className={`st-ab-msg ${dedupMsg.kind}`}>{dedupMsg.text}</span>}
+                <span className={`st-ab-msg ${cacheMsg.kind}`}>{cacheMsg.text}</span>
               </div>
             </div>
           )}
@@ -292,9 +295,33 @@ export function DatabaseMaintenance() {
         </div>
       </div>
 
-      {/* 历史数据保留期 — 危险动作 */}
-      <div className="st-section">
+      {/* 危险区 — 不可逆动作统一收口, 全部二次确认 */}
+      <div className="st-section" aria-label="危险区">
         <div className="st-section-body">
+          <div className="st-dangerline">危险区 · 不可逆操作需二次确认</div>
+
+          <div className="st-rule">
+            <span className="st-label" style={{ color: 'var(--sn-red)' }}>危险动作</span>
+            <div className="st-ctrlrow" style={{ flexWrap: 'wrap', gap: 6 }}>
+              <button
+                className="st-btn danger"
+                data-testid="danger-arm-vacuum"
+                onClick={() => setPendingDanger('vacuum')}
+                disabled={vacuuming}
+              >
+                {vacuuming ? '压缩中...' : 'VACUUM 压缩'}
+              </button>
+              <button
+                className="st-btn danger"
+                data-testid="danger-arm-dedup"
+                onClick={() => setPendingDanger('dedup')}
+                disabled={deduping}
+              >
+                {deduping ? '去重中...' : '重复数据去重'}
+              </button>
+            </div>
+          </div>
+
           <div className="st-rule">
             <span className="st-label" style={{ color: 'var(--sn-red)' }}>历史数据保留期</span>
             <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -303,6 +330,7 @@ export function DatabaseMaintenance() {
                   type="range" min={7} max={365} step={1}
                   value={retentionDays}
                   onChange={e => setRetentionDays(Number(e.target.value))}
+                  aria-label="历史数据保留期"
                   style={{ flex: 1 }}
                 />
                 <span style={{ fontFamily: 'var(--sn-mono)', fontSize: 13, color: 'var(--sn-red)', minWidth: 56, textAlign: 'right' }}>
@@ -320,14 +348,51 @@ export function DatabaseMaintenance() {
             <div className="st-ctrl">
               <button
                 className="st-btn danger"
-                onClick={handleCleanup}
+                data-testid="danger-arm-cleanup"
+                onClick={() => setPendingDanger('cleanup')}
                 disabled={cleaning}
               >
                 {cleaning ? '清理中...' : `清理历史数据 (保留 ${retentionDays} 天)`}
               </button>
-              {cleanMsg && <span className={`st-ab-msg ${cleanMsg.kind}`}>{cleanMsg.text}</span>}
             </div>
           </div>
+
+          {/* 二次确认 — 确认前不发起任何请求 */}
+          {pendingDanger && (
+            <div className="st-rule" style={{ borderBottom: 'none' }} role="alertdialog" aria-label="危险操作二次确认">
+              <span className="st-label" style={{ color: 'var(--sn-red)' }}>二次确认</span>
+              <div className="st-ctrl" style={{ flexWrap: 'wrap', gap: 8 }}>
+                <span className="st-ab-msg bad" data-testid="danger-confirm-text">
+                  将执行「{DANGER_LABELS[pendingDanger]}」, 不可撤销
+                </span>
+                <button
+                  className="st-btn danger"
+                  data-testid="danger-confirm-yes"
+                  onClick={runPendingDanger}
+                >
+                  确认执行
+                </button>
+                <button
+                  className="st-btn"
+                  data-testid="danger-confirm-cancel"
+                  onClick={() => setPendingDanger(null)}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(vacuumMsg || dedupMsg || cleanMsg) && (
+            <div className="st-rule" style={{ borderBottom: 'none' }}>
+              <span className="st-label">结果</span>
+              <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                {vacuumMsg && <span className={`st-ab-msg ${vacuumMsg.kind}`}>{vacuumMsg.text}</span>}
+                {dedupMsg && <span className={`st-ab-msg ${dedupMsg.kind}`}>{dedupMsg.text}</span>}
+                {cleanMsg && <span className={`st-ab-msg ${cleanMsg.kind}`}>{cleanMsg.text}</span>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

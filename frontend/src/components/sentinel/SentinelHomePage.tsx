@@ -246,7 +246,7 @@ function DeepReadChip({ id, label = '深读', itemTitle }: { id: string; label?:
 }
 
 /** 快讯行: brief 快讯流与 deep 深度视图共用同一行结构 (P2 2026-09-27 抽取) */
-function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showReactions }: {
+function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showReactions, onOpen }: {
   item: HotspotItem;
   interestDomains: string[];
   fav: boolean;
@@ -254,6 +254,8 @@ function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showR
   reaction?: ReactionType;
   onReact: (item: HotspotItem, type: ReactionType) => void;
   showReactions: boolean;
+  /** R-15: 打开原文即记为已读 (会话内), 驱动「待读 → 已读」递进 */
+  onOpen?: (id: string) => void;
 }) {
   const href = safeHref(item.url);
   return (
@@ -261,7 +263,7 @@ function FlashRow({ item, interestDomains, fav, onStar, reaction, onReact, showR
       <span className="flash-time num">{relTime(item.published_at)}</span>
       <div className="flash-body">
         {href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => trackInterest(item.id, 'view')}><span className="flash-title">{item.title}</span></a>
+          <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => { trackInterest(item.id, 'view'); onOpen?.(item.id); }}><span className="flash-title">{item.title}</span></a>
         ) : (
           <span className="flash-title">{item.title}</span>
         )}
@@ -398,6 +400,24 @@ export function SentinelHomePage() {
     [items],
   );
 
+  // ── R-15 三段递进: 今日必读 (评分 Top3) → 待读 (未打开) → 已读 (本次会话打开过) ──
+  // 已读仅为会话内真实阅读动作, 不落库、不造数; 刷新页面回到待读。
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const markRead = useCallback((id: string) => {
+    setReadIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+  const readSet = useMemo(() => new Set(readIds), [readIds]);
+  const toRead = useMemo(() => flashes.filter(i => !readSet.has(i.id)), [flashes, readSet]);
+  const readItems = useMemo(() => flashes.filter(i => readSet.has(i.id)), [flashes, readSet]);
+
+  // 今日一句话摘要条: 从头条 summary 抽首句 (真实数据, 无摘要时回退为收录计数)
+  const todayLine = useMemo(() => {
+    if (!lead) return null;
+    const s = plainSummary(lead.summary);
+    const first = s ? (s.split(/(?<=[。！？!?])/)[0] || s).trim() : '';
+    return first ? first.slice(0, 120) : `今日收录 ${total} 篇 · 头条「${lead.title}」`;
+  }, [lead, total]);
+
   // 「今日收录」口径: 后端 time_range=24h 即"今日 00:00 起"; 换频道/放宽时间窗/搜索后
   // total 已不是当日语义, 改标「范围内 / 匹配」, 心跳条该格回退为 '…' 避免误导。
   const isTodayScope = channel === 'all' && timeRange === '24h' && !keyword;
@@ -492,6 +512,15 @@ export function SentinelHomePage() {
           {loadingPage ? ' · 翻页中' : ''}
         </span>
       </div>
+
+      {/* ===== 今日一句话摘要条 (R-15): 内容取自头条 summary, 不硬编码 ===== */}
+      {mode !== 'scan' && !loading && !error && todayLine && (
+        <div className="sn-oneline" data-testid="today-oneline" role="status">
+          <span className="sn-oneline-k" aria-hidden="true">今日一句话</span>
+          <p className="sn-oneline-v" title={todayLine}>{todayLine}</p>
+          {lead && <span className="sn-oneline-src num">{lead.source}</span>}
+        </div>
+      )}
 
       {/* ===== 主布局 ===== */}
       <div className="layout">
@@ -599,6 +628,13 @@ export function SentinelHomePage() {
             <>
               {/* DEV-0177 T0.5 收敛: SK-01 今日重点情报 (实践域分区) */}
               <PriorityDigestCard />
+
+              {/* ① 今日必读 — 评分最高的头条 + 次级重点 */}
+              <section aria-label="今日必读" data-testid="feed-must-read">
+                <div className="flash-head">
+                  <h2>今日必读</h2>
+                  <span className="flash-count num">TOP {Math.min(items.length, 3)} · 评分优先</span>
+                </div>
               {/* 头条 */}
               {lead && safeHref(lead.url) && (
                 <article className="story-top">
@@ -670,26 +706,34 @@ export function SentinelHomePage() {
                 </section>
               )}
 
-              {/* 快讯流 / 告警视图 (2026-09-27 四模式 P1: alert 接真告警列表, 撤前端假告警) */}
-              <section aria-label={mode === 'alert' ? '资讯告警' : '实时快讯'}>
+              </section>
+
+              {/* ② 待读 / 告警 (2026-09-27: alert 接真告警列表) */}
+              <section aria-label={mode === 'alert' ? '资讯告警' : '待读'} data-testid={mode === 'alert' ? undefined : 'feed-to-read'}>
                 {mode === 'alert' ? (
                   <NewsAlertList />
                 ) : (
                   <>
                     <div className="flash-head">
-                      <h2>实时快讯</h2>
+                      <h2>待读</h2>
                       <span className="flash-count num">
                         PAGE {page} · {items.length} ITEMS
                         {latestIngestionCount ? ` · 最近一轮 +${latestIngestionCount}` : ''}
                         {latestIngestionAt ? ` · ${relTime(latestIngestionAt)}` : ''}
                       </span>
                     </div>
-                    <ul className="flash-list">
-                      {/* 常规快讯 */}
-                      {flashes.map(item => (
-                        <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} reaction={reactionOf(item.id)} onReact={doReact} showReactions={reactionsAvailable} />
-                      ))}
-                    </ul>
+                    {toRead.length > 0 ? (
+                      <ul className="flash-list">
+                        {toRead.map(item => (
+                          <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} reaction={reactionOf(item.id)} onReact={doReact} showReactions={reactionsAvailable} onOpen={markRead} />
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="empty-panel" data-testid="feed-to-read-empty">
+                        <p>本页条目均已打开</p>
+                        <p className="sub">翻到下一页继续，或在上方「已读」回看</p>
+                      </div>
+                    )}
 
                     {/* 游标分页控件 */}
                     <div
@@ -722,12 +766,29 @@ export function SentinelHomePage() {
                   </>
                 )}
               </section>
+
+              {/* ③ 已读 — 仅本次会话真实打开过的条目, 无数据时整段不渲染 */}
+              {mode !== 'alert' && readItems.length > 0 && (
+                <section aria-label="已读" data-testid="feed-read">
+                  <div className="flash-head">
+                    <h2>已读</h2>
+                    <span className="flash-count num">{readItems.length} ITEMS · 本次会话</span>
+                  </div>
+                  <ul className="flash-list">
+                    {readItems.map(item => (
+                      <FlashRow key={item.id} item={item} interestDomains={interestDomains} fav={isFavorite(item.id)} onStar={star} reaction={reactionOf(item.id)} onReact={doReact} showReactions={reactionsAvailable} onOpen={markRead} />
+                    ))}
+                  </ul>
+                </section>
+              )}
             </>
           )}
         </main>
 
         {/* 右栏 */}
         <aside className="rail">
+          {/* R-15: 今日 Signal 摘要 (同一 signals 数据源, 无数据为空态) */}
+          <SignalPanel compact />
           <RailWithPipe quality={quality} />
         </aside>
       </div>

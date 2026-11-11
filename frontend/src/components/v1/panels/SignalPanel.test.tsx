@@ -80,4 +80,29 @@ describe('SignalPanel', () => {
       expect(body.title.length).toBeLessThanOrEqual(120);
     });
   });
+
+  // R-15: 资讯右栏「今日 Signal 摘要」— 同一数据源但只看今日 3 条, 不承担立项动作
+  it('compact: 今日摘要查询 days=1&limit=3, 无立项按钮, 可去行动', async () => {
+    mockListSignals.mockResolvedValue({
+      version: 'v1', total: 1,
+      items: [{
+        id: 'sig01HBWXAZ2P3XQV5M8B7CDERF', subject_id: 'subj01HBWXAZ2P3XQV5M8B7CDERF',
+        material_id: 'mat01HBWXAZ2P3XQV5M8B7CDERF', summary: '今日信号: 某网关未授权访问',
+        occurred_at: '2026-09-08T08:00:00+00:00', confidence: 'verified', status: 'verified',
+        subject_name: '网关',
+      }],
+    } as any);
+    render(ui(<SignalPanel compact />));
+    expect(await screen.findByText('今日信号: 某网关未授权访问')).toBeTruthy();
+    expect(mockListSignals).toHaveBeenCalledWith({ days: 1, limit: 3 });
+    // 摘要栏不得发起立项 (立项是完整面板的能力)
+    expect(screen.queryByTestId('signal-open-case-btn')).toBeNull();
+    expect(screen.getByRole('button', { name: '进入行动指挥台查看全部信号' })).toBeTruthy();
+  });
+
+  it('compact 空/失败: 空态与未就绪占位, 不伪造信号', async () => {
+    mockListSignals.mockResolvedValue({ version: 'v1', total: 0, items: [] } as any);
+    render(ui(<SignalPanel compact />));
+    expect(await screen.findByText(/今日暂无受管信号/)).toBeTruthy();
+  });
 });

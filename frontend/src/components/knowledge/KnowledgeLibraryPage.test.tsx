@@ -128,6 +128,22 @@ describe('KnowledgeLibraryPage — 编目室 (/knowledge/library, C1 真实数�
     await waitFor(() => expect(screen.getByText('该筛选条件下暂无编目条目')).toBeInTheDocument());
   });
 
+  // R-15: 条目卡 → 行动入口 (复用 /action 路由并透传上下文, 不新建路由)
+  it('「→ 行动」透传知识条目上下文到 /action, 深读走详情路由', async () => {
+    render(<MemoryRouter><KnowledgeLibraryPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText('条目 k01 的标题')).toBeInTheDocument());
+
+    const toAction = screen.getByTestId('knowledge-to-action-k01');
+    const href = toAction.getAttribute('href') ?? '';
+    expect(href.startsWith('/action?')).toBe(true);
+    expect(href).toContain('knowledge_id=k01');
+    expect(href).toContain(`title=${encodeURIComponent('条目 k01 的标题')}`);
+    expect(toAction).toHaveAccessibleName('将「条目 k01 的标题」带入行动');
+
+    const deepRead = screen.getByRole('link', { name: '深度阅读 条目 k01 的标题' });
+    expect(deepRead.getAttribute('href')).toBe('/knowledge/deep-read/k01');
+  });
+
   it('接口失败 → 错误空态 + 口径提示, 不白屏', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'boom' }) } as Response)));
     render(<MemoryRouter><KnowledgeLibraryPage /></MemoryRouter>);

@@ -164,6 +164,12 @@ export function SettingsPage() {
             return (
               <div className="st-snav-group" key={group}>
                 {label && <span className="st-snav-grouplabel" aria-hidden>{label}</span>}
+                {/* R-15: 每组一行摘要 (组内区段构成), 让当前分组范围一眼可见 */}
+                {label && (
+                  <span className="st-snav-groupsum" data-testid={`settings-group-${group}`}>
+                    {items.map(s => s.label).join(' · ')}
+                  </span>
+                )}
                 {items.map(s => {
                   const isActive = activeSection === s.key;
                   return (

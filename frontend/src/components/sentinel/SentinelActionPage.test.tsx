@@ -7,8 +7,8 @@
  *    (pending→in_progress→completed); 复习评分 → POST /api/reviews/{type}/{id}/grade。
  *    全部断言乐观更新 + 失败回滚。
  *  - planning_actions / reviews 空数据 → 如实渲染空态, 不造假数据
- *  - R-13: 待办清单 (/api/todos) 已退役, 本屏不再有该数据源与写操作
  *  - 全程 mock fetch, 不发真实网络请求、不写库
+ *  - R-13: 待办清单 (/api/todos) 已退役, 本屏不再有该数据源与写操作
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';

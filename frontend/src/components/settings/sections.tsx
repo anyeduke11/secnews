@@ -40,14 +40,15 @@ export interface SectionDef {
   group: SectionGroup;
 }
 
-export type SectionGroup = 'overview' | 'general' | 'system' | 'connectivity' | 'ops';
+/** R-15 (v0.8.8): 侧边栏四组 = 数据源 / 管道与门控 / AI 与模型 / 运维与诊断 */
+export type SectionGroup = 'overview' | 'sources' | 'pipeline' | 'ai' | 'ops';
 
 export const SECTION_GROUP_LABELS: Array<{ group: SectionGroup; label: string }> = [
   { group: 'overview', label: '' },
-  { group: 'general', label: '通用偏好' },
-  { group: 'system', label: '系统配置' },
-  { group: 'connectivity', label: '连接与凭据' },
-  { group: 'ops', label: '运维' },
+  { group: 'sources', label: '数据源' },
+  { group: 'pipeline', label: '管道与门控' },
+  { group: 'ai', label: 'AI 与模型' },
+  { group: 'ops', label: '运维与诊断' },
 ];
 
 export const SECTIONS: SectionDef[] = [
@@ -59,12 +60,20 @@ export const SECTIONS: SectionDef[] = [
     group: 'overview',
   },
   {
+    key: 'collection',
+    label: '采集与管线',
+    icon: <Icon size={12}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></Icon>,
+    desc: '信源 / 质量 / KL 队列 / 资讯门禁',
+    layout: 'mixed',
+    group: 'pipeline',
+  },
+  {
     key: 'general',
     label: '通用',
     icon: <Icon size={12}><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></Icon>,
-    desc: '主题 / 模式 / 能力开关',
+    desc: '主题 / 模式 / 兴趣 / 能力开关',
     layout: 'mixed',
-    group: 'general',
+    group: 'pipeline',
   },
   {
     key: 'models',
@@ -72,29 +81,21 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9 9h6v6H9z" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" /></Icon>,
     desc: 'LLM Provider / 密钥 / 场景模型',
     layout: 'mixed',
-    group: 'system',
-  },
-  {
-    key: 'collection',
-    label: '采集与管线',
-    icon: <Icon size={12}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></Icon>,
-    desc: '信源 / 质量 / KL 队列 / 资讯门禁',
-    layout: 'mixed',
-    group: 'system',
+    group: 'ai',
   },
   {
     key: 'network',
     label: '网络',
     icon: <Icon size={12}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><circle cx="12" cy="20" r="1" /></Icon>,
     desc: '代理 / 连接',
-    group: 'connectivity',
+    group: 'sources',
   },
   {
     key: 'connectivity',
     label: '集成与凭据',
     icon: <Icon size={12}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>,
     desc: '同步 / MCP / 主密钥',
-    group: 'connectivity',
+    group: 'sources',
   },
   {
     key: 'ops',

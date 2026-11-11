@@ -255,6 +255,11 @@
   font-family:var(--sn-mono);font-size:9.5px;letter-spacing:.08em;
   color:var(--sn-ink-3);padding:0 10px 2px;
 }
+/* R-15: 组摘要行 — 组内区段构成, 低于组标题一级 */
+.settings-shell .st-snav-groupsum{
+  display:block;padding:0 10px 4px;
+  font-size:10.5px;line-height:1.35;color:var(--sn-ink-3);
+}
 /* <640px: 与内容上下堆叠时分类导航改为横滚一行 (17 个分类竖排会把内容挤成竖字) */
 @media (max-width:639px){
   .settings-shell .st-sidenav{flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none;gap:6px;padding-bottom:6px}
@@ -263,6 +268,7 @@
   /* c8: 横滚模式下组容器摊平 (display:contents), 组标题隐藏, 保持单行滚动 */
   .settings-shell .st-snav-group{display:contents}
   .settings-shell .st-snav-grouplabel{display:none}
+  .settings-shell .st-snav-groupsum{display:none}
 }
 .settings-shell .st-sidenav-item{
   display:flex;flex-direction:column;gap:2px;

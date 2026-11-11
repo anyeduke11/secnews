@@ -220,7 +220,8 @@ describe('SentinelHomePage — 哨兵终端首页', () => {
     expect(screen.getByRole('button', { name: /^全部/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^网络安全/ })).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByText('实时快讯')).toBeInTheDocument());
+    // R-15: 快讯流重组为「待读」段 (今日必读 → 待读 → 已读 三段递进)
+    await waitFor(() => expect(screen.getByText('待读')).toBeInTheDocument());
   });
 
   it('真实数据驱动: 头条来自 /api/hotspots, 管道统计来自 /api/sources/health', async () => {
@@ -824,5 +825,46 @@ describe('SentinelHomePage — 精选/深度视图 (P2 2026-09-27)', () => {
 
     expect(await screen.findByText('当前无深读候选')).toBeInTheDocument();
     expect(screen.getByText(/在条目上收藏后归入深读/)).toBeInTheDocument();
+  });
+
+  // ── R-15: 资讯三段递进 / 今日一句话 / 右栏 Signal 摘要 ──
+  it('R-15 三段递进: 必读与待读常驻, 已读只在真正打开过条目后出现', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('feed-must-read')).toBeInTheDocument());
+
+    // 必读段 = 评分前三 (头条 + 两条次级), 待读段 = 其余条目
+    expect(screen.getByTestId('feed-must-read')).toHaveTextContent('企业自建大模型网关曝出未授权访问风险');
+    expect(screen.getByTestId('feed-to-read')).toHaveTextContent('广泛使用的 PDF 解析库存在内存越界缺陷');
+    // 未打开过任何条目 → 已读段不渲染 (而不是渲染空壳)
+    expect(screen.queryByTestId('feed-read')).toBeNull();
+
+    // 打开一条待读条目 → 它从待读移入已读 (递进由真实点击驱动)
+    fireEvent.click(screen.getByText('广泛使用的 PDF 解析库存在内存越界缺陷'));
+    await waitFor(() => expect(screen.getByTestId('feed-read')).toBeInTheDocument());
+    expect(screen.getByTestId('feed-read')).toHaveTextContent('广泛使用的 PDF 解析库存在内存越界缺陷');
+    expect(screen.getByTestId('feed-to-read')).not.toHaveTextContent('广泛使用的 PDF 解析库存在内存越界缺陷');
+  });
+
+  it('R-15 今日一句话: 取头条 summary 首句 (换数据即换文案, 非硬编码)', async () => {
+    const custom = {
+      ...HOTSPOT_FIXTURE,
+      items: HOTSPOT_FIXTURE.items.map(i => i.id === 'h1' ? { ...i, summary: '另一条真实摘要。后续细节。' } : i),
+    };
+    vi.stubGlobal('fetch', mockFetch(custom));
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+
+    await waitFor(() => expect(screen.getByTestId('today-oneline')).toBeInTheDocument());
+    expect(screen.getByTestId('today-oneline')).toHaveTextContent('另一条真实摘要。');
+    expect(screen.getByTestId('today-oneline')).not.toHaveTextContent('后续细节。');
+  });
+
+  it('R-15 右栏 Signal 摘要: 复用 signals 端点 (days=1), 无数据时为空态', async () => {
+    render(<MemoryRouter><SentinelHomePage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('rail-signal-summary')).toBeInTheDocument());
+
+    // 同一数据源, 但只取今日 3 条 (不是伪造的"今日信号")
+    const calls = fetchMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith('/api/v1/signals'));
+    expect(calls.some(u => u.includes('days=1') && u.includes('limit=3'))).toBe(true);
+    expect(await screen.findByText(/今日暂无受管信号/)).toBeInTheDocument();
   });
 });

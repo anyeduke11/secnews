@@ -11,8 +11,13 @@
 import type {
   Case, CasePriority, CaseStatus, CaseOwnerRole,
   Judgment, EvidenceRef,
+  Artifact as DomainArtifact,
+  ArtifactFormat, ArtifactKind, ArtifactStatus, VerificationResult,
 } from '../domain/v1_0';
 import { getJSON, postJSON, apiFetch } from '../lib/api';
+
+// 枚举一律取自 codegen 真源 (backend/domain/v1_0_models.py), 不在本文件手写副本。
+export type { ArtifactFormat, ArtifactKind, ArtifactStatus, VerificationResult };
 
 // ---------------------------------------------------------------------------
 // Response shapes (后端 {version, item} / {items, total})
@@ -245,32 +250,16 @@ export interface Run {
   updated_at: string;
 }
 
-export type ArtifactStatus = 'pending' | 'verified' | 'accepted' | 'rejected' | 'superseded';
-export type ArtifactKind = 'report' | 'file' | 'data' | 'chart' | 'code_patch' | 'message';
-export type ArtifactFormat = 'md' | 'json' | 'csv' | 'png' | 'pdf' | 'txt' | 'html' | 'xml';
-export type VerificationResult = 'pass' | 'fail' | 'warn';
-
-export interface Artifact {
-  id: string;
-  run_id: string;
-  kind: ArtifactKind;
-  title: string;
-  content_ref?: string | null;
-  content_hash: string;
-  format: ArtifactFormat;
-  size_bytes: number;
-  verified_by?: string | null;
-  verified_at?: string | null;
-  verified_result?: VerificationResult | null;
-  accepted_by?: string | null;
-  accepted_at?: string | null;
-  accepted_note?: string | null;
+/**
+ * 产物 (HTTP 响应形状)。
+ * 继承 codegen 真源后仅收敛两处响应态差异, 字段增删自动跟随真源:
+ * - `status` / `revision`: 后端 `_artifact_to_dict` 恒返回必填值 (真源是模型默认值口径, 故为可选);
+ * - `reason`: 响应专属字段 (`artifact_api.py::_artifact_to_dict`), 模型无此字段。
+ */
+export interface Artifact extends Omit<DomainArtifact, 'status' | 'revision'> {
   status: ArtifactStatus;
   revision: number;
-  allowed_actions?: string[];
   reason?: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface GenerateActionBody {

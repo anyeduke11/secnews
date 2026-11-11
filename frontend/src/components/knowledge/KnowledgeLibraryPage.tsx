@@ -10,6 +10,7 @@
  * 不做关键词搜索: 端点未暴露 keyword; 全文检索由 /search 与 /api/wiki/search 承载 (DD-4)。
  */
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getJSON } from '../../lib/api';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
@@ -139,6 +140,7 @@ export function KnowledgeLibraryPage() {
               <th>难度</th>
               <th>掌握度</th>
               <th>收录时间</th>
+              <th>动作</th>
             </tr>
           </thead>
           <tbody>
@@ -154,6 +156,24 @@ export function KnowledgeLibraryPage() {
                 <td className="mono">{it.difficulty ?? '--'}</td>
                 <td className="mono">{it.mastery ?? 0}/5</td>
                 <td className="mono">{(it.ingested_at || '').slice(0, 10) || '--'}</td>
+                {/* R-15: 条目 → 行动 (透传上下文, 复用 /action 路由) + 深读入口 */}
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <Link
+                    to={`/knowledge/deep-read/${encodeURIComponent(it.id)}`}
+                    style={{ fontSize: 11, color: 'var(--sn-ink-2)', marginRight: 10 }}
+                    aria-label={`深度阅读 ${it.title}`}
+                  >
+                    深读
+                  </Link>
+                  <Link
+                    to={`/action?source=knowledge&knowledge_id=${encodeURIComponent(it.id)}&title=${encodeURIComponent(it.title)}`}
+                    style={{ fontSize: 11, color: 'var(--sn-mint)' }}
+                    data-testid={`knowledge-to-action-${it.id}`}
+                    aria-label={`将「${it.title}」带入行动`}
+                  >
+                    → 行动
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

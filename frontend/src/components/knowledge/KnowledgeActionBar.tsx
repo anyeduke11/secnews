@@ -5,7 +5,7 @@
  *  - 出题复习     → /knowledge/review (ReviewMode 复用 SM-2 抽认卡)
  *  - 概念卡       → /knowledge/process (KnowledgeProcess 概念详情)
  *  - 写日报周报   → /api/digests/generate (POST) 触发 ai_hub 日报
- *  - 转待办       → /api/todos (POST)
+ *  - 转 Case       → 端点未就绪 (R-13 待办域退役, 原 /api/todos 已下线), 置灰
  *  - KL 进度可视化 → /knowledge/compile (LifecycleProgress 复用)
  *  - 研判流打通   → /knowledge/process (KnowledgeProcess KL 阶段详情)
  *
@@ -42,6 +42,8 @@ export interface ActionButton {
   showToast?: boolean;
   /** accent 颜色 (CSS var) */
   accent: 'ai' | 'info' | 'startup' | 'success' | 'warning';
+  /** 置灰 (端点未就绪); 点击无动作, description 作 tooltip */
+  disabled?: boolean;
 }
 
 export const KNOWLEDGE_ACTION_BUTTONS: ActionButton[] = [
@@ -90,12 +92,9 @@ export const KNOWLEDGE_ACTION_BUTTONS: ActionButton[] = [
   },
   {
     key: 'todo',
-    label: '转待办',
-    description: 'POST /api/todos',
-    apiEndpoint: '/api/todos',
-    apiMethod: 'POST',
-    apiBody: { source_type: 'manual', content: '从知识管理转待办', status: 'pending' },
-    showToast: true,
+    label: '转 Case',
+    description: '转 Case（端点未就绪）',
+    disabled: true,
     iconPath: (
       <>
         <polyline points="9 11 12 14 22 4" />
@@ -144,7 +143,7 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
   const [toast, setToast] = useState<string | null>(null);
 
   const handleClick = async (btn: ActionButton) => {
-    if (busyKey) return;
+    if (busyKey || btn.disabled) return;
     if (btn.to) {
       navigate(btn.to);
       return;
@@ -206,7 +205,7 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
               key={btn.key}
               type="button"
               data-button-key={btn.key}
-              disabled={!!busyKey}
+              disabled={!!busyKey || !!btn.disabled}
               onClick={() => handleClick(btn)}
               className="focus-ring"
               title={btn.description}
@@ -221,8 +220,8 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
                 color: isBusy ? 'var(--text-muted)' : accentVar,
                 backgroundColor: `color-mix(in srgb, ${accentVar} 8%, transparent)`,
                 border: `1px solid color-mix(in srgb, ${accentVar} 40%, transparent)`,
-                cursor: busyKey ? 'wait' : 'pointer',
-                opacity: busyKey && !isBusy ? 0.5 : 1,
+                cursor: btn.disabled ? 'not-allowed' : busyKey ? 'wait' : 'pointer',
+                opacity: btn.disabled ? 0.45 : busyKey && !isBusy ? 0.5 : 1,
                 transition: 'all var(--duration-fast) var(--ease-out)',
               }}
             >

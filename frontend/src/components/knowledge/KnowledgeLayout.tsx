@@ -78,6 +78,50 @@ export function KnowledgeLayout({ areaCounts }: KnowledgeLayoutProps) {
         </div>
       </div>
 
+      {/* R-15: 两条主路径前置为页首主焦点 — 复习 (SM-2) / 深度阅读 */}
+      <section
+        aria-label="知识主路径"
+        data-testid="knowledge-main-paths"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"
+      >
+        {[
+          {
+            key: 'review',
+            title: '复习 · SM-2',
+            desc: '按 SM-2 间隔取出到期条目，翻转卡片自评 0-5 后自动排下一次',
+            action: '开始复习 ›',
+            to: '/knowledge/review',
+          },
+          {
+            key: 'deep-read',
+            title: '深度阅读',
+            desc: '从编目清单挑一条生成 4 节深读报告，并沉淀注意力记录',
+            action: '挑选条目 ›',
+            to: '/knowledge/library',
+          },
+        ].map(card => (
+          <button
+            key={card.key}
+            type="button"
+            onClick={() => navigate(card.to)}
+            aria-label={`${card.title}: ${card.desc}`}
+            data-testid={`knowledge-path-${card.key}`}
+            className="text-left rounded-[var(--radius-md)] p-3.5 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
+            style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
+          >
+            <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+              {card.title}
+            </h3>
+            <p className="text-[11px] mb-2" style={{ color: 'var(--text-secondary)' }}>
+              {card.desc}
+            </p>
+            <span className="text-[10px] font-mono" style={{ color: 'var(--accent)' }}>
+              {card.action}
+            </span>
+          </button>
+        ))}
+      </section>
+
       {/* 4 大领域导航 */}
       <KnowledgeTabs counts={areaCounts} />
 

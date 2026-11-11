@@ -5,6 +5,7 @@
  *  - 6 个按钮全渲染 (c4 范围约束)
  *  - 路由型按钮调用 useNavigate
  *  - API 型按钮调用 fetch + 显示 toast
+ *  - 端点未就绪的按钮 (转 Case) 置灰且不发起请求
  *  - busy 状态互斥 (一次只能一个按钮忙)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -81,20 +82,18 @@ describe('KnowledgeActionBar', () => {
     });
   });
 
-  it('api button POSTs to /api/todos (转待办)', async () => {
+  it('「转 Case」置灰且不发起请求 (R-13: /api/todos 已下线, 端点未就绪)', async () => {
     render(
       <MemoryRouter>
         <KnowledgeActionBar />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByText('转待办'));
+    const btn = screen.getByRole('button', { name: /转 Case/ });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('title', '转 Case（端点未就绪）');
+    fireEvent.click(btn);
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/todos',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('shows toast on api success', async () => {
@@ -103,7 +102,7 @@ describe('KnowledgeActionBar', () => {
         <KnowledgeActionBar />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByText('转待办'));
+    fireEvent.click(screen.getByText('写日报周报'));
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('已触发');
@@ -119,7 +118,7 @@ describe('KnowledgeActionBar', () => {
         <KnowledgeActionBar />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByText('转待办'));
+    fireEvent.click(screen.getByText('写日报周报'));
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('失败');

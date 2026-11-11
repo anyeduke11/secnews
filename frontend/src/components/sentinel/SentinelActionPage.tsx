@@ -4,8 +4,8 @@
  * 信息架构: 三层工作流的行动层 — 计划、学习、输出。双栏布局契约 ac-grid:
  *  - 复习栈   ← SM-2 间隔重复 (可评分: POST /api/reviews/{type}/{id}/grade)
  *  - 判读待办 ← planning_actions (可推进: PUT /api/kl/planning-actions/{id}/status)
- * R-13: 待办清单 (todos) 已随待办域退役移除, 本屏不再消费 /api/todos。
  *
+ * R-13: 待办清单 (todos) 已随待办域退役移除, 本屏不再消费 /api/todos。
  *
  * 本屏要点: planning_actions 历史上 100% pending、无 UI 完成入口,
  * 这里是「推进行动队列」首次成为一等公民 → 全部写操作走乐观更新 + 失败回滚,
@@ -28,6 +28,7 @@ import { SentinelShell } from './SentinelShell';
 import { ApprovalInbox } from '../action/ApprovalInbox';
 import { CopilotCards } from '../action/CopilotCards';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
+import { ActionCommandConsole } from './action/ActionCommandConsole';
 import { ReviewOverlay, type RvView } from './review/ReviewOverlay';
 import './sentinel.css';
 import './sentinel-action.css';
@@ -331,6 +332,9 @@ export function SentinelActionPage() {
             {notice}
           </p>
         )}
+
+        {/* R-15 四段执行指挥台: Case → Claim → Run → Artifact, 行动菜单主体 */}
+        <ActionCommandConsole />
 
         <div className="ac-grid">
           {/* ===== 复习栈 · SM-2 ===== */}

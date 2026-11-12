@@ -148,6 +148,24 @@ def _trim_wiki_events(conn: sqlite3.Connection, keep: int) -> int:
     return cur.rowcount
 
 
+def _record_wal(
+    results: list[dict], conn: sqlite3.Connection, sql: str, label: str
+) -> None:
+    """跑一条 WAL 治理语句并把结果记进 envelope (成功也记录 → 步骤可核验)。"""
+    try:
+        conn.execute(sql)
+        results.append({"table": label, "ok": True, "deleted": 0})
+    except sqlite3.Error as e:
+        results.append(
+            {
+                "table": label,
+                "ok": False,
+                "deleted": 0,
+                "error": f"{type(e).__name__}: {e}",
+            }
+        )
+
+
 def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
     """执行一轮截断, 返回 JSON-ready envelope。"""
     started = datetime.now(timezone.utc)
@@ -206,19 +224,11 @@ def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
 
         if not dry_run:
             conn.commit()
-            # WAL 治理: 删行不回收文件空间 (auto_vacuum=0) → 显式 checkpoint
+            # WAL 治理 (1/2): 删行不回收文件空间 (auto_vacuum=0) → 显式 checkpoint
             # 回收 WAL; 完整空间回收需 VACUUM (见下)
-            try:
-                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            except sqlite3.Error as e:
-                results.append(
-                    {
-                        "table": "<wal_checkpoint>",
-                        "ok": False,
-                        "deleted": 0,
-                        "error": f"{type(e).__name__}: {e}",
-                    }
-                )
+            _record_wal(
+                results, conn, "PRAGMA wal_checkpoint(TRUNCATE)", "<wal_checkpoint>"
+            )
             # VACUUM 回收文件空间: auto_vacuum=0 下 DELETE 只把页推入 freelist,
             # 文件体积不变 → 必须显式 VACUUM。实测 363MB 库 2.3s (macOS)。
             # VACUUM 需独占写锁, 生产运行时可能与在途事务冲突 → 失败仅告警,
@@ -236,6 +246,16 @@ def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
                             "error": f"{type(e).__name__}: {e}",
                         }
                     )
+                # WAL 治理 (2/2): **VACUUM 之后必须再 checkpoint 一次**。
+                # WAL 模式下 VACUUM 把整个重建后的库写进 WAL (≈ 库体积),
+                # 而服务侧连接的自动 checkpoint 是 PASSIVE —— 只回写页,
+                # **不截断 WAL 文件** → WAL 永久停在满尺寸。
+                # 实测 (2026-11-12 生产): 截断后 db 199 MB + wal 210 MB = 399 MB,
+                # **反而大于截断前的 364 MB** —— 净收益为负。
+                # TRUNCATE 模式 checkpoint 会把 WAL 内容回写主库并把文件截到 0。
+                _record_wal(
+                    results, conn, "PRAGMA wal_checkpoint(TRUNCATE)", "<wal_checkpoint_after_vacuum>"
+                )
         else:
             conn.rollback()
 

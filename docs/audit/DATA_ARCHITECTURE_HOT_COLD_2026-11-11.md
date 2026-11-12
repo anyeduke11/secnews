@@ -346,8 +346,12 @@ updated_at: 2026-11-11T...
 
 - **行值比较**：边界取「第 keep+1 新」的 `(ts, id)` 复合键，谓词用 `(ts, id) <= boundary`（SQLite ≥ 3.15 行值比较）。只比 `ts` 会连带删掉边界行 → 实测多留 1 行（20,001）；用 `<` 同样多留 1 行。前提：`ts` 列必须 NOT NULL（生产 5 表均满足，已核验零 NULL 行）。
 - **VACUUM 必需**：`auto_vacuum=0` → DELETE 只把页推入 freelist，文件体积不变。截断后 `PRAGMA wal_checkpoint(TRUNCATE)` 回收 WAL + `--vacuum` 回收文件空间（实测 363 MB 库 2.3 s）。
+- **WAL 治理必须在 VACUUM 之后再来一次（p2.5.5 生产实测发现的缺陷，已修）**：WAL 模式下 `VACUUM` 把**整个重建后的库**写进 WAL（≈ 库体积），而服务侧连接的自动 checkpoint 是 **PASSIVE** —— 只回写页、**不截断 WAL 文件** → WAL 永久停在满尺寸。**生产实测（2026-11-12 首次 `log_trim_job` 自动触发）**：截断后 `db 199 MB + wal 210 MB = 399 MB`，**反而大于截断前的 364 MB —— 净收益为负**。修复 = VACUUM 之后再跑一次 `PRAGMA wal_checkpoint(TRUNCATE)`；修复后实测 `db 199.0 MB + wal 0 B = 199.0 MB`（**净回收 165 MB**）。已加 CI 门禁 `test_vacuum_truncates_wal_afterwards`（断言 VACUUM 后 WAL 残留必须为 0 B）。
 - **既存 TTL 不足**：既有 `observability_ttl_job`（每小时）已做 `job_runs` 30 天 TTL，但实测 **11,167 行/天（≈465/小时）** → 30 天窗内仍留 190,407 行 → TTL 对体积**无效**，必须补行数上限。两者互补：TTL 管时间，环截补行数。
 - **消费点回归**（截断后副本实测）：`/api/ops/runs?hours=24` → 7,638 行；`hours=720`（30 天最大窗）→ 20,000 行（**语义完整**，未被切断）；`/api/observability/metrics/llm-usage` → 20 行；`/api/wiki/trace` → 7 行（追溯链完好）；`wiki_stats` 吞吐（7 天窗）→ 700 行。
+
+> **生产实跑事实（2026-11-12，p2.5.5）**：`log_trim_job` 首次由调度器自然触发（15:13 UTC）→ `deleted=257,229 / rc=0 / failed=0 / duration_ms=4,346`。表级结果：`job_runs` 191,206 → **20,015**（截断瞬间精确 20,000，其后调度器自身写入回涨至 20,015，属每小时封顶的正常回弹）；`admission_log` 68,817 → **15,000**（精确）；`llm_usage_log` 50,134 → 27,967；`ai_scores` 35,150 → 25,168；`wiki_events` 67,138 → **不变**（双保留规则 → 可删集合为 0）。消费点生产复验：`/api/ops/runs?hours=24` → summary `{ok: 7578, failed: 0, missed: 21}`；`hours=720`（30 天最大窗）→ summary `{ok: 19947, missed: 53}`（**语义完整，未被切断**）；`/api/wiki/trace` POST `wiki_path=feed/2026-09.md` → 正常返回 `kind='sink'` 审计链（**追溯链完好**）；服务 `/api/health` → `status: ok` / `integrity: ok` / 56 jobs。
+> **写入速率口径澄清**：DEV-0344 记录的「465 行/小时」与生产实测一致（按小时分桶实测稳态 **≈527 行/小时**）。初次核算出现的「6,176 行/小时」是 **SQL 格式 bug**（`datetime()` 返回空格分隔符，与 ISO 8601 的 `T` 分隔符字符串比较 → 当日全量被计入），非真实速率。
 
 ---
 

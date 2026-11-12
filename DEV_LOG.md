@@ -1,4 +1,22 @@
 
+## [DEV-0346] v0.8.8 P2.5 — C2.2 WAL 治理缺陷修复（VACUUM 后未 checkpoint → 净收益为负）
+
+- **时间**: 2026-11-12
+- **类型**: Bug修复（**C2.2 自身引入的缺陷**，生产实跑暴露；+1 测试 / 0 service / 0 job / 0 端点）
+- **依据**: [`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §5.1
+- **缺陷根因**: `scripts/cleanup_log_tables.py` 的 WAL 治理顺序是 **「checkpoint → VACUUM」**。但 WAL 模式下 `VACUUM` 会把**整个重建后的库**写进 WAL（≈ 库体积），而服务侧连接的自动 checkpoint 是 **PASSIVE** —— 只回写页、**不截断 WAL 文件** → WAL 永久停在满尺寸。**VACUUM 之后没有第二次 checkpoint** → 每轮截断都残留一份与库等大的 WAL。
+- **生产实测证据（2026-11-12 15:13 UTC，`log_trim_job` 首次由调度器自然触发）**:
+  - job 自身：`deleted=257,229 / rc=0 / failed=0 / duration_ms=4,346`
+  - 表级：`job_runs` 191,206 → 20,015（截断瞬间精确 20,000，其后调度器自写回弹）/ `admission_log` 68,817 → **15,000**（精确）/ `llm_usage_log` 50,134 → 27,967 / `ai_scores` 35,150 → 25,168 / `wiki_events` 67,138 → 不变（双保留规则 → 可删集合为 0）
+  - **体积**：截断后 `db 199 MB + wal 210 MB = 399 MB`，**反而大于截断前的 364 MB（db 359 MB + wal ~5 MB）→ 净收益为负**
+- **修复**: VACUUM 之后补跑一次 `PRAGMA wal_checkpoint(TRUNCATE)`（`_record_wal()` 抽取，两处 checkpoint 均记入 envelope，成功也记 → 步骤可核验）
+- **修复后生产复跑实测**: `db 199.0 MB + wal 0 B = 199.0 MB` → **净回收 165 MB**（对比修复前的 399 MB）
+- **测试（新增 CI 门禁）**: `test_vacuum_truncates_wal_afterwards` —— 建 WAL 模式库 + 20,050 行种子 → `trim_all(vacuum=True)` → 断言 envelope 含 `<wal_checkpoint_after_vacuum>` 步骤 **且 WAL 文件残留为 0 B**（残留即净收益为负）。`pytest backend/tests/test_cleanup_log_tables.py` → **10 passed**（原 9 + 新 1）；连跑 `test_feature_gates.py` → **80 passed**
+- **消费点生产复验（截断后实时）**: `/api/ops/runs?hours=24` → summary `{ok: 7578, failed: 0, missed: 21}`；`hours=720`（30 天最大窗）→ `{ok: 19947, missed: 53}`（**语义完整，未被切断**）；`/api/wiki/trace` POST `wiki_path=feed/2026-09.md` → 正常返回 `kind='sink'` 审计链（**追溯链完好**）；`/api/health` → `status: ok` / `integrity: ok` / `hotspots_count: 43610` / 56 jobs
+- **写入速率口径澄清**: DEV-0344 记录的「465 行/小时」与生产实测一致（按小时分桶稳态 **≈527 行/小时**）。初次核算出现的「6,176 行/小时」是 **SQL 格式 bug** —— `datetime('now','-1 hour')` 返回**空格**分隔符，与 ISO 8601 的 **`T`** 分隔符字符串比较 → 当日全量被计入，非真实速率
+- **门禁**: `ruff check` All checks passed；`generate_meta.py --check` OK（56/19/97/157/65，数字零漂移）
+- **文档同步**: R-17 审计文档 §5.1「关键实现约束」新增 WAL 治理条目 + 生产实跑事实块 + 速率口径澄清
+
 ## [DEV-0345] v0.8.8 P2.5 — C2.3a 生产实跑沉降 37,255 条 + T4 真实冷层闭环复核 (v088-p25-c23a-prod)
 
 - **时间**: 2026-11-12

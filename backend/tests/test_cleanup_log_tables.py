@@ -257,6 +257,31 @@ def test_cli_json_output_parseable(log_db: Path) -> None:
     }
 
 
+def test_vacuum_truncates_wal_afterwards(tmp_path: Path) -> None:
+    """VACUUM 后 WAL 必须被截断 —— 否则净收益为负。
+
+    WHY: WAL 模式下 VACUUM 把整个重建后的库写进 WAL (≈ 库体积), 而服务侧
+    连接的自动 checkpoint 是 PASSIVE (只回写页, 不截断文件) → WAL 永久停在
+    满尺寸。实测 (2026-11-12 生产): 截断后 db 199 MB + wal 210 MB = 399 MB,
+    **反而大于截断前的 364 MB**。故 VACUUM 之后必须再跑一次 TRUNCATE checkpoint。
+    """
+    p = tmp_path / "wal.db"
+    conn = _make_db(p)
+    conn.execute("PRAGMA journal_mode = WAL")
+    _seed(conn, "job_runs", "started_at", 20_050)
+    conn.commit()
+    conn.close()
+
+    env = trim_all(p, dry_run=False, vacuum=True)
+    assert env["ok"] is True, env
+    labels = {r["table"] for r in env["data"]["results"]}
+    assert "<wal_checkpoint_after_vacuum>" in labels, "VACUUM 后必须再 checkpoint 一次"
+
+    wal = p.with_name(p.name + "-wal")
+    wal_size = wal.stat().st_size if wal.exists() else 0
+    assert wal_size == 0, f"WAL 未被截断 (残留 {wal_size} B) → 净收益为负"
+
+
 def _counts(db_path: Path) -> dict[str, int]:
     conn = sqlite3.connect(str(db_path))
     out = {

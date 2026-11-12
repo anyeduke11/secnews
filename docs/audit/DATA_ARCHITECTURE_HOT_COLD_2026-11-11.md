@@ -304,6 +304,39 @@ updated_at: 2026-11-11T...
 
 **`job_runs` 截断的语义风险**：`/api/ops/runs`（设置页 OpsRunsPanel）是其唯一前端消费点。环截后历史执行记录消失 —— 这是**明确的功能取舍**，属「日志类数据不承诺长期留存」的口径，需在 PRD 写明。
 
+### 5.1 实施状态（p2.5.4，已交付）
+
+**实现**：`scripts/cleanup_log_tables.py`（standalone，**默认 dry-run**，`--execute` 才写库）+ `log_trim_job`（`backend/scheduler/jobs/maintenance.py`，每小时 +15min offset 跑 `--execute --vacuum --json` 子进程，与既有 `db_diet_job` 同款做法）。
+
+**阈值裁决（owner 2026-11-12，3 处规格与实现冲突的裁决）**：
+
+| 表 | 规格原文 | 裁决后 | 理由 |
+|---|---|---|---|
+| `job_runs` | 行数 > 20,000 **或** 存续 > 14 天 | 行数上限 20,000 + **存续 30 天** | `/api/ops/runs` 的 `hours` 上界 = 24×30 = 30 天 → 14 天会切断最大窗口查询 |
+| `wiki_events` | 保留全部 `sink`/`rebuild` 类事件 | **保留 sink/rebuild/rebuild_diff + 全部带 `wiki_path`/`db_ref` 的行** | `trace_by_wiki_path` / `trace_by_db_ref` 反查端点**无时间下界** → 删了必丢「这条知识是哪次采集产生的」追溯链 |
+| `admission_log` | 行数 > 15,000 | 行数上限 15,000（不动字段） | 无生产读端点（仅写入 + 测试按 id 读）→ 安全；`raw_material_json`（776 B/行，占 53.4 MB）保留以维持 quarantine 原文审计 |
+
+**实测（生产库副本，零生产污染）**：
+
+| 表 | 行数 before → after | 体积 before → after |
+|---|---|---|
+| `job_runs` | 190,724 → **20,000** | 67.25 → **7.27 MB** |
+| `admission_log` | 68,779 → **15,000** | 104.85 → **23.75 MB** |
+| `llm_usage_log` | 49,999 → 28,525 | 10.25 → 5.94 MB |
+| `wiki_events` | 29,865 → **29,865**（保留规则 → 不截断） | 9.77 → 不变 |
+| `ai_scores` | 35,128 → 25,427 | 7.16 → 5.65 MB |
+| **合计（含索引）** | — | **199.36 → 49.26 MB（−75%）** |
+| **文件体积** | — | **363.9 → 196.9 MB（回收 167 MB）** |
+
+> **`wiki_events` 实测不截断**：生产 29,857 行**全部**带 `wiki_path` → 双保留规则下可删集合为 0 → 该表实际不参与截断（语义安全优先，收益仅 4.69 MB，优先级最低）。
+
+**关键实现约束**：
+
+- **行值比较**：边界取「第 keep+1 新」的 `(ts, id)` 复合键，谓词用 `(ts, id) <= boundary`（SQLite ≥ 3.15 行值比较）。只比 `ts` 会连带删掉边界行 → 实测多留 1 行（20,001）；用 `<` 同样多留 1 行。前提：`ts` 列必须 NOT NULL（生产 5 表均满足，已核验零 NULL 行）。
+- **VACUUM 必需**：`auto_vacuum=0` → DELETE 只把页推入 freelist，文件体积不变。截断后 `PRAGMA wal_checkpoint(TRUNCATE)` 回收 WAL + `--vacuum` 回收文件空间（实测 363 MB 库 2.3 s）。
+- **既存 TTL 不足**：既有 `observability_ttl_job`（每小时）已做 `job_runs` 30 天 TTL，但实测 **11,167 行/天（≈465/小时）** → 30 天窗内仍留 190,407 行 → TTL 对体积**无效**，必须补行数上限。两者互补：TTL 管时间，环截补行数。
+- **消费点回归**（截断后副本实测）：`/api/ops/runs?hours=24` → 7,638 行；`hours=720`（30 天最大窗）→ 20,000 行（**语义完整**，未被切断）；`/api/observability/metrics/llm-usage` → 20 行；`/api/wiki/trace` → 7 行（追溯链完好）；`wiki_stats` 吞吐（7 天窗）→ 700 行。
+
 ---
 
 ## 6. 备份链退役清单（R-17 的一部分）
@@ -355,17 +388,19 @@ updated_at: 2026-11-11T...
 
 | 项 | 现状 | 目标 | 手段 |
 |---|---|---|---|
-| `hotspot.db` | 347 MB（+WAL 5 MB） | **≤120 MB** | 热点 30 天窗（−34 MB）+ 日志环截（−130 MB）+ `ai_scores` 随删（−3 MB） |
+| `hotspot.db` | 347 MB（+WAL 5 MB） | **≤120 MB** | 热点 30 天窗（−34 MB）+ 日志环截（−150 MB ✅）+ `ai_scores` 随删（−3 MB） |
 | `backend/backups/` | 449 MB | **0** ✅ | 备份链退役（p2.5.3 已达成，目录消失） |
 | `hotspot-warm.db` | **不存在** → **250 MB（已恢复）** | 保留 + 台账两层化后明确其边界 | **偏差（p2.5.3）**：该文件是 WARM 层唯一持久副本（见 §6.1 实施偏差）→ 恢复为活跃层；`db.py` ATTACH warm 重新生效。后续 C2.5 台账两层化时按实际存在性重新声明 |
 | `hotspot-cold.db` | 不存在 | **保持不存在** | 台账两层化后不再声明（COLD 层实测仅 3 行 `retention_state`，无数据保全价值） |
 | `llm-wiki-2.0/` | 5.6 MB | **60–80 MB** | 接收 36,855 条热点冷数据（按 avg 1.2 KB/条估算） |
-| **DB + 备份合计** | **796 MB** | **≤370 MB**（备份 −449 MB 后；余量待 C2.2 日志环截回收） | — |
-| **含冷层总占用** | 801.6 MB | **430–450 MB** | — |
+| **DB + 备份合计** | **796 MB** | **≤247 MB**（备份 −449 MB ✅ + 日志环截 −150 MB ✅；余量待热点 30 天窗回收） | — |
+| **含冷层总占用** | 801.6 MB | **307–327 MB** | — |
 
 **WAL 96 MB 问题**：`db.py:212` `wal_autocheckpoint=1000`（约 4 MB 阈值）本应自动回收，实测 WAL 96 MB → 说明存在长事务或 checkpoint 被阻塞。
 **排查方向**（P2.5 实施时定位）：`backend/core/events.py` 的 SSE 长连接 + `knowledge_watcher` 的持续写入可能持有读事务。
 **建议**：P2.5 顺带加 `PRAGMA wal_checkpoint(TRUNCATE)` 到每日维护 job，并确认无长期读事务。
+
+> **p2.5.4 已部分落地**：`log_trim_job` 每次截断后跑 `PRAGMA wal_checkpoint(TRUNCATE)`（WAL → 0），但**长事务根因未定位** —— 运行中服务持有 `hotspot.db-wal` 5 MB 且持续写入，说明 checkpoint 仍有阻塞源。WAL 治理的根因排查留待 C2.3b（沉降删行会加剧写压力）之后。
 
 ---
 
@@ -388,7 +423,7 @@ updated_at: 2026-11-11T...
 | **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试） |
 | **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | ✅ **已交付**：`scripts/rebuild_hot_index.py` + `test_rebuild_hot_index.py`；T4 实测 36,855 冷层记录 → 重建 36,855 行（容差 0）、FTS 一致、对账差异 0 |
 | **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 → ✅ **已交付**（p2.5.3）：2 service + 3 job + 3 端点 + 2 脚本 + 3 测试文件物理删除；`config.backup_dir` 移除；`retention.json` BACKUP_* 键清理；CI step + 前端 MaintPage 备份卡整块退役；`backend/backups/` 449 MB 目录消失；架构数字 jobs 57→55 / services 159→157 |
-| **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 |
+| **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 → ✅ **已交付**（p2.5.4）：`scripts/cleanup_log_tables.py` + `log_trim_job`（每小时）；实测 199.36 → 49.26 MB（含索引，−75%），文件 363.9 → 196.9 MB（回收 167 MB）；消费点回归全绿（`/api/ops/runs` 30 天最大窗语义完整） |
 | **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 + 备份链已退役 |
 | **P2.5-5** | `retention.json` 台账两层化重写 | `generate_meta --check` 通过 + 台账与实际表一致 |
 

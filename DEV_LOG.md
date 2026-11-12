@@ -1,4 +1,50 @@
 
+## [DEV-0344] v0.8.8 P2.5 — C2.2 日志环形截断 (v088-p25-c22)
+
+- **时间**: 2026-11-12
+- **类型**: 新增能力 + 文档同步（**+1 script / +1 job / +1 测试文件**；0 service、0 端点、0 schema 变更）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17；[`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §5 / §5.1 / §7 / §9；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **问题根因（为何 TTL 不够）**: 既有 `observability_ttl_job`（每小时）已做 `job_runs` 30 天 TTL，但实测 **11,167 行/天（≈465/小时）** → 30 天窗内仍留 **190,407 行 / 67 MB** → TTL 对体积**无效**。必须补**行数上限**（环形封顶），两者互补（TTL 管时间，环截补行数）。
+- **代码（3 文件）**:
+  1. `scripts/cleanup_log_tables.py`（新建）— standalone，**默认 dry-run**（`cleanup_*` 硬约定），`--execute` 才写库；`--vacuum` 回收文件空间；`--db` 指定库；`--json` 输出 envelope（退出码 0 正常 / 1 部分失败 / 2 fatal）
+  2. `backend/scheduler/jobs/maintenance.py` — 新增 `log_trim_job`（`@instrument_job("log_trim")`，子进程跑 `--execute --vacuum --json`，与既有 `db_diet_job` 同款做法；DEV-0321 fail-loud：envelope 不可解析 → critical 告警 + 抛）
+  3. `backend/tests/test_cleanup_log_tables.py`（新建，9 测试）
+- **截断口径（owner 2026-11-12 裁决，3 处规格冲突修正）**:
+
+  | 表 | 规格原文 | 裁决后 | 理由 |
+  |---|---|---|---|
+  | `job_runs` | 行数 > 20,000 **或** 存续 > 14 天 | 行数上限 20,000 + **存续 30 天** | `/api/ops/runs` 的 `hours` 上界 = 24×30 = 30 天 → 14 天会切断最大窗口查询 |
+  | `wiki_events` | 保留全部 `sink`/`rebuild` | **保留 sink/rebuild/rebuild_diff + 全部带 `wiki_path`/`db_ref` 的行** | `trace_by_wiki_path` / `trace_by_db_ref` 反查端点**无时间下界** → 删了必丢追溯链 |
+  | `admission_log` | 行数 > 15,000 | 行数上限 15,000（**不动字段**） | 无生产读端点（仅写入 + 测试按 id 读）→ 安全；保留 `raw_material_json`（776 B/行）维持 quarantine 原文审计 |
+
+  另：`ai_scores` 按规格「随 `hotspots` 同窗」= 30 天窗（FK 已剥离于 migration 132，须显式删）；`llm_usage_log` 存续 30 天；`llm_cache` 不动（TTL 已有）。
+- **关键实现约束**:
+  - **行值比较**：边界取「第 keep+1 新」的 `(ts, id)` 复合键，谓词 `(ts, id) <= boundary`（SQLite ≥ 3.15 行值比较）。只比 `ts` 会连带删掉边界行 → 实测多留 1 行（20,001）；改 `<` 同样多留 1 行 → 必须 `<=`。前提：`ts` 列 NOT NULL（生产 5 表均满足，已核验零 NULL 行）
+  - **VACUUM 必需**：`auto_vacuum=0` → DELETE 只把页推入 freelist，文件体积不变。截断后 `PRAGMA wal_checkpoint(TRUNCATE)` 回收 WAL + `--vacuum` 回收文件空间（实测 363 MB 库 2.3 s）
+  - **wiki_events 实测不截断**：生产 29,857 行**全部**带 `wiki_path` → 双保留规则下可删集合为 0 → 该表实际不参与截断（语义安全优先，收益仅 4.69 MB）
+- **实测（生产库副本，零生产污染）**:
+
+  | 表 | 行数 before → after | 体积 before → after（含索引） |
+  |---|---|---|
+  | `job_runs` | 190,724 → **20,000** | 67.25 → **7.27 MB** |
+  | `admission_log` | 68,779 → **15,000** | 104.85 → **23.75 MB** |
+  | `llm_usage_log` | 49,999 → 28,525 | 10.25 → 5.94 MB |
+  | `wiki_events` | 29,865 → **29,865**（保留规则 → 不截） | 9.77 → 不变 |
+  | `ai_scores` | 35,128 → 25,427 | 7.16 → 5.65 MB |
+  | **合计** | — | **199.36 → 49.26 MB（−75%）** |
+  | **主库文件** | — | **363.9 → 196.9 MB（回收 167 MB）**，freelist 归零 |
+
+- **消费点回归（截断后副本实测）**: `/api/ops/runs?hours=24` → 7,638 行；`hours=720`（30 天最大窗）→ **20,000 行（语义完整，未被切断）**；`/api/observability/metrics/llm-usage` → 20 行；`/api/wiki/trace` → 7 行（追溯链完好）；`wiki_stats` 吞吐（7 天窗）→ 700 行
+- **调度**: `log_trim_job` 每小时 +15min offset（与 `observability_ttl` 错峰）→ 465 行/小时 → 约 43 小时触顶，每小时封顶守住 20,000 行上限（每日跑则峰值 31k 超限）
+- **架构数字**（`generate_meta.py --fix` 后 `--check` 通过）: jobs 55→**56** / collectors 19 / routers 97 / services 157 / core_routers 65
+- **验证**:
+  - `pytest backend/tests/test_cleanup_log_tables.py -q` → **9 passed**
+  - `ruff check backend/ scripts/` → All checks passed
+  - `python scripts/generate_meta.py --check` → OK（56/19/97/157/65）
+  - 生产库副本闭环实测（截断 + VACUUM + 幂等复跑删 0 行 + 消费点回归）
+- **遗留**: WAL 96 MB 长事务根因**未定位** —— `log_trim_job` 每次截断后 WAL → 0，但运行中服务仍持有 `hotspot.db-wal` 5 MB 且持续写入，说明 checkpoint 仍有阻塞源（`backend/core/events.py` SSE 长连接 / `knowledge_watcher` 持续写入）→ 根因排查留待 C2.3b 之后
+- **文档同步**: R-17 审计文档 §5.1（实施状态 + 裁决表 + 实测表 + 实现约束）/ §7 空间账 / WAL 治理注 / §9 实施顺序；PRD 状态行 + `v0.8.8-p2.5.4` 修订行 + §4.17 已知限制⑤；实施计划 plan.5 + 状态行 + 阶段表 + C2.2 行
+
 ## [DEV-0343] v0.8.8 P2.5 — C2.1 备份链退役 (v088-p25-c21)
 
 - **时间**: 2026-11-11

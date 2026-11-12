@@ -582,6 +582,17 @@ class HotspotScheduler:
             name="observability tables TTL cleanup (every 3600s)",
             replace_existing=True,
         )
+        # v0.8.8 P2.5 C2.2 (R-17 §5): 日志类表环形截断 (每小时一次, +15min
+        # offset 与 observability_ttl 错峰)。job_runs 实测 465 行/小时 →
+        # 每小时封顶才能守住 20,000 行上限 (每日跑则峰值 31k 超限)。
+        # 与 observability_ttl 的 30 天 TTL 互补: TTL 管时间, 本 job 补行数上限。
+        self.scheduler.add_job(
+            jobs.log_trim_job,
+            trigger=IntervalTrigger(seconds=3600, start_date=_now_utc + timedelta(minutes=15)),
+            id="log_trim",
+            name="log tables ring trim + vacuum (every 3600s, +15min offset)",
+            replace_existing=True,
+        )
         # v0.7 Batch ③: api_events → api_metrics_hourly roll-up (每小时一次,
         # 与 ttl 错峰 5min 避免同窗口 — 实际由 3600 整数倍漂移自然错开;
         # 重算最近 2h 防小时边界跨越; INSERT OR REPLACE 幂等)

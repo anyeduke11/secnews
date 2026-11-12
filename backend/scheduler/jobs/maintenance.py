@@ -366,6 +366,99 @@ async def db_diet_job() -> None:
         )
 
 
+@instrument_job("log_trim")
+async def log_trim_job() -> None:
+    """v0.8.8 P2.5 C2.2 (R-17 §5): 日志类表环形截断 — 回收 DB 体积。
+
+    调 ``scripts/cleanup_log_tables.py --execute --vacuum`` (子进程, 避免把
+    截断逻辑复制进 services 层造成双份维护; 与 db_diet_job 同款做法)。
+
+    为什么需要「环形」而不只是 TTL: 实测 ``job_runs`` 11,167 行/天
+    (≈465/小时), 30 天 TTL 窗内仍留 190,407 行 / 67 MB → 既有
+    ``observability_ttl_job`` 的 30 天 TTL 对体积**无效**。C2.2 加行数上限
+    (job_runs 20,000 / admission_log 15,000) 才真正封顶。
+
+    截断口径 (owner 2026-11-12 裁决):
+    - job_runs: 行数上限 20,000 + 存续 30 天 (对齐 /api/ops/runs hours 上界)
+    - admission_log: 行数上限 15,000
+    - llm_usage_log: 存续 30 天
+    - wiki_events: 行数上限 8,000 + **保留全部 sink/rebuild 事件与带引用的行**
+    - ai_scores: 随 hotspots 同窗 (30 天)
+
+    语义取舍: 日志类数据**不承诺长期留存** —— 截断后历史执行记录消失
+    (设置页 OpsRunsPanel 只看最近窗口), 已在 PRD §4.17 已知限制登记。
+
+    DEV-0321 fail-loud: envelope 不可解析 (预览失明) → critical 告警;
+    表级失败 → warn/critical 告警 + 抛 (让 instrument_job 记 ok=False)。
+    """
+    repo_root = Path(__file__).resolve().parents[3]
+    script = repo_root / "scripts" / "cleanup_log_tables.py"
+    env = {**os.environ, "PYTHONPATH": str(repo_root)}
+    try:
+        # ASYNC221 根治: VACUUM 对 363MB 库实测 2.3s, 但生产库更大且需独占
+        # 写锁 → 子进程跑, to_thread 丢线程池避免卡死调度器事件循环
+        proc = await asyncio.to_thread(
+            subprocess.run,
+            [sys.executable, str(script), "--execute", "--vacuum", "--json"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=300,
+        )
+    except Exception as e:
+        _logger.error(f"log_trim_job crashed: {e}")
+        await _fire_alert(
+            metric="log_trim.failed", level="critical", value=1.0,
+            detail={"job": "log_trim", "error": f"{type(e).__name__}: {e}"},
+            source="log_trim",
+        )
+        raise  # 让 instrument_job 捕获并记 ok=False
+
+    envelope: dict | None = None
+    try:
+        envelope = json.loads(proc.stdout)
+    except Exception:
+        envelope = None
+    if envelope is None or not isinstance(envelope.get("data"), dict):
+        await _fire_alert(
+            metric="log_trim.failed", level="critical", value=1.0,
+            detail={
+                "job": "log_trim", "error": "envelope_unparseable",
+                "rc": proc.returncode, "stderr": proc.stderr[-300:],
+            },
+            source="log_trim",
+        )
+        raise RuntimeError("log_trim envelope unparseable — 截断结果不可知")
+
+    data = envelope["data"]
+    results = data.get("results", [])
+    failed = [r for r in results if not r.get("ok")]
+    deleted = data.get("deleted_total", 0)
+    if failed:
+        level = "critical" if proc.returncode >= 2 else "warn"
+        _logger.error(
+            f"log_trim_job: {level} partial failure rc={proc.returncode} "
+            f"failed={[r.get('table') for r in failed]}"
+        )
+        await _fire_alert(
+            metric="log_trim.failed", level=level, value=float(len(failed)),
+            detail={
+                "job": "log_trim", "rc": proc.returncode,
+                "failed_tables": [
+                    {"table": r.get("table"), "error": r.get("error")}
+                    for r in failed
+                ],
+            },
+            source="log_trim",
+        )
+    _logger.info(
+        f"log_trim_job: deleted={deleted} rc={proc.returncode} "
+        f"failed={len(failed)} duration_ms={envelope.get('duration_ms')}"
+    )
+    if failed:
+        raise RuntimeError(f"log trim partial failure: {[r.get('table') for r in failed]}")
+
+
 async def interest_signals_purge() -> None:
     """R2 (DEV-0183): interest_signals 90 天清理 (Interest PRD §3 挂 maintenance)。
 

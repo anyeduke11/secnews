@@ -29,14 +29,14 @@ FastAPI :8000
   ├─ 97 routers (69 core 白名单, 扩展按 feature gate 条件注册, lazy include)
   ├─ 157 services / 13 包 — v0.8 Skills: trigger_gate · skill_registry(20 内置) · agent_loop ·
   │   agent_memory · skill_runner · playbook_engine · skill_builder · skill_eval (gate 已通电)
-  ├─ 19 collectors · 55 jobs (APScheduler) · MCP server (19 tools, config.feature_mcp 默认关)
+  ├─ 19 collectors · 56 jobs (APScheduler) · MCP server (19 tools, config.feature_mcp 默认关)
   └─ ai_hub (LLM 单出口, 5 providers 四级链 env>kv>router>yaml) · dsh (Brain, 受管子进程
       not_configured→mock→ai_hub) · SSRF url_safety 单一真相源
         │
 Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 trigram+porter, watchdog) · WebDAV 坚果云
 ```
 
-- **关键路径**: `backend/main.py` → `api/__init__.py register_routers()` (core 白名单 + 扩展按 gate 条件注册) → `scheduler/scheduler.py` (55 job 集中注册, 实现在 `scheduler/jobs/` 按域拆分) → `repository/db.py` 启动期 ATTACH warm/cold。
+- **关键路径**: `backend/main.py` → `api/__init__.py register_routers()` (core 白名单 + 扩展按 gate 条件注册) → `scheduler/scheduler.py` (56 job 集中注册, 实现在 `scheduler/jobs/` 按域拆分) → `repository/db.py` 启动期 ATTACH warm/cold。
 - **feature gates**: `backend/config/feature_gates.toml` 16 gate — 开 15 (codegarden/codegarden_phase2b/sync/tech_stack/security_graph/secnews/dsh + info_filter/skill_registry/trigger_gate/user_skills + interest_engine/semantic_filter/ai_classify/pipeline_ner), 关 1 (mcp, 只管 /api/mcp/* 调试路由; server 本体走 config.feature_mcp)。crm 键已随 migration 116 整体删除; agent_loop/playbook_engine/skill_eval 死键已移除 (v0.8.2 X-B3)。
 
 ## 模块地图
@@ -49,7 +49,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | — dsh | `backend/services/dsh/` (7 文件) | Brain: `runtime.resolve_effective` 三态 + ProcessSupervisor + bridge | 已完成 (真子进程未实测) |
 | — v0.8 Skills | `backend/services/{trigger_gate,skill_registry,agent_loop,agent_memory,skill_runner,playbook_engine,skill_builder,skill_eval}/` | 触发门(限流+队列) / 20 内置 skill / 五阶段状态机 / 记忆 / 分流 / YAML 编排 / 自建 / 评测 | 已完成, gate 已通电 |
 | 采集器 | `backend/collectors/` | 19 collector, SSRF 防护走 url_safety | 已完成 |
-| 调度器 | `backend/scheduler/` | 55 job 集中注册 + `_is_job_enabled()` gate 门控 | 已完成 |
+| 调度器 | `backend/scheduler/` | 56 job 集中注册 + `_is_job_enabled()` gate 门控 | 已完成 |
 | 存储层 | `backend/repository/` | 57 *_repo.py + migrations 130 .sql (编号至 133) | 已完成 |
 | 前端 | `frontend/src/` | 347 ts(x), 20 组件域, I18nContext ~300 key×2; 无数据层库 (fetch+interval) | 已完成 |
 | wiki | `llm-wiki-2.0/` | md+YAML 真源, 路径只走 `backend/wiki_fs/paths.py` 单一源 | 已完成 |

@@ -39,9 +39,18 @@
 - **架构数字**（`generate_meta.py --fix` 后 `--check` 通过）: jobs 55→**56** / collectors 19 / routers 97 / services 157 / core_routers 65
 - **验证**:
   - `pytest backend/tests/test_cleanup_log_tables.py -q` → **9 passed**
+  - `pytest`（后端全量，19:17）→ **2 failed, 5398 passed, 7 skipped, 2 errors**。两项 failed + 2 errors 逐一定性：
+    1. `test_kpi_api.py::test_triage_latency_p50` — **既有问题**：日期腐烂（种子时间写死 2026-10-07/09，查询按 `now - 30 days` → 样本出窗 → `assert 0 == 2`），P3 轮已定性，clean tree 复现
+    2. `test_cold_db_crypto.py` 2 errors — **既有问题**：与 T01 隔离守卫结构性冲突（该脚本无 `--db` 覆盖口，audit hook 拒绝连接生产路径），P3 轮已定性，clean tree 复现
+    3. `test_skill_runner.py::test_wiki_content_template_renders_step_output` — **既有网络依赖型 flaky，非本轮引入**：C 类 pipeline 的 llm 步走 `build_default_llm_port()` → `.env` 有 `SENSENOVA_API_KEY` → **真实外部 LLM 调用**（单跑实测 `concurrency registry: group=llm:sensenova`）；网络抖动时 `llm.complete()` 返回空 text → `{{ steps.1.output }}` 渲染为 None → `_render_template` 保留原占位符（设计如此，便于调试）→ 断言 `'{{' not in content` 失败。**单跑 3/3 通过**（耗时 15s/33s/14s 波动大 = 网络调用耗时差异）；C2.2 diff 未触碰 `skill_runner` / `wiki_fs` / `paths` 任一文件（`git diff --name-only e3d7c1a d64d482` 核实）
   - `ruff check backend/ scripts/` → All checks passed
+  - `python -m compileall backend/scheduler scripts/cleanup_log_tables.py` → OK
   - `python scripts/generate_meta.py --check` → OK（56/19/97/157/65）
+  - `python scripts/harness_analyze.py --check` → exit 0
+  - `npx vitest run src/components/settings/OpsRunsPanel.test.tsx` → 5 passed（唯一前端消费点）
   - 生产库副本闭环实测（截断 + VACUUM + 幂等复跑删 0 行 + 消费点回归）
+  - `log_trim_job` 子进程路径端到端实测（rc=0 / envelope 可解析 / 25,000 行截断 / 5 表全 ok）
+  - 子进程与运行中服务的 `config.db_path` 一致性核实（均为 `backend/hotspot.db`，无 `HOTSPOT_DB_PATH` env 覆盖 → 不会截错库）
 - **遗留**: WAL 96 MB 长事务根因**未定位** —— `log_trim_job` 每次截断后 WAL → 0，但运行中服务仍持有 `hotspot.db-wal` 5 MB 且持续写入，说明 checkpoint 仍有阻塞源（`backend/core/events.py` SSE 长连接 / `knowledge_watcher` 持续写入）→ 根因排查留待 C2.3b 之后
 - **文档同步**: R-17 审计文档 §5.1（实施状态 + 裁决表 + 实测表 + 实现约束）/ §7 空间账 / WAL 治理注 / §9 实施顺序；PRD 状态行 + `v0.8.8-p2.5.4` 修订行 + §4.17 已知限制⑤；实施计划 plan.5 + 状态行 + 阶段表 + C2.2 行
 

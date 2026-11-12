@@ -51,6 +51,9 @@
   - 生产库副本闭环实测（截断 + VACUUM + 幂等复跑删 0 行 + 消费点回归）
   - `log_trim_job` 子进程路径端到端实测（rc=0 / envelope 可解析 / 25,000 行截断 / 5 表全 ok）
   - 子进程与运行中服务的 `config.db_path` 一致性核实（均为 `backend/hotspot.db`，无 `HOTSPOT_DB_PATH` env 覆盖 → 不会截错库）
+- **规格 §5 剩余项核验（2 项，均已收敛）**:
+  - **`idx_job_runs_trace` 索引瘦身（规格列为「P2.5 可选」）** → **核验结论：确无查询消费方，但无需移除**。全仓无任何 `WHERE trace_id = ?` 查 `job_runs` 的语句（`query_job_runs` 仅 SELECT `trace_id` **列**供前端展示；`WHERE trace_id = ?` 只出现在 `llm_usage_log` / `api_events` 各自的表上）；而环形截断已把它从 **8.91 MB 自动瘦身至 0.84 MB（−90%）**，剩余体积相对 197 MB 主库可忽略，移除索引却需改 migration（不可逆）→ **保留索引**
+  - **`ai_scores`「随 `hotspots` 同窗（删对应行）」** → **数据上不可行，owner 裁决改为 `scored_at` 30 天窗**。实测 `ai_scores.hotspot_id` 存的是**知识条目 id**（`kl-` 前缀，6,704 个唯一值），与 `hotspots.id`（43,607 个）**交集为 0**，与 wiki md（裸 hash id）亦仅 1 个对得上；`ai_write_back.write_score` docstring 明写该字段是「关联 hotspot / knowledge item id」的**双语义字段**而生产数据全是后者 → 按关联删无可删集合。当前实现（`scored_at` 30 天窗，删 9,931 行 / 回收 1.5 MB）即裁决结果，**代码无需改动**。「热点下沉后同步删 `ai_scores` 悬空行」的义务不消失 → 归属 **C2.3b**（C2.3a 的 `wiki_archiver.py` 无任何 `DELETE FROM hotspots`，本阶段不删行）
 - **遗留**: WAL 96 MB 长事务根因**未定位** —— `log_trim_job` 每次截断后 WAL → 0，但运行中服务仍持有 `hotspot.db-wal` 5 MB 且持续写入，说明 checkpoint 仍有阻塞源（`backend/core/events.py` SSE 长连接 / `knowledge_watcher` 持续写入）→ 根因排查留待 C2.3b 之后
 - **文档同步**: R-17 审计文档 §5.1（实施状态 + 裁决表 + 实测表 + 实现约束）/ §7 空间账 / WAL 治理注 / §9 实施顺序；PRD 状态行 + `v0.8.8-p2.5.4` 修订行 + §4.17 已知限制⑤；实施计划 plan.5 + 状态行 + 阶段表 + C2.2 行
 

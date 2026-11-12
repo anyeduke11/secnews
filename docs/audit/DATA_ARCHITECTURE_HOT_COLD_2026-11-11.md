@@ -299,8 +299,14 @@ updated_at: 2026-11-11T...
 | `ai_scores` | 随 `hotspots` 同窗 | 删对应行（FK 已剥离，须显式删） | 4.1 MB → 约 1.2 MB |
 | `llm_cache` | TTL 已有 | 不动 | 5.1 MB |
 
+> **`ai_scores` 口径偏差（p2.5.4，owner 裁决 2026-11-12）**：规格原文「随 `hotspots` 同窗（删对应行）」在数据上**不可行** —— 实测 `ai_scores.hotspot_id` 存的是**知识条目 id**（`kl-` 前缀，6,704 个唯一值），与 `hotspots.id`（43,607 个）**交集为 0**，与 wiki md（裸 hash id）亦仅 1 个对得上。`ai_write_back.write_score` 的 docstring 亦明写该字段是「关联 hotspot / knowledge item id」的**双语义字段**，而生产数据全是后者 → **按关联删热点对应行不存在可删集合**。
+> 裁决：改用 **`scored_at` 30 天时间窗**（语义上最接近的可行口径，实测删 9,931 行 / 回收 1.5 MB）。
+> **「热点下沉后同步删 `ai_scores` 悬空行」这一义务不消失** —— 它归属 **C2.3b（沉降删行阶段）**：C2.3a 的 `wiki_archiver.py` 无任何 `DELETE FROM hotspots`（本阶段不删行），届时须在删热点行的同一事务内同步删对应 `ai_scores` 行（FK 已剥离于 migration 132，否则悬空引用继续堆积）。
+
 **`job_runs` 索引瘦身**：3 个索引占 30.1 MB。环截后行数降至 20k，索引体积按比例降至约 3.1 MB。
 **进一步可做**（P2.5 可选）：`idx_job_runs_trace`（8.6 MB）服务的 `trace` 查询若无前端入口可考虑移除 —— 需先核验消费点。
+> **核验结论（p2.5.4）**：全仓**无任何 `WHERE trace_id = ?` 查 `job_runs` 的语句**（`query_job_runs` 仅 SELECT `trace_id` **列**供前端展示；`WHERE trace_id = ?` 只出现在 `llm_usage_log` / `api_events` 各自的表上）→ 该索引**确无查询消费方**。
+> **但无需移除**：环形截断已把它从 **8.91 MB 自动瘦身至 0.84 MB（−90%）**（行数 190,724 → 20,000）。剩余 0.84 MB 相对 197 MB 主库可忽略，而移除索引需改 migration（不可逆）→ **结论：环形截断已使索引瘦身目标自动达成，保留索引**。
 
 **`job_runs` 截断的语义风险**：`/api/ops/runs`（设置页 OpsRunsPanel）是其唯一前端消费点。环截后历史执行记录消失 —— 这是**明确的功能取舍**，属「日志类数据不承诺长期留存」的口径，需在 PRD 写明。
 

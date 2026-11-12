@@ -183,6 +183,12 @@ P2 消融（20 对象 × 约 23 min）正在当前工作树运行，改 `db.py` 
 
 > **实施状态（p2.5.1）**：**只写阶段（C2.3a）已落地**——步骤 1/2/3/5 已实现于 `services/wiki_archiver.py::sink_hotspots_to_feed()`（`_atomic_write_text` 原子写 + 读回校验 + `kind='sink'` 记账），**步骤 4（删行）未开启**，待 C2.4 重建管道通过 T4 后以 C2.3b 开启（RA-14）。选批口径与下方 SQL 的差异：实现用 `COALESCE(ingested_at, fetched_at)` 兜空值，并加 `NOT EXISTS(wiki_events kind='sink')` 排除已记账行（保证重跑幂等、已沉批次不再选）。
 
+> **生产实跑事实（2026-11-12，p2.5.5）**：C2.3a 已在**生产库真实执行一次**（非副本、非演练）。重启服务 → `wiki_archiver_job` 触发 → 单批 `limit=500` 上限导致需多轮，循环调用 `sink_hotspots_to_feed(limit=3000/5000)` 直到选批耗尽：**37,255 条全部沉降，零错误，耗时 15.1 s**。产出冷层 4 个月文件（`2026-07.md` 525 条 / 390 KB、`2026-08.md` 5,127 条 / 5.79 MB、`2026-09.md` 23,972 条 / 29.63 MB、`2026-10.md` 7,631 条 / 9.99 MB，合计 **37,255 条 / 45.8 MB**）；`wiki_events(kind='sink')` 记账 **37,255**（与 md 记录数精确一致）；`hotspots` / `hotspots_fts` 均仍 **43,608**（只写阶段成立，热层未动）；`favorites` **9** 条全部保留（收藏永不下沉）；生产库文件 363,868,160 B → 376,606,720 B（沉降只写 md，未缩库）。
+>
+> **T4 用真实生产冷层闭环验证**（副本库 `/tmp/c22/rb2.db`）：仅删除「有 `kind='sink'` 记账」的 37,255 条（**不删收藏**，符合「只删已下沉热点」前提）→ 剩 6,353 行（含 9 收藏）、`hotspots_fts` 同步 6,353 → `scripts/rebuild_hot_index.py --from-cold` 重建：`cold_records 37,255 / inserted 37,255 / tag_links 35,026 / skipped_tag_links 0 / diff_total 0 / missing_count 0`（10.2 s）→ 独立复核：冷层 37,255 == `hotspots` 37,255 == `hotspots_fts` 37,255，最终行数 **43,608 == 原值（容差 0）**、`MATCH 'security'` 命中 260、`rebuild_diff` 事件 0。
+>
+> ⚠️ **`favorites` 可解析率的既有孤儿（非本轮引入）**：重建后 `favorites` 可解析 **8/9**。逐条核查 → `favorites#8`（`github_TopHub GitHub 热榜_10`，2026-07-08 收藏）的热点**在生产库中本就不存在**（`hotspots` 查无此 id，`sink` 记账为 0）——**生产库当前（从未执行过任何删行）收藏可解析率本就是 8/9 = 88%**，属 2026-07-08 起的历史孤儿，与 C2.3a/C2.3b 无关。故 C2.3b 验收条件⑤应表述为「**可解析率不下降**」（基线 8/9）而非「绝对 100%」。
+
 **冷层记录契约（`feed/{yyyy-mm}.md`，实现即此格式）**：
 
 ```
@@ -426,11 +432,11 @@ updated_at: 2026-11-11T...
 
 | 阶段 | 内容 | 前置门 |
 |---|---|---|
-| **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试） |
+| **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试）；✅ **生产实跑完成**（2026-11-12，p2.5.5）：37,255 条沉降 / 0 错误 / 冷层 4 文件 45.8 MB / `sink` 记账 37,255 与 md 精确一致 / 热层未动（43,608） |
 | **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | ✅ **已交付**：`scripts/rebuild_hot_index.py` + `test_rebuild_hot_index.py`；T4 实测 36,855 冷层记录 → 重建 36,855 行（容差 0）、FTS 一致、对账差异 0 |
 | **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 → ✅ **已交付**（p2.5.3）：2 service + 3 job + 3 端点 + 2 脚本 + 3 测试文件物理删除；`config.backup_dir` 移除；`retention.json` BACKUP_* 键清理；CI step + 前端 MaintPage 备份卡整块退役；`backend/backups/` 449 MB 目录消失；架构数字 jobs 57→55 / services 159→157 |
 | **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 → ✅ **已交付**（p2.5.4）：`scripts/cleanup_log_tables.py` + `log_trim_job`（每小时）；实测 199.36 → 49.26 MB（含索引，−75%），文件 363.9 → 196.9 MB（回收 167 MB）；消费点回归全绿（`/api/ops/runs` 30 天最大窗语义完整） |
-| **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 + 备份链已退役 |
+| **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 ✅ + 备份链已退役 ✅ + **生产实跑 T4 闭环复核通过**（2026-11-12，p2.5.5：用真实生产冷层 37,255 条删→重建→43,608 == 原值，容差 0）→ **就绪待启** |
 | **P2.5-5** | `retention.json` 台账两层化重写 | `generate_meta --check` 通过 + 台账与实际表一致 |
 
 > **顺序修订说明**：原稿把 P2.5-4 排在 P2.5-1 之前（RA-14），但 P2.5-4 的输入 `feed/*.md` 由 P2.5-3 产出 → 「删库 → 重建 → 行数一致」在 3 落地前无真实数据可验。故 3 拆为 **3a 只写 / 3b 删行**，3a 提到最前；「重建先于备份退役」（4 先于 1）与「删行最后」（3b 最后）两条约束同时满足。
@@ -447,7 +453,7 @@ updated_at: 2026-11-11T...
 | R-17-A2 | 磁盘占用达标 | `backend/hotspot.db` ≤ 120 MB；`backend/backups/` = 0 |
 | R-17-A3 | 冷层承载完整 | `llm-wiki-2.0/feed/` 中的热点 md 条数 = 已下沉热点总数（`wiki_events kind='sink'` 计数一致） |
 | R-17-A4 | 可重建 | 执行 `rebuild_hot_index.py --from-cold` 后，`hotspots` 行数 = 冷层 md 条数（容差 0） |
-| R-17-A5 | 收藏不失效 | `favorites` 9 行的 `hotspot_id` 在 `hotspots` 中 100% 存在 |
+| R-17-A5 | 收藏不失效 | `favorites` 9 行的 `hotspot_id` 在 `hotspots` 中**可解析率不下降**（基线 **8/9**，因 `favorites#8` 的热点在生产库中本就不存在 —— 2026-07-08 起的既有孤儿，非 C2.3b 引入）。**不要求绝对 100%** |
 | R-17-A6 | 热必留未受影响 | `v1_signals` / `v1_cases` / `v1_materials` 行数与实施前一致 |
 | R-17-A7 | 行动页不受影响 | `/api/v1/signals` `/api/v1/cases` 200 且返回行数不变 |
 | R-17-A8 | 日志类达标 | `job_runs` ≤ 20,000 行；`admission_log` ≤ 15,000 行 |

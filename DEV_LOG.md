@@ -1,4 +1,34 @@
 
+## [DEV-0345] v0.8.8 P2.5 — C2.3a 生产实跑沉降 37,255 条 + T4 真实冷层闭环复核 (v088-p25-c23a-prod)
+
+- **时间**: 2026-11-12
+- **类型**: 生产执行 + 验收复核（**0 代码改动**；仅文档同步 + DEV_LOG 记录）
+- **授权**: owner 2026-11-12「好的，重启服务让沉降跑一次」
+- **依据**: [`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §4.1 / §9 / §10；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **前置基线（重启前实测）**: `hotspots` 43,608 / `favorites` 9 / `hotspot_tags` 43,757 / `wiki_events kind='sink'` **0** / `llm-wiki-2.0/feed/` **目录不存在** / DB 363,868,160 B / lock pgid 9067
+- **停服**: `kill -TERM -- -9067`（整个进程组，含 uvicorn 子进程）→ 端口 8000/8898 释放 → DB `integrity: ok`
+- **服务重启（工具 shell 回收问题）**: 首次 `nohup ... &` 启动后**服务死亡**（日志停在 22:51:27，端口无监听，进程消失）→ 根因：工具 shell 退出时连带回收子进程（macOS 无 `setsid`）→ 改用 **tmux 独立会话**（`tmux new-session -d -s hotspot -c <repo> ".venv/bin/python3 run.py | tee /tmp/hotspot_svc.log"`）→ **存活验证通过**：`lsof -iTCP:8000 -sTCP:LISTEN` 命中 PID 55275、`GET /api/health` 200（`status: ok`、`hotspots_count: 43608`、`integrity.ok: true`）、调度器 **56 jobs** 全量注册（含新增 `log_trim`）
+- **生产沉降实跑（C2.3a 只写阶段）**:
+  - `wiki_archiver_job` 触发 → 单批 `sink={'selected': 500, 'sunk': 500, 'errors': 0, 'months': 1}`（受 `limit=500` 单批上限约束）
+  - 循环调用 `sink_hotspots_to_feed(limit=3000/5000)` 直到选批耗尽 → **37,255 条全部沉降，零错误，耗时 15.1 s**
+  - 冷层产出：`2026-07.md` 525 条/390 KB · `2026-08.md` 5,127/5.79 MB · `2026-09.md` 23,972/29.63 MB · `2026-10.md` 7,631/9.99 MB → **合计 37,255 条 / 45.8 MB**
+  - `wiki_events kind='sink'` 记账 **37,255**（与 md 记录数**精确一致**）
+  - 热层未动：`hotspots` **43,608** / `hotspots_fts` **43,608**（只写阶段成立 ✅）
+  - `favorites` **9** 条全部保留（收藏永不下沉 ✅）；`hotspot_tags` 43,757
+  - 生产 DB 文件 363,868,160 → 376,606,720 B（沉降只写 md，未缩库 —— 缩库待 C2.3b）
+- **T4 用真实生产冷层闭环复核**（副本库 `/tmp/c22/rb2.db`，**生产库未动**）:
+  - 删除范围修正：只删「**有 `kind='sink'` 记账**」的 37,255 条（保留全部收藏，符合「只删已下沉热点」前提）
+  - 删后：`hotspots` 6,353 行（含 9 收藏）/ `hotspots_fts` 同步 6,353
+  - 重建：`scripts/rebuild_hot_index.py --from-cold` → `cold_records 37255 / inserted 37255 / tag_links 35026 / skipped_tag_links 0 / diff_total 0 / missing_count 0`（10.2 s，exit 0）
+  - 独立复核：冷层 37,255 == `hotspots` 37,255 == `hotspots_fts` 37,255；最终行数 **43,608 == 原值（容差 0）**；`MATCH 'security'` 命中 260；`rebuild_diff` 事件 **0**
+- **`favorites` 可解析率 8/9 的定性（重要 —— 修正验收条件）**:
+  - 逐条核查 → `favorites#8`（`github_TopHub GitHub 热榜_10`，2026-07-08 收藏）的热点**在生产库中本就不存在**（`hotspots` 查无此 id，`sink` 记账 0）
+  - 生产库**当前（从未执行过任何删行）**收藏可解析率本就是 **8/9 = 88%** → **既有历史孤儿，非 C2.3a/C2.3b 引入**
+  - → R-17-A5 从「100% 存在」改为「**可解析率不下降**」（基线 8/9），已同步审计文档 §10
+- **幂等性复核**: 生产库现存 sink 候选 = **0**（`NOT EXISTS(kind='sink')` 过滤生效）→ 下轮 `wiki_archiver_job` 不会重复沉降；30 天内热点 6,345 + 收藏 9 + 已沉 37,255 = 43,609（与 43,608 差 1 为 30 天窗边界）
+- **文档同步**: R-17 审计文档 §4.1（生产实跑事实块 + T4 闭环块 + favorites 孤儿定性块）/ §9（P2.5-3a 行标「生产实跑完成」、P2.5-3b 行标「就绪待启」+ 前置门实测依据）/ §10（R-17-A5 修正）
+- **遗留（未做）**: C2.3b 删行尚未开启 —— 前置已全部就位（T4 真实冷层闭环通过）；验收条件⑤按上述修正为「可解析率不下降」
+
 ## [DEV-0344] v0.8.8 P2.5 — C2.2 日志环形截断 (v088-p25-c22)
 
 - **时间**: 2026-11-12

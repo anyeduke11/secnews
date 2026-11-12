@@ -44,7 +44,6 @@
   python scripts/check_endpoints.py            # 端点可达性
   python scripts/check_graph_schema.py         # 图谱 schema 漂移
   python scripts/check_retention_decay.py      # 留存衰减
-  python scripts/check_backup_chain.py         # 备份链路完整性
   ```
 - **数据修复脚本**(cleanup / fix / backfill):
   ```bash
@@ -52,6 +51,9 @@
   python scripts/<name>.py              # 真实运行
   ```
   跑前必须有 `backups/` 时间戳归档;失败回滚: 看脚本自身的 rollback 段或 restore。
+  (v0.8.8 C2.1 起: DB 备份链已退役, 恢复路径 = 冷层 `llm-wiki-2.0/feed/`
+  经 `scripts/rebuild_hot_index.py` 重建热层; 脚本级一次性副本仍由
+  `db_diet.py --backup` / `vacuum_into` 提供。)
 
 ## 进入此目录的硬约束
 
@@ -66,7 +68,7 @@
 5. **删除临时 `debug_*.py`** — 调试脚本跑通后必须删除或迁到 `backend/tests/`,
    长期堆在 scripts/ 会让审计扫描噪声放大。
 6. **不改 docs 数字** — `docs/ARCHITECTURE.md` 中的架构计数
-   (97 routers / 57 jobs / 19 collectors / 159 services)
+   (97 routers / 55 jobs / 19 collectors / 157 services)
    一律来自 `scripts/generate_meta.py`,手改会立刻被 `--check` 拦下;
    各 AGENTS.md 中 `N routers/services/jobs/collectors` 形式的数字声明
    同样纳入 `--check` 校验,漂移即 CI fail。

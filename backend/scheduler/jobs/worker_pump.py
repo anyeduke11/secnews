@@ -28,7 +28,7 @@ _KNOWN_QUEUES: tuple[str, ...] = ("trigger_gate", "ai_hub", "case_service")
 # 限流组: 复用 v0.8.2 Y 的 source_fetch 池 (utils.concurrency.get_semaphore)
 _LIMIT_GROUP = "source_fetch"
 
-# 每周一 04:30 Asia/Shanghai (与 backup_verify 02:00 / weekly_maintenance 周日 04:00 错峰)
+# 每周一 04:30 Asia/Shanghai (与 weekly_maintenance 周日 04:00 错峰)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 

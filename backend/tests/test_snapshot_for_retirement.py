@@ -130,7 +130,7 @@ def test_baseline_2026_08_24_counts(snapshot_data):
     wf = snapshot_data["wiki_files"]
     # inbox/quarantine 必须保持空 (有文件 = 流转异常); items/concepts 在
     # 隔离根上为 0 (无造数) — 规模地板 (4149/96) 属真实库断言, 已随 T01
-    # 隔离移除, 真实数据量校验由 backup_verify/T17 承担。
+    # 隔离移除, 真实数据量校验由重建管道 (scripts/rebuild_hot_index.py) 承担。
     assert wf["inbox"] == 0
     assert wf["quarantine"] == 0
 

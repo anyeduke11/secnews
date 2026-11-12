@@ -2,13 +2,13 @@
 
 用法::
 
-    # 1) 先备份 (T02 演练脚本, 出 manifest.json + sha256)
-    .venv/bin/python scripts/t02_backup_drill.py --execute
+    # 1) 先出一份可恢复副本 (v0.8.8 C2.1 起: DB 备份链已退役, 改用一次性副本)
+    .venv/bin/python scripts/db_diet.py --backup /tmp/hotspot.crawler-sources.bak
     # 2) dry-run: 只打印处置清单 (默认)
     .venv/bin/python scripts/cleanup_retire_unfixable_sources.py
-    # 3) apply: 必须给出新鲜备份 manifest (24h 内), 否则拒绝
+    # 3) apply: 必须给出新鲜副本 (24h 内), 否则拒绝
     .venv/bin/python scripts/cleanup_retire_unfixable_sources.py --apply \
-        --require-backup backend/backups/_drill/<ts>/manifest.json
+        --require-backup /tmp/hotspot.crawler-sources.bak
     # 4) 回滚: 用 apply 时落盘的记录恢复 enabled/status
     .venv/bin/python scripts/cleanup_retire_unfixable_sources.py --revert reports/retired_sources_<ts>.json --apply
 
@@ -79,19 +79,35 @@ def _open_rw() -> sqlite3.Connection:
 
 
 def _check_backup(manifest: str | None) -> None:
+    """apply 前置门: 校验「新鲜可恢复副本」存在 (24h 内)。
+
+    v0.8.8 C2.1 起 DB 备份链退役, 旧 ``t02_backup_drill.py`` 产出的
+    manifest.json 一并消失 → 改用一次性 DB 副本 (``scripts/db_diet.py
+    --backup <path>`` 的 VACUUM INTO 产物)。判据不变: 文件存在 + mtime
+    新鲜 + 是合法 SQLite 库。
+    """
     if not manifest:
-        raise SystemExit("--apply 需要 --require-backup <manifest.json> (先跑 t02_backup_drill.py --execute)")
+        raise SystemExit(
+            "--apply 需要 --require-backup <db 副本路径> "
+            "(先跑 scripts/db_diet.py --backup /tmp/hotspot.bak)"
+        )
     p = Path(manifest)
     if not p.exists():
-        raise SystemExit(f"备份 manifest 不存在: {p}")
+        raise SystemExit(f"备份副本不存在: {p}")
     age = time.time() - p.stat().st_mtime
     if age > BACKUP_MAX_AGE_S:
-        raise SystemExit(f"备份 manifest 已 {age / 3600:.1f}h, 超过 24h, 请重新备份")
+        raise SystemExit(f"备份副本已 {age / 3600:.1f}h, 超过 24h, 请重新生成")
     try:
-        m = json.loads(p.read_text(encoding="utf-8"))
+        conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        try:
+            ok = conn.execute("PRAGMA quick_check").fetchone()[0]
+        finally:
+            conn.close()
     except Exception as e:
-        raise SystemExit(f"备份 manifest 不可解析: {e}") from e
-    print(f"[retire] backup manifest ok: {p} (age {age / 60:.0f} min, keys={list(m)[:6]})")
+        raise SystemExit(f"备份副本不可读: {e}") from e
+    if ok != "ok":
+        raise SystemExit(f"备份副本 quick_check = {ok}, 拒绝 apply")
+    print(f"[retire] backup copy ok: {p} (age {age / 60:.0f} min, quick_check=ok)")
 
 
 def do_retire(decisions: list[dict], apply: bool, manifest: str | None, out_dir: Path) -> None:
@@ -152,7 +168,7 @@ def do_revert(record_path: str, apply: bool) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true", help="真实写入 (默认 dry-run)")
-    ap.add_argument("--require-backup", default=None, help="apply 前置: 24h 内的备份 manifest.json")
+    ap.add_argument("--require-backup", default=None, help="apply 前置: 24h 内的 DB 副本路径 (scripts/db_diet.py --backup 产物)")
     ap.add_argument("--reports", default=str(REPO_ROOT / "reports"))
     ap.add_argument("--revert", default=None, help="用 retired_sources_<ts>.json 回滚")
     args = ap.parse_args()

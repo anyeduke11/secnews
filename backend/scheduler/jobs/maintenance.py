@@ -99,9 +99,9 @@ def _skip_is_legitimate(reason: str) -> bool:
     - ``table_not_found`` 且 warm.db 文件不存在 — v0.5 分层迁移前的老库
       形态, 表物理上确实无处可寻; 判据 = warm 库文件本身
     - ``no_retention_days`` — retention.json 台账上 ``retention_days:
-      null`` 的表 (favorites/alert_rules/sync_configs 等由 backup_service
-      等外部系统管理), db_diet envelope 自身也计 skipped 而非 failed;
-      实弹取证 2026-10-11: 生产全台账 dry-run 有数十项此类声明, 不豁免
+      null`` 的表 (favorites/alert_rules/sync_configs 等由台账声明为
+      无清理策略, 不归 db_diet 管), db_diet envelope 自身也计 skipped 而非
+      failed; 实弹取证 2026-10-11: 生产全台账 dry-run 有数十项此类声明, 不豁免
       即每周刷屏
     """
     if reason in _LEGITIMATE_SKIP_REASONS:
@@ -404,93 +404,6 @@ async def weekly_maintenance_job() -> None:
     await _jobs_pkg.scheduled_summary_job()
     await db_diet_job()
     await interest_signals_purge()
-    # v0.5: 周日轮转 — 强制 full backup, 重置增量链
-    await _force_full_backup_rotate()
-
-
-async def _force_full_backup_rotate() -> None:
-    """周日 weekly 强制 full backup (重置增量链)。
-
-    与 daily_db_backup_job (增量) 互补, 保证周一到周日: 6 增量 + 1 full。
-    """
-    try:
-        from backend.services.backup_service import backup_incremental
-
-        result = await asyncio.to_thread(backup_incremental, True)  # force_full=True
-        if result.get("mode") == "full":
-            _logger.info(
-                f"weekly_full_rotate: full={result['path'].rsplit('/', 1)[-1]} "
-                f"({result['size'] / 1e6:.1f} MB)"
-            )
-    except Exception as e:
-        _logger.error(f"weekly_full_rotate crashed: {e}")
-
-
-@instrument_job("daily_db_backup")  # v0.8.6 P0-5: 对齐 scheduler job id (原 "db_backup_daily" 与 id 错配)
-async def daily_db_backup_job() -> None:
-    """P1: 每日 04:30 (Asia/Shanghai) 数据库自动备份。
-
-    v0.5: 改走增量备份 (backup_incremental), 链累积超 MAX_INCREMENTAL_PAGES
-    或周日 weekly_maintenance 强制轮转时自动升级为 full。
-
-    失败只 log.error (不抛), 保证 scheduler 不死循环。
-    """
-    try:
-        from backend.services.backup_service import backup_incremental
-
-        result = await asyncio.to_thread(backup_incremental)
-        if result.get("mode") == "full":
-            _logger.info(
-                f"daily_db_backup_job (full): {result['path'].rsplit('/', 1)[-1]} "
-                f"({result['size'] / 1e6:.1f} MB) retained={result['retained']} "
-                f"removed={result['removed']}"
-            )
-        else:
-            _logger.info(
-                f"daily_db_backup_job (incremental): "
-                f"{result.get('pages', 0)} pages, {result.get('size', 0)} bytes, "
-                f"kept={result.get('incremental_kept', 0)} removed={result.get('incremental_removed', 0)}"
-            )
-            # DEV-0323: roll-forward 合成失败 → 备份冗余不变量破 (下次
-            # daily 会重试), warn 可见化; 增量本体成功, job 不因此标败
-            comp = result.get("compaction") or {}
-            if comp and not comp.get("ok", True):
-                _logger.error(f"daily_db_backup_job: compact failed: {comp.get('error')}")
-                await _fire_alert(
-                    metric="backup_compact.failure", level="warn", value=1.0,
-                    detail={"job": "daily_db_backup",
-                            "error": comp.get("error"), "chain_active": comp.get("chain_active")},
-                    source="backup_compact",
-                )
-    except Exception as e:
-        _logger.error(f"daily_db_backup_job crashed: {e}")
-        raise  # 让 instrument_job 标记 ok=False
-
-
-async def backup_verify_job() -> None:
-    """v0.8.2 Y-A4 (CRITICAL_REVIEW §2.4): 周一 02:00 备份完整性校验。
-
-    校验最新 full 备份 (integrity_check + 行数单调性 + audit_log 抽样 +
-    knowledge zip); 失败 → audit_log 留痕 + ok=False (job 运行记录/告警链
-    可见)。永不抛除标记性失败 — 灾难检查自身不能拖垮 scheduler。
-    """
-    try:
-        from backend.services.backup_verify_service import verify_latest_backup
-
-        report = await asyncio.to_thread(verify_latest_backup)
-        if report.get("ok"):
-            _logger.info(
-                f"backup_verify_job: OK — {Path(report['backup_path']).name} "
-                f"({report['duration_ms']}ms)"
-            )
-        else:
-            _logger.error(f"backup_verify_job: FAILED — {report['errors']}")
-            raise RuntimeError(f"backup verify failed: {report['errors'][:2]}")
-    except RuntimeError:
-        raise  # 校验失败 → instrument_job 标记 ok=False
-    except Exception as e:
-        _logger.error(f"backup_verify_job crashed: {e}")
-        raise
 
 
 async def fts_rebuild_job() -> None:

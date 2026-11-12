@@ -24,13 +24,12 @@ def c13_iso_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     wiki_root = tmp_path / "wiki"
     seed_dir = tmp_path / "dev_seed"
     log_dir = tmp_path / "log"
-    backup_dir = tmp_path / "backup"
     data_dir = tmp_path / "data"
     for p in (db_path, warm_path):
         p.parent.mkdir(parents=True, exist_ok=True)
         if not p.exists():
             p.touch()
-    for d in (wiki_root, seed_dir, log_dir, backup_dir, data_dir):
+    for d in (wiki_root, seed_dir, log_dir, data_dir):
         d.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(config, "db_path", db_path)
     monkeypatch.setattr(config, "warm_db_path", warm_path)
@@ -41,7 +40,6 @@ def c13_iso_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(wiki_root))
     monkeypatch.setenv("HOTSPOT_DEV_SEED_DIR", str(seed_dir))
     monkeypatch.setenv("HOTSPOT_LOG_DIR", str(log_dir))
-    monkeypatch.setenv("HOTSPOT_BACKUP_DIR", str(backup_dir))
     monkeypatch.setenv("HOTSPOT_DATA_DIR", str(data_dir))
     (wiki_root / "items").mkdir(parents=True, exist_ok=True)
     dbm.close_db()

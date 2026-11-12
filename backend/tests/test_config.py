@@ -41,11 +41,10 @@ def test_quality_defaults():
 
 def test_paths_are_paths():
     s = Settings()
-    # log_dir / db_path / backup_dir 应是 Path
+    # log_dir / db_path 应是 Path
     from pathlib import Path
     assert isinstance(s.log_dir, Path)
     assert isinstance(s.db_path, Path)
-    assert isinstance(s.backup_dir, Path)
 
 
 def test_global_singleton_present():

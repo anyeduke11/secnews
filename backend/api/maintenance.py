@@ -6,8 +6,8 @@
 - ``maintenance_db_api.py``        — DB 健康/维护/去重 (/health · /table-stats ·
   /dirty-report · /index-health · /vacuum · /cleanup · /orphans · /duplicates ·
   /cleanup-duplicates)
-- ``maintenance_retention_api.py`` — 保留策略/备份链 (/backup-verify ·
-  /quality-log-tiers · /cleanup-quality-logs · /backups · /backups/compact)
+- ``maintenance_retention_api.py`` — 保留策略 (/quality-log-tiers ·
+  /cleanup-quality-logs)
 
 注意: prefix 由每个子 router 自带 (沿用本目录惯例, 见 sources.py),
 而非挂在聚合 router 上 — 本仓 FastAPI 的 include 是惰性 _IncludedRouter,

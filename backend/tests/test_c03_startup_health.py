@@ -156,7 +156,6 @@ _RUFF_EXCLUDE_PATHS: list[str] = [
     "backend/services/judgment_service.py",  # 预先 F401
     "backend/tests/",  # 测试文件 ruff 容忍
     "scripts/t10_live_trace.py",  # E702 风格
-    "scripts/t02_backup_drill.py",  # 预先 F401
 ]
 
 

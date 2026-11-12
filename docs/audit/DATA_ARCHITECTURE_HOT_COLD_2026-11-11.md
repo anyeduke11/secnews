@@ -314,23 +314,32 @@ updated_at: 2026-11-11T...
 |---|---|---|
 | 服务 | `backend/services/backup_service.py`（1,048 行） | 文件消失 + `grep backup_service` 0 命中 |
 | 服务 | `backend/services/backup_verify_service.py` | 同上 |
-| job | `daily_db_backup_job`（`scheduler.py:602-608`） | `scheduler.py` 无该 id |
-| job | `backup_verify_job`（`scheduler.py:611-618`） | 同上 |
-| job 链尾 | `_force_full_backup_rotate`（`jobs/maintenance.py:411`） | 文件内无该函数 |
-| API | `/backup-verify` `/backups` `/backups/compact`（`maintenance_retention_api.py:15/58/68`） | 端点 404 |
+| job | `daily_db_backup_job`（`scheduler.py` 注册行） | `scheduler.py` 无该 id |
+| job | `backup_verify_job` | 同上 |
+| job 链尾 | `_force_full_backup_rotate`（`jobs/maintenance.py`） | 文件内无该函数 |
+| API | `/backup-verify` `/backups` `/backups/compact`（`maintenance_retention_api.py`） | 端点 404 |
 | 脚本 | `scripts/check_backup_chain.py` / `scripts/t02_backup_drill.py` | 文件消失 |
-| 测试 | `test_backup_service.py` / `test_backup_verify.py` / `test_backup_compact.py` / `test_c01_wal_backup_and_wikifs_isolation.py` | 文件消失 |
+| 脚本（连带） | `scripts/t02_restore_drill.py`（328 行） | **物理删除** —— 恢复侧演练脚本，其唯一生产者 `t02_backup_drill.py` 已删；且「从备份恢复」范式已被 R-17「从冷层重建」取代 |
+| 测试 | `test_backup_service.py` / `test_backup_verify.py` / `test_backup_compact.py` | 文件消失 |
+| 测试（拆分） | `test_c01_wal_backup_and_wikifs_isolation.py` | **拆为 `test_c01_wikifs_isolation.py`** —— 原文件 7 个测试中 4 个属备份域（随备份链退役），3 个 R10「WikiFs 根隔离」与备份无关，是 wiki-first 存储哲学（C-4 硬约束）的活回归守卫 → 保留并改名 |
+| 前端 | `MaintPage` 备份卡 + 4 条 i18n + 3 个测试用例 | 卡片与端点一并退役（§6.1 原清单遗漏前端，已在实施中补入） |
+| CI | `.github/workflows/ci.yml`「Backup chain check」step | step 移除 |
 | 产物 | `backend/backups/`（**449 MB**） | 目录消失 |
-| 远端 | `_maybe_remote_push`（`backup_service.py:113`） | 文件随服务删除 |
+| 远端 | `_maybe_remote_push`（`backup_service.py`） | 文件随服务删除 |
+
+> **实施偏差（p2.5.3，已落地）**：`backend/backups/hotspot-warm-20261108_203000.db`（250 MB）**是本机 WARM 层唯一持久副本** —— `backend/hotspot-warm.db` 早已从磁盘消失（inode unlink，仅存于运行中进程 fd，已记于 `DEV_LOG.md:124`「ATTACH 全落空」）。该副本含 `quality_check_logs` 143,117 / `collection_runs` 33,743 / `coverage_runs` 33,354 / `crawler_runs` 10,234 / `collect_validations` 8,253 / `catchup_checkpoints` 5,362 / `knowledge_items` 4,742 / `knowledge_chunks` 2,058 / `planning_actions` 3,109 / `catchup_runs` 426 行 —— **均为非 md 可重建的运行流水**（C2.4 重建管道只覆盖 `hotspots` + `hotspot_tags`）。owner 裁决：**恢复为活跃层**（复制回 `backend/hotspot-warm.db`，即 `config.warm_db_path` 指向位置，integrity ok + chmod 0600），再删整个 `backend/backups/`。副作用（正面）：`db.py` 启动期 ATTACH warm 重新生效，WARM 层从「落空」恢复可读写。
+> **遗留（数据陈旧）**：恢复副本的数据截止 `2026-11-08T20:29`（运行中进程的 fd 内另有更新数据，进程重启即丢）。`knowledge_items` 4,742 ≈ `llm-wiki-2.0/items/` 4,787 md → 该表可由 md 重建；其余流水表不可重建。
 
 ### 6.2 改造（不是删除）
 
 | 对象 | 动作 |
 |---|---|
 | `weekly_maintenance_job`（周日 04:00） | 保留 job 本身（内有 `db_diet` dry-run 等），**仅摘掉链尾 `_force_full_backup_rotate`** |
-| `scripts/db_diet.py` | 保留（承担 VACUUM / orphan / duplicate 清理），**删 `make_backup_snapshot`**（`db_diet.py:82`），保留 `vacuum_into`（`:102`） |
+| `scripts/db_diet.py` | 保留（承担 VACUUM / orphan / duplicate 清理），**删 `make_backup_snapshot`**（`:82`），保留 `vacuum_into`（`:102`）并让其承接副本语义（`--backup` / safety 副本改走 `vacuum_into`；`BACKUPS_DIR` 常量 → `SCRATCH_DIR = REPO_ROOT/"backups"`，因 `backend/backups/` 已删） |
 | `backend/api/maintenance.py` docstring | 同步删备份链端点描述 |
-| `backend/config/` 备份相关配置 | `BACKUP_RETENTION` / `SIDE_DB_RETENTION` / `MANIFEST_KEEP` / `INCREMENTAL_KEEP` / `KNOWLEDGE_INC_KEEP` / `MAX_INCREMENTAL_PAGES` / `HOTSPOT_REMOTE_BACKUP` 一并清理 |
+| `backend/config/` 备份相关配置 | `config.backup_dir` 字段移除（含 `_anchor_to_repo_root` validator 登记项、`conftest.py` T01 隔离断言项、`test_isolation_guard.py` 断言项）；`BACKUP_RETENTION` / `SIDE_DB_RETENTION` / `MANIFEST_KEEP` / `INCREMENTAL_KEEP` / `KNOWLEDGE_INC_KEEP` / `MAX_INCREMENTAL_PAGES` / `HOTSPOT_REMOTE_BACKUP` 随 `backup_service.py` 一并消失 |
+| `scripts/retention.json` | `$global_settings` 删 3 个 BACKUP_* 键 + 幽灵条目 `backup_incremental_sunday_job`（该 job 从未存在）；`$temp_layers.*.backup` 改写为「none — 可重建」语义；`$purpose` 删 `check_backup_chain.py` 引用 |
+| `backend/tests/test_feature_gates.py` | job 计数断言 57 → **55** |
 
 ### 6.3 替代物（保证「可重建」）
 
@@ -346,12 +355,13 @@ updated_at: 2026-11-11T...
 
 | 项 | 现状 | 目标 | 手段 |
 |---|---|---|---|
-| `hotspot.db` | 345 MB（+WAL 96 MB） | **≤120 MB** | 热点 30 天窗（−34 MB）+ 日志环截（−130 MB）+ `ai_scores` 随删（−3 MB） |
-| `backend/backups/` | 449 MB | **0** | 备份链退役 |
-| `llm-wiki-2.0/` | 5.6 MB | **60–80 MB** | 接收 36,663 条热点冷数据（按 avg 1.2 KB/条估算） |
-| `hotspot-warm.db` / `hotspot-cold.db` | 不存在 | **保持不存在** | 台账两层化后不再声明 |
-| **DB + 备份合计** | **794 MB** | **≤120 MB（−85%）** | — |
-| **含冷层总占用** | 799.6 MB | **180–200 MB（−75%）** | — |
+| `hotspot.db` | 347 MB（+WAL 5 MB） | **≤120 MB** | 热点 30 天窗（−34 MB）+ 日志环截（−130 MB）+ `ai_scores` 随删（−3 MB） |
+| `backend/backups/` | 449 MB | **0** ✅ | 备份链退役（p2.5.3 已达成，目录消失） |
+| `hotspot-warm.db` | **不存在** → **250 MB（已恢复）** | 保留 + 台账两层化后明确其边界 | **偏差（p2.5.3）**：该文件是 WARM 层唯一持久副本（见 §6.1 实施偏差）→ 恢复为活跃层；`db.py` ATTACH warm 重新生效。后续 C2.5 台账两层化时按实际存在性重新声明 |
+| `hotspot-cold.db` | 不存在 | **保持不存在** | 台账两层化后不再声明（COLD 层实测仅 3 行 `retention_state`，无数据保全价值） |
+| `llm-wiki-2.0/` | 5.6 MB | **60–80 MB** | 接收 36,855 条热点冷数据（按 avg 1.2 KB/条估算） |
+| **DB + 备份合计** | **796 MB** | **≤370 MB**（备份 −449 MB 后；余量待 C2.2 日志环截回收） | — |
+| **含冷层总占用** | 801.6 MB | **430–450 MB** | — |
 
 **WAL 96 MB 问题**：`db.py:212` `wal_autocheckpoint=1000`（约 4 MB 阈值）本应自动回收，实测 WAL 96 MB → 说明存在长事务或 checkpoint 被阻塞。
 **排查方向**（P2.5 实施时定位）：`backend/core/events.py` 的 SSE 长连接 + `knowledge_watcher` 的持续写入可能持有读事务。
@@ -377,7 +387,7 @@ updated_at: 2026-11-11T...
 |---|---|---|
 | **P2.5-3a** | 冷层 `feed/` 目录 + 管道 A **只写阶段**（不删行） | T2 全绿 ✅ → 已交付（`sink_hotspots_to_feed` + 6 测试） |
 | **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | ✅ **已交付**：`scripts/rebuild_hot_index.py` + `test_rebuild_hot_index.py`；T4 实测 36,855 冷层记录 → 重建 36,855 行（容差 0）、FTS 一致、对账差异 0 |
-| **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 |
+| **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 → ✅ **已交付**（p2.5.3）：2 service + 3 job + 3 端点 + 2 脚本 + 3 测试文件物理删除；`config.backup_dir` 移除；`retention.json` BACKUP_* 键清理；CI step + 前端 MaintPage 备份卡整块退役；`backend/backups/` 449 MB 目录消失；架构数字 jobs 57→55 / services 159→157 |
 | **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 |
 | **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 + 备份链已退役 |
 | **P2.5-5** | `retention.json` 台账两层化重写 | `generate_meta --check` 通过 + 台账与实际表一致 |

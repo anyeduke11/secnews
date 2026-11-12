@@ -7,7 +7,7 @@ on:
     branches: [main]
   schedule:
     # v0.6 P0 清场第二批 commit 8: 周日 02:00 UTC (≈ 10:00 Asia/Shanghai)
-    # 跑 M2 终验周巡 — backup chain + DB 体积 + COLD 加密
+    # 跑 M2 终验周巡 — DB 体积 + COLD 加密 (backup chain 检查已于 v0.8.8 C2.1 退役)
     - cron: "0 2 * * 0"
 
 jobs:
@@ -253,17 +253,6 @@ except Exception as e:
 "
           if [ "$AUDIT_RC" -ne 0 ]; then
             echo "::warning::pip-audit 发现漏洞 (rc=$AUDIT_RC) — 周日巡检报告模式, 请按上方清单升级/豁免"
-          fi
-
-      - name: Backup chain check (M2 增量 + sha256 sidecar)
-        run: |
-          set +e
-          CHK_OUT=$(python scripts/check_backup_chain.py --json 2>&1)
-          CHK_RC=$?
-          set -e
-          echo "$CHK_OUT"
-          if [ "$CHK_RC" -ne 0 ]; then
-            echo "::warning::backup chain check 退码 $CHK_RC (基础模式, 不阻断 PR 周日巡)"
           fi
 
       - name: HOT/WARM/COLD DB 体积巡检 (M2 终验)

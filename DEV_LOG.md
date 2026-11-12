@@ -1,4 +1,61 @@
 
+## [DEV-0343] v0.8.8 P2.5 — C2.1 备份链退役 (v088-p25-c21)
+
+- **时间**: 2026-11-11
+- **类型**: 能力退役（**−2 service / −2 job / −3 端点 / −2 脚本 / −3 测试文件 / −1 CI step / −1 前端卡片**；**0 新增**）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17；[`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §6.1 / §6.2 / §7 / §9；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **授权**: owner 2026-11-11 二次裁决顺序中「C2.1 备份链退役」阶段；前置 RA-14 成立（C2.4 重建管道已交付并通过 T4）
+- **物理删除（11 项）**:
+  - service：`backend/services/backup_service.py`（1,048 行）、`backend/services/backup_verify_service.py`
+  - job：`daily_db_backup_job`、`backup_verify_job`（`scheduler.py` 注册 + `jobs/maintenance.py` 定义 + `jobs/__init__.py` import/`__all__`）、链尾 `_force_full_backup_rotate`
+  - 端点：`/api/maintenance/backup-verify`、`/backups`、`/backups/compact`
+  - 脚本：`scripts/check_backup_chain.py`、`scripts/t02_backup_drill.py`
+  - 测试：`test_backup_service.py`、`test_backup_verify.py`、`test_backup_compact.py`
+  - CI：`.github/workflows/ci.yml`「Backup chain check」step
+  - 前端：`MaintPage` 备份卡（3 个类型 + 5 个 state + 2 个 handler + 1 个 fetch 分支 + 4 条 i18n 中英 ×2 + 3 个测试用例）
+- **改造（7 项）**:
+  - `backend/config/__init__.py`：`config.backup_dir` 字段移除 + `_anchor_to_repo_root` validator 登记项摘除；连带 `conftest.py` T01 隔离断言项与 `test_isolation_guard.py` 断言项
+  - `scripts/db_diet.py`：删 `make_backup_snapshot`（`:82`），副本语义由 `vacuum_into` 承接（`--backup` / safety 副本）；`BACKUPS_DIR` → `SCRATCH_DIR = REPO_ROOT/"backups"`（`backend/backups/` 已删）
+  - `scripts/retention.json`：`$global_settings` 删 `BACKUP_RETENTION` / `BACKUP_INCREMENTAL_DIR` / `BACKUP_MAX_INCREMENTAL_PAGES` + 幽灵 job `backup_incremental_sunday_job`（该 job 从未在代码中存在）；`$temp_layers.*.backup` 改写为「none — 可重建」；`$purpose` 删 `check_backup_chain.py` 引用
+  - `backend/scheduler/jobs/maintenance.py`：`weekly_maintenance_job` 摘掉链尾 `_force_full_backup_rotate` 调用
+  - `backend/api/maintenance.py` / `maintenance_retention_api.py`：docstring 与端点清单同步
+  - `backend/tests/test_feature_gates.py`：job 计数断言 57 → **55**
+  - `backend/tests/test_db_diet.py`：删 `scheduled_in == "backup"` 豁免分支（该枚举值在台账中已无表）
+- **数据保全（owner 二次裁决，fail-loud 留档）**:
+  - 删除前核实发现 `backend/backups/hotspot-warm-20261108_203000.db`（250 MB）是本机 **WARM 层唯一持久副本** —— `backend/hotspot-warm.db` 早已从磁盘 unlink（仅存于运行中进程 PID 9101 的 fd，已记于 `DEV_LOG.md:124`「ATTACH 全落空」）
+  - 该副本含 `quality_check_logs` 143,117 / `collection_runs` 33,743 / `coverage_runs` 33,354 / `crawler_runs` 10,234 / `collect_validations` 8,253 / `catchup_checkpoints` 5,362 / `knowledge_items` 4,742 / `knowledge_chunks` 2,058 / `planning_actions` 3,109 / `catchup_runs` 426 行 —— **均为非 md 可重建的运行流水**（C2.4 重建管道只覆盖 `hotspots` + `hotspot_tags`）
+  - owner 裁决：**恢复为活跃层** → 复制回 `backend/hotspot-warm.db`（`config.warm_db_path` 指向位置），`PRAGMA integrity_check` = ok，chmod 0600 → 再删整个 `backend/backups/`
+  - 副作用（正面）：`db.py` 启动期 ATTACH warm 重新生效，WARM 层从「落空」恢复可读写
+  - **遗留（数据陈旧）**：恢复副本数据截止 `2026-11-08T20:29`（运行中进程 fd 内另有更新数据，进程重启即丢）；`knowledge_items` 4,742 ≈ `llm-wiki-2.0/items/` 4,787 md → 该表可由 md 重建，其余流水表不可重建 → C2.5 台账两层化时须明确该层边界
+  - COLD 层无保全需求：实测 `audit_log` 0 行 + `retention_state` 3 行，且 `audit_log` 在 main 库有 9,586 行
+- **磁盘回收**: `backend/` 1,100 MB → **847 MB**（`backend/backups/` 449 MB 目录消失）
+- **架构数字**（`generate_meta.py --fix` 后 `--check` 通过）: jobs 57→**55** / collectors 19 / routers 97 / services 159→**157** / core_routers 65
+- **偏差留档**: `test_c01_wal_backup_and_wikifs_isolation.py`（7 个测试）**拆分** —— 4 个备份域测试随备份链删除，3 个 R10「WikiFs 根隔离」测试与备份无关（是 wiki-first 存储哲学 C-4 硬约束的活回归守卫）→ 保留并改名 `backend/tests/test_c01_wikifs_isolation.py`
+- **验证**:
+  - `pytest`（定向 10 文件）**137 passed**
+  - `pytest`（后端全量，20:55）→ **1 failed, 5390 passed, 7 skipped, 2 errors**。首轮全量曾报 3 failed，逐项定性：
+    1. `test_config.py::test_paths_are_paths` — **本轮引入**（`config.backup_dir` 移除后断言失配）→ 已修（删该断言）
+    2. `test_check_temp_db_sizes.py::test_hot_violation_when_over_limit` — **既有问题，非本轮引入**：实测「移走 warm 层后同一测试仍失败」（HOT 346.82 MB 已超 DEV-0290 校准后的 300 MB 阈值，而该测试只按 WARM 单层分支断言）→ **已修**：改为按「实际超限层集合」断言（violations 集合 == 超限层集合，summary 与 violations 一致），任何层组合均成立
+    3. `test_kpi_api.py::test_triage_latency_p50` — **既有问题**：日期腐烂（种子时间写死 2026-10-07/09，查询按 `now - 30 days` → 样本出窗 → `assert 0 == 2`），P3 轮已定性，clean tree 复现
+    4. `test_cold_db_crypto.py` 2 errors — **既有问题**：与 T01 隔离守卫结构性冲突（该脚本无 `--db` 覆盖口，audit hook 拒绝连接生产路径），P3 轮已定性，clean tree 复现
+  - `ruff check backend/ scripts/` → All checks passed
+  - `python -m compileall backend/services backend/api backend/scheduler backend/config scripts/db_diet.py` → OK
+  - `npx tsc --noEmit` → 0 错误
+  - `npx vitest run`（前端全量）→ **105 files / 727 tests passed**
+  - `python scripts/generate_meta.py --check` → OK（55/19/97/157/65）
+  - `python scripts/harness_analyze.py --check` → exit 0
+- **连带清理（grep 残留收口）**:
+  - `backend/tests/test_config.py`：删 `backup_dir` 断言
+  - `backend/tests/test_c03_startup_health.py`：删 `_RUFF_EXCLUDE_PATHS` 中已删除的 `scripts/t02_backup_drill.py` 条目
+  - `backend/tests/test_c13_legacy_migrate_v1.py` / `test_c13_legacy_promote_jobs.py` / `test_c13_legacy_migrate_v1_api.py`：删失效的 `HOTSPOT_BACKUP_DIR` env 设定（config 字段已移除 → env 变惰性）
+  - `scripts/t11/t12/t13/t14/t15/t16/t18*` 共 10 个 golden 脚本：删失效的 `HOTSPOT_BACKUP_DIR` env 设定
+  - `scripts/dev_environment.sh`：删 `DEV_BACKUP_DIR` 变量 + mkdir + log + export
+  - `scripts/t02_restore_drill.py`：**物理删除**（328 行）—— 恢复侧演练脚本，其唯一生产者 `t02_backup_drill.py` 已删，且「从备份恢复」范式已被 R-17「从冷层重建」取代
+  - `scripts/cleanup_retire_unfixable_sources.py`：`--require-backup` 前置门从「校验 manifest.json」改为「校验一次性 DB 副本（存在 + 24h 新鲜 + `PRAGMA quick_check` = ok）」，用法注释同步
+  - `backend/scheduler/jobs/maintenance.py` / `worker_pump.py`：过期注释中的 `backup_service` / `backup_verify` 引用清理
+  - `docs/PORT_SPEC.md` §2.4：原「backup_service.py → store/src/backup.ts」移植条目改为「已退役，不移植」（dsh 端不做备份实现，恢复路径 = 冷层重建）
+- **文档同步**: R-17 审计文档 §6.1（含实施偏差块）/ §6.2 / §7 空间账 / §9 实施顺序；PRD 状态行 + `v0.8.8-p2.5.3` 修订行 + §4.17 标题 + 已知限制④；实施计划 plan.4 + 状态行 + 阶段表 + C2.1 行；`docs/PORT_SPEC.md` §2.4
+
 ## [DEV-0342] v0.8.8 P2.5 — C2.4 重建管道 + T4 实测通过 (v088-p25-c24)
 
 - **时间**: 2026-11-11

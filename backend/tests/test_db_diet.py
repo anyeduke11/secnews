@@ -189,10 +189,6 @@ def test_retention_json_referenced_tables_exist():
         if tbl["table"] in existing:
             continue  # OK
         # 表不存在是容错场景 (collection_history 等), 但 retention 不应列不存在的表
-        # 允许 backup_service 管的不存在项
-        if tbl.get("scheduled_in") == "backup":
-            continue
-        # 跳过 collection_history / export_cache (旧 cleanup_history 残留登记)
         pytest.fail(
             f"retention.json 引用的表 {tbl['table']} 不存在于 db, 应当移除"
         )

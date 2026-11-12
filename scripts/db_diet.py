@@ -55,7 +55,9 @@ from scripts.cli_contract import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "backend" / "hotspot.db"
 RETENTION_PATH = REPO_ROOT / "scripts" / "retention.json"
-BACKUPS_DIR = REPO_ROOT / "backend" / "backups"
+# v0.8.8 P2.5 C2.1: 备份链退役 — backend/backups/ 已删除, VACUUM INTO 临时产物
+# 改落仓库根 backups/ (与 ARCHIVE_DIR 同根, 已在 .gitignore)。
+SCRATCH_DIR = REPO_ROOT / "backups"
 ARCHIVE_DIR = REPO_ROOT / "backups" / "hotspots-archive"
 
 
@@ -77,28 +79,8 @@ def _cutoff_iso(retention_days: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 备份 + VACUUM INTO 演练 (SPEC §1: 先在 .bak 副本演练)
+# VACUUM INTO 演练 (SPEC §1: 先在副本演练)
 # ---------------------------------------------------------------------------
-def make_backup_snapshot(src: Path, dst: Path) -> dict[str, Any]:
-    """拷贝源 db 到 dst (用 sqlite3 .backup 保证一致性, WAL 模式安全)。"""
-    if not src.exists():
-        return {"ok": False, "error": f"source db not found: {src}"}
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    src_conn = sqlite3.connect(str(src))
-    dst_conn = sqlite3.connect(str(dst))
-    try:
-        src_conn.backup(dst_conn)
-    finally:
-        dst_conn.close()
-        src_conn.close()
-    return {
-        "ok": True,
-        "src": str(src),
-        "dst": str(dst),
-        "size": dst.stat().st_size,
-    }
-
-
 def vacuum_into(src: Path, dst: Path) -> dict[str, Any]:
     """VACUUM INTO: SQLite 3.27+ 原子压缩并写入新文件。
 
@@ -381,18 +363,20 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                 data={"error": f"table not in retention.json: {args.table}"},
             )
 
-    # 3) 备份演练 (SPEC §1: 先在 .bak 副本演练)
+    # 3) 副本演练 (SPEC §1: 先在副本演练)
+    # v0.8.8 P2.5 C2.1: make_backup_snapshot 已随备份链退役删除, 副本改由
+    # VACUUM INTO 产生 (同一 SQLite 原子快照语义, 不依赖 backup_service)。
     backup_result: dict[str, Any] = {"skipped": True}
     backup_path: Path | None = None
     if args.backup:
         backup_path = Path(args.backup)
-        backup_result = make_backup_snapshot(DB_PATH, backup_path)
+        backup_result = vacuum_into(DB_PATH, backup_path)
         if not backup_result["ok"]:
             return EXIT_FATAL, _make_envelope(
                 ok=False, code=EXIT_FATAL, started_at=started_at,
                 data={"error": "backup failed", "backup": backup_result},
             )
-        # 在备份副本上跑干跑演练 (双保险, 不影响实库)
+        # 在副本上跑干跑演练 (双保险, 不影响实库)
         if not args.execute:
             try:
                 dry_conn = sqlite3.connect(str(backup_path))
@@ -410,9 +394,9 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     if args.execute:
         # 二次备份保险: 实操前再备份一次当前实库
         if backup_path is None:
-            # safety 备份写到源库同目录 (mini_db 测试不污染共享 BACKUPS_DIR)
+            # safety 副本写到源库同目录 (mini_db 测试不污染共享 SCRATCH_DIR)
             safety_backup = DB_PATH.parent / f"{DB_PATH.stem}-diet-safety-{int(time.time())}.db"
-            safety = make_backup_snapshot(DB_PATH, safety_backup)
+            safety = vacuum_into(DB_PATH, safety_backup)
             backup_result = {"safety_backup": safety}
 
     conn = sqlite3.connect(str(DB_PATH))
@@ -438,8 +422,8 @@ def run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     # 6) VACUUM INTO 收尾 (--execute + --vacuum-into)
     vacuum_result: dict[str, Any] = {"skipped": True}
     if args.execute and args.vacuum_into:
-        tmp_vacuum = BACKUPS_DIR / f"hotspot-diet-vacuum-{int(time.time())}.db"
-        BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+        tmp_vacuum = SCRATCH_DIR / f"hotspot-diet-vacuum-{int(time.time())}.db"
+        SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
         vacuum_result = vacuum_into(DB_PATH, tmp_vacuum)
         if vacuum_result["ok"]:
             # 原子替换: 拷贝真空版到 hotspot.db

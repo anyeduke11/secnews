@@ -38,7 +38,6 @@ class TestIsolationActive:
         strict = (
             ("db_path", config.db_path),
             ("log_dir", config.log_dir),
-            ("backup_dir", config.backup_dir),
             ("data_dir", config.data_dir),
         )
         for name, p in strict:

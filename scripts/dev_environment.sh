@@ -25,7 +25,6 @@ DEV_ROOT="${REPO_ROOT}/dev_data"
 DEV_DB_DIR="${DEV_ROOT}/db"
 DEV_WIKI_DIR="${DEV_ROOT}/llm-wiki-2.0"
 DEV_LOG_DIR="${DEV_ROOT}/logs"
-DEV_BACKUP_DIR="${DEV_ROOT}/backups"
 DEV_PORT_BACKEND="${DEV_PORT_BACKEND:-8000}"
 DEV_PORT_FRONTEND="${DEV_PORT_FRONTEND:-8898}"
 
@@ -45,7 +44,6 @@ action_init() {
     log "DEV_DB_DIR     = ${DEV_DB_DIR}"
     log "DEV_WIKI_DIR   = ${DEV_WIKI_DIR}"
     log "DEV_LOG_DIR    = ${DEV_LOG_DIR}"
-    log "DEV_BACKUP_DIR = ${DEV_BACKUP_DIR}"
     log "BACKEND port   = ${DEV_PORT_BACKEND} (dev/prod 共用, --strictPort)"
     log "FRONTEND port  = ${DEV_PORT_FRONTEND} (dev/prod 统一, --strictPort)"
     log "mode           = $([[ $DRY_RUN -eq 1 ]] && echo DRY-RUN || echo EXECUTE)"
@@ -55,7 +53,7 @@ action_init() {
         return 0
     fi
 
-    mkdir -p "${DEV_DB_DIR}" "${DEV_WIKI_DIR}" "${DEV_LOG_DIR}" "${DEV_BACKUP_DIR}"
+    mkdir -p "${DEV_DB_DIR}" "${DEV_WIKI_DIR}" "${DEV_LOG_DIR}"
 
     # .gitignore 增量: dev_data/ 不入仓
     local gi="${REPO_ROOT}/.gitignore"
@@ -73,7 +71,6 @@ export HOTSPOT_WARM_DB_PATH="${DEV_DB_DIR}/hotspot-warm.db"
 export HOTSPOT_COLD_DB_PATH="${DEV_DB_DIR}/hotspot-cold.db"
 export HOTSPOT_DATA_DIR="${DEV_ROOT}/data"
 export HOTSPOT_LOG_DIR="${DEV_LOG_DIR}"
-export HOTSPOT_BACKUP_DIR="${DEV_BACKUP_DIR}"
 export HOTSPOT_WIKI_ROOT="${DEV_WIKI_DIR}"
 export HOTSPOT_PORT="${DEV_PORT_BACKEND}"
 export HOTSPOT_HOST="127.0.0.1"

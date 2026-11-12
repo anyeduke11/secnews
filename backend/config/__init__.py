@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     # Paths
     log_dir: Path = BASE_DIR / "logs"
     db_path: Path = BASE_DIR / "hotspot.db"
-    backup_dir: Path = BASE_DIR / "backups"
+    # v0.8.8 P2.5 C2.1: backup_dir 已移除 — 备份链退役, 备份语义由「可拷贝」
+    # 改为「可重建」(冷层 llm-wiki-2.0/feed/ → 热层, 见 scripts/rebuild_hot_index.py)
     # v1.0 T01: data 目录单一配置源 (export 缓存等), 测试环境经 HOTSPOT_DATA_DIR 隔离
     data_dir: Path = BASE_DIR / "data"
     # v0.5 M2-T6: 分类型存储 (HOT/WARM/COLD/FROZEN)
@@ -141,7 +142,7 @@ class Settings(BaseSettings):
     # (磁盘上 0 字节 data/hotspot.db 为证, main/warm 读写分裂)。.env 就在
     # 仓库根, 相对路径语义随之锚定: 任意 CWD 启动解析到同一文件。
     @field_validator(
-        "log_dir", "db_path", "backup_dir", "data_dir",
+        "log_dir", "db_path", "data_dir",
         "warm_db_path", "cold_db_path", "llm_wiki_v2_path",
         mode="after",
     )

@@ -227,12 +227,14 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/maint['"]\)/);
   });
 
-  it("MaintPage 走 /api/maintenance/* 真实端点 (4 工具卡映射)", () => {
+  it("MaintPage 走 /api/maintenance/* 真实端点 (3 工具卡映射)", () => {
     const maint = readFileSync(join(ROOT, "src/components/MaintPage.tsx"), "utf-8");
     expect(maint).toMatch(/\/api\/maintenance\/health/);
-    expect(maint).toMatch(/\/api\/maintenance\/backup-verify/);
     expect(maint).toMatch(/\/api\/maintenance\/vacuum/);
     expect(maint).toMatch(/\/api\/maintenance\/cleanup/);
+    // v0.8.8 C2.1: 备份卡整块退役 (端点随 backup_service 一并删除)
+    expect(maint).not.toMatch(/\/api\/maintenance\/backups/);
+    expect(maint).not.toMatch(/\/api\/maintenance\/backup-verify/);
   });
 });
 

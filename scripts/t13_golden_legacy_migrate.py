@@ -48,7 +48,6 @@ def main() -> int:
     os.environ["HOTSPOT_WARM_DB_PATH"] = str(iso_warm)
     os.environ["HOTSPOT_WIKI_ROOT"] = str(iso_wiki)
     os.environ["HOTSPOT_LOG_DIR"] = str(iso_log)
-    os.environ["HOTSPOT_BACKUP_DIR"] = str(iso_backup)
     os.environ["HOTSPOT_DATA_DIR"] = str(iso_data)
     os.environ["HOTSPOT_DEV_SEED_DIR"] = str(iso / "dev_seed")
     Path(iso / "dev_seed").mkdir(parents=True, exist_ok=True)

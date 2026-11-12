@@ -21,7 +21,6 @@ import pytest
 
 from backend.config import BASE_DIR, Settings
 from backend.repository import db as db_mod
-from backend.services import backup_service
 
 
 def _mode(path: Path) -> int:
@@ -107,40 +106,3 @@ class TestDbFilePermissions:
                 assert _mode(wal) == 0o600
         finally:
             db_mod.close_db()
-
-
-class TestBackupArtifactPermissions:
-    @pytest.fixture
-    def backup_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        from backend.config import config
-
-        db = tmp_path / "hot.db"
-        c = sqlite3.connect(str(db))
-        c.execute("CREATE TABLE t (v)")
-        c.execute("INSERT INTO t VALUES ('x')")
-        c.commit()
-        c.close()
-        monkeypatch.setattr(config, "backup_dir", tmp_path / "backups")
-        monkeypatch.setattr(config, "db_path", db)
-        monkeypatch.setattr(config, "warm_db_path", tmp_path / "warm.db")
-        monkeypatch.setattr(config, "cold_db_path", tmp_path / "cold.db")
-        return tmp_path / "backups"
-
-    def test_backup_database_artifacts_0600(self, backup_env):
-        """全量备份链产物 (.db 快照 / .sha256) 落盘即 0600。"""
-        backup_service.backup_database()
-        artifacts = list(backup_env.glob("*.db")) + list(
-            backup_env.glob("*.sha256")
-        )
-        assert artifacts, "备份产物缺失 — 测试自身失效"
-        for f in artifacts:
-            assert _mode(f) == 0o600, f"{f.name} 权限 {_mode(f):o}"
-
-    def test_incremental_chain_0600(self, backup_env):
-        """增量链 .bin + .sha256 同密级。"""
-        backup_service.backup_incremental()
-        inc_dir = backup_env / backup_service.INCREMENTAL_DIR
-        bins = list(inc_dir.glob("*.bin")) + list(inc_dir.glob("*.sha256"))
-        assert bins
-        for f in bins:
-            assert _mode(f) == 0o600, f"{f.name} 权限 {_mode(f):o}"

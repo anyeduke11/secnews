@@ -34,7 +34,6 @@ def _ensure_isolated_db() -> None:
     os.environ["HOTSPOT_WARM_DB_PATH"] = str(tmp / "hotspot-warm.db")
     os.environ["HOTSPOT_WIKI_ROOT"] = str(tmp / "wiki")
     os.environ["HOTSPOT_LOG_DIR"] = str(tmp / "logs")
-    os.environ["HOTSPOT_BACKUP_DIR"] = str(tmp / "backups")
     os.environ["HOTSPOT_DATA_DIR"] = str(tmp / "data")
     # 关键: config.warm_db_path 默认指向 BASE_DIR/hotspot-warm.db (生产路径), 必须同步改
     # 否则 ATTACH 的是生产 warm (文件不存在 → skip), _seed_warm_items 写到 tmp warm — 两个文件.

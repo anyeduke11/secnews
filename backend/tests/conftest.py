@@ -74,7 +74,6 @@ if _ISOLATION_GUARDED:
     os.environ["HOTSPOT_WARM_DB_PATH"] = str(_ISOLATION_ROOT / "hotspot-warm.db")
     os.environ["HOTSPOT_COLD_DB_PATH"] = str(_ISOLATION_ROOT / "hotspot-cold.db")
     os.environ["HOTSPOT_LOG_DIR"] = str(_ISOLATION_ROOT / "logs")
-    os.environ["HOTSPOT_BACKUP_DIR"] = str(_ISOLATION_ROOT / "backups")
     os.environ["HOTSPOT_DATA_DIR"] = str(_ISOLATION_ROOT / "data")
     os.environ["HOTSPOT_WIKI_ROOT"] = str(_ISOLATION_ROOT / "llm-wiki-2.0")
 
@@ -287,7 +286,6 @@ def _t01_isolated_roots() -> Iterator[Path]:
         ("warm_db_path", config.warm_db_path),
         ("cold_db_path", config.cold_db_path),
         ("log_dir", config.log_dir),
-        ("backup_dir", config.backup_dir),
         ("data_dir", config.data_dir),
         ("wiki_root", wiki_root()),
     ):

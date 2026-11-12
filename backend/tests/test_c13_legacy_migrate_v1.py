@@ -27,8 +27,6 @@ def c13_iso_env(monkeypatch, tmp_path: Path) -> dict[str, Any]:
     (wiki_root / "items").mkdir(parents=True)
     logs_dir = iso_dir / "logs"
     logs_dir.mkdir()
-    backup_dir = iso_dir / "backups"
-    backup_dir.mkdir()
     data_dir = iso_dir / "data"
     data_dir.mkdir()
     seed_dir = iso_dir / "dev_data"
@@ -38,7 +36,6 @@ def c13_iso_env(monkeypatch, tmp_path: Path) -> dict[str, Any]:
     monkeypatch.setenv("HOTSPOT_WARM_DB_PATH", str(warm_db))
     monkeypatch.setenv("HOTSPOT_WIKI_ROOT", str(wiki_root))
     monkeypatch.setenv("HOTSPOT_LOG_DIR", str(logs_dir))
-    monkeypatch.setenv("HOTSPOT_BACKUP_DIR", str(backup_dir))
     monkeypatch.setenv("HOTSPOT_DATA_DIR", str(data_dir))
     monkeypatch.setenv("HOTSPOT_DEV_SEED_DIR", str(seed_dir))
 

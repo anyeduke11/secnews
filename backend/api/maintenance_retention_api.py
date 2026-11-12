@@ -1,6 +1,11 @@
-"""Maintenance API 子模块 — 保留策略 / 备份链 (拆自 maintenance.py)。
+"""Maintenance API 子模块 — 保留策略 (拆自 maintenance.py)。
 
-端点: /backup-verify · /quality-log-tiers · /cleanup-quality-logs · /backups · /backups/compact
+端点: /quality-log-tiers · /cleanup-quality-logs
+
+v0.8.8 P2.5 C2.1: 备份链退役, 原 /backup-verify · /backups · /backups/compact
+三端点随 backup_service / backup_verify_service 一并删除。备份语义由
+「可拷贝」改为「可重建」—— 冷层 (llm-wiki-2.0/feed/) → 热层重建走
+``scripts/rebuild_hot_index.py``。
 """
 
 from __future__ import annotations
@@ -10,18 +15,6 @@ import asyncio
 from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
-
-
-@router.post("/backup-verify")
-async def maintenance_backup_verify():
-    """v0.8.2 Y-A4 (§2.4): 最新 full 备份完整性校验 (integrity + 行数 + 抽样)。
-
-    周一 02:00 由 ``backup_verify_job`` 自动触发; 本端点供运维按需手跑。
-    永不抛 — 失败以 ``ok=False + errors`` 返回 (audit_log 已留痕)。
-    """
-    from backend.services.backup_verify_service import verify_latest_backup
-
-    return await asyncio.to_thread(verify_latest_backup)
 
 
 @router.get("/quality-log-tiers")
@@ -53,28 +46,6 @@ async def maintenance_cleanup_quality_logs(
         from backend.services.maintenance_service import _qcl_retention_days
         days = _qcl_retention_days()
     return await asyncio.to_thread(cleanup_quality_logs, days=days, dry_run=dry_run)
-
-
-@router.get("/backups")
-async def maintenance_backups_inventory():
-    """DEV-0323: 备份现状盘点 (1 full + ≤3 增量不变量 / 链档 / zip / 占用)。
-
-    纯 stat + 少量 header 读, 毫秒级同步即可。
-    """
-    from backend.services.backup_service import backup_inventory
-    return backup_inventory()
-
-
-@router.post("/backups/compact")
-async def maintenance_backups_compact(
-    keep_incrementals: int = Query(3, ge=1, le=6, description="增量链保留档数 (默认 3)"),
-):
-    """DEV-0323: 手动触发滚动保留整理 (roll-forward 合成 + 旧 full/残档/超额 zip 清理)。
-
-    apply 链到大库 full 副本 + 新 full 落盘是秒~分级长 IO, to_thread。
-    """
-    from backend.services.backup_service import compact_backup_chain
-    return await asyncio.to_thread(compact_backup_chain, keep_incrementals)
 
 
 __all__ = ["router"]

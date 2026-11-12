@@ -32,7 +32,6 @@ def _ensure_isolated_db() -> None:
     os.environ["HOTSPOT_DB_PATH"] = str(tmp / "hotspot.db")
     os.environ["HOTSPOT_WIKI_ROOT"] = str(tmp / "wiki")
     os.environ["HOTSPOT_LOG_DIR"] = str(tmp / "logs")
-    os.environ["HOTSPOT_BACKUP_DIR"] = str(tmp / "backups")
     os.environ["HOTSPOT_DATA_DIR"] = str(tmp / "data")
 
 

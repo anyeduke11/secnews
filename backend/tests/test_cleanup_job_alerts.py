@@ -77,7 +77,7 @@ def test_db_diet_healthy_no_alert(alerts_db, monkeypatch):
 
 
 def test_db_diet_no_retention_days_skip_is_legitimate(alerts_db, monkeypatch):
-    """台账声明 retention_days=null 的表 (backup_service 管) = 合法 skip。
+    """台账声明 retention_days=null 的表 = 合法 skip (无清理策略的表)。
 
     实弹取证 2026-10-11: 生产全台账 dry-run 含数十项 no_retention_days —
     若当漂移告警, 周日链开屏即数十表刷屏, 告警可信度归零。

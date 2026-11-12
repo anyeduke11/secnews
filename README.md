@@ -70,7 +70,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 ## 架构
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (97 routers / 159 services / 57 jobs / 19 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (97 routers / 157 services / 55 jobs / 19 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
 </p>
 
 ## MCP Server — 19 个工具
@@ -110,7 +110,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 |------|------|------|
 | Web 框架 | FastAPI | async + OpenAPI 生态成熟 |
 | 主存储 | **SQLite WAL** + `llm-wiki-2.0/` | 零部署 · FTS5 · git 友好 · LLM 可直读 · md 文件是 source of truth |
-| 调度 | APScheduler · **57 jobs** | 单进程内调度，无外部 MQ；含 8 个扩展 job 按 gate 过滤 |
+| 调度 | APScheduler · **55 jobs** | 单进程内调度，无外部 MQ；含 8 个扩展 job 按 gate 过滤 |
 | 采集器 | **19 个** BaseCollector | 7 大领域覆盖，stdin/stdout 标准化 |
 | 路由器 | **101 个** FastAPI include_router | core 白名单 + 扩展域按 feature_gates 条件注册（16 gate） |
 | 业务服务 | **161 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge / skills 等 |

@@ -72,21 +72,32 @@ def test_violations_structure() -> None:
 
 
 def test_hot_violation_when_over_limit() -> None:
-    """若某层实际 > 阈值, violations 应包含该层 entry, summary 以 FAIL 开头。"""
+    """任一层超阈值 → violations 含该层 entry, summary 以 FAIL 开头; 全达标 → OK。
+
+    旧实现只按 WARM 单层分支断言 (HOT 未超限时的历史状态), 但 HOT 已随
+    业务增长越过 300 MB 阈值 (DEV-0290 校准后) → WARM 达标 / HOT 超限的
+    组合下旧断言必假失败。改为按「实际超限层集合」断言, 与 violations/summary
+    的真实契约对齐, 任何层组合均成立。
+    """
     report = _run_json()
-    # 当前实际: HOT 7.76MB < 80MB (不违规); WARM 364.57MB > 300MB (违规)
-    # 测 WARM 违规路径 (HOT 已达标, 不再触发)
-    warm_size = report["layers"]["WARM"]["size_mb"]
-    warm_limit = report["layers"]["WARM"]["limit_mb"]
-    if warm_size > warm_limit:
-        violation_layers = [v["layer"] for v in report["violations"]]
-        assert "WARM" in violation_layers
+    layers = report["layers"]
+    violations = report["violations"]
+    violating = {k for k, v in layers.items() if v["exists"] and v["size_mb"] > v["limit_mb"]}
+    reported = {v["layer"] for v in violations}
+
+    # violations 与实际超限层集合必须一致 (不漏报也不误报)
+    assert reported == violating, (
+        f"violations={reported} 与实际超限层={violating} 不符"
+    )
+    # 超限层必有 entry, 且字段数值自洽
+    for v in violations:
+        assert v["size_mb"] > v["limit_mb"]
+    # summary 与 violations 数量一致
+    if violations:
         assert report["summary"].startswith("FAIL")
     else:
-        # 若 WARM 也达标, 则 violations 应为空, summary 为 OK
-        violation_layers = [v["layer"] for v in report["violations"]]
-        assert "WARM" not in violation_layers
         assert report["summary"].startswith("OK")
+        assert report["summary"] == "OK"
 
 
 def test_json_output_parseable() -> None:

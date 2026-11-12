@@ -57,12 +57,11 @@
 - 事件类型枚举: import / advance / refine / publish / archive
 - `event_bus.emit(event)` 触发下游
 
-### 2.4 `backend/services/backup_service.py` → `store/src/backup.ts` (~300 行)
+### 2.4 ~~`backend/services/backup_service.py` → `store/src/backup.ts`~~ — **已退役，不移植**
 
-**核心内容**:
-- `BackupService` 类: SQLite `.backup()` API
-- 增量备份 (WAL frame-by-frame)
-- 压缩 (gzip) + 校验 (sha256)
+> **v0.8.8 P2.5 C2.1（2026-11-11）**：DB 备份链整链退役（service + 3 job + 3 端点 + 2 脚本 + 449 MB 产物）。
+> 备份语义由「可拷贝」改为「可重建」—— dsh 端**不做备份实现**，恢复路径 = 冷层 `llm-wiki-2.0/feed/` → 热层重建（同 `scripts/rebuild_hot_index.py`）。
+> 原移植内容（SQLite `.backup()` API / 增量备份 / gzip + sha256）**一并作废**。
 
 ### 2.5 `backend/crypto.py` → `store/src/crypto.ts` (~100 行)
 

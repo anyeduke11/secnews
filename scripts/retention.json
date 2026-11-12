@@ -1,26 +1,26 @@
 {
   "$schema": "v0.5 M2-T6 全站表生命周期台账",
-  "$purpose": "single-source-of-truth: 每张表 → 温度层 / 物理 db / retention / action / 关联 job。db_diet.py + migrate_temp_layers.py + check_backup_chain.py 全部读取此台账。",
+  "$purpose": "single-source-of-truth: 每张表 → 温度层 / 物理 db / retention / action / 关联 job。db_diet.py + migrate_temp_layers.py 读取此台账。",
   "$temp_layers": {
     "HOT": {
       "db": "hotspot.db",
       "encrypted": false,
-      "backup": "incremental_daily + full_sunday"
+      "backup": "none — v0.8.8 C2.1 退役备份链; 备份语义 = 可重建 (冷层 feed/ → 热层, scripts/rebuild_hot_index.py)"
     },
     "WARM": {
       "db": "hotspot-warm.db",
       "encrypted": false,
-      "backup": "weekly_incremental"
+      "backup": "none — 同上"
     },
     "COLD": {
       "db": "hotspot-cold.db",
       "encrypted": true,
-      "backup": "weekly_full"
+      "backup": "none — 同上"
     },
     "FROZEN": {
       "db": "knowledge/ + llm-wiki-2.0/",
       "encrypted": false,
-      "backup": "weekly_zip_incremental"
+      "backup": "none — 同上"
     }
   },
   "$retention_keys_legend": {
@@ -1181,9 +1181,6 @@
     }
   ],
   "$global_settings": {
-    "BACKUP_RETENTION": 1,
-    "BACKUP_INCREMENTAL_DIR": "incremental",
-    "BACKUP_MAX_INCREMENTAL_PAGES": 8192,
     "WAL_AUTOCHECKPOINT_PAGES": 1000,
     "VACUUM_AUTO": "weekly",
     "weekly_maintenance_order": [
@@ -1192,8 +1189,7 @@
       "scheduled_summary_job",
       "wal_checkpoint_job",
       "db_diet_job",
-      "vacuum_warm_job",
-      "backup_incremental_sunday_job"
+      "vacuum_warm_job"
     ]
   }
 }

@@ -376,13 +376,14 @@ async def log_trim_job() -> None:
     为什么需要「环形」而不只是 TTL: 实测 ``job_runs`` 11,167 行/天
     (≈465/小时), 30 天 TTL 窗内仍留 190,407 行 / 67 MB → 既有
     ``observability_ttl_job`` 的 30 天 TTL 对体积**无效**。C2.2 加行数上限
-    (job_runs 20,000 / admission_log 15,000) 才真正封顶。
+    (job_runs 20,000 / admission_log 5,000) 才真正封顶。
 
-    截断口径 (owner 2026-11-12 裁决):
+    截断口径 (owner 2026-11-12 裁决, 2026-11-13 修订):
     - job_runs: 行数上限 20,000 + 存续 30 天 (对齐 /api/ops/runs hours 上界)
-    - admission_log: 行数上限 15,000
+    - admission_log: 行数上限 5,000 (裁决 2.A)
+    - llm_cache: 只删 TTL 过期行 (ai_hub 活跃缓存)
     - llm_usage_log: 存续 30 天
-    - wiki_events: 行数上限 8,000 + **保留全部 sink/rebuild 事件与带引用的行**
+    - wiki_events: **不截断** (owner 2026-11-13 裁决: wiki 是证据)
     - ai_scores: 随 hotspots 同窗 (30 天)
 
     语义取舍: 日志类数据**不承诺长期留存** —— 截断后历史执行记录消失

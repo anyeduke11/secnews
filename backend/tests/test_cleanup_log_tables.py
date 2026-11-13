@@ -4,9 +4,10 @@
 - **环形语义**: 截断必须保留「最新 N 行」而非「删超窗外的全部」—— 行数
   上限是封顶手段, 删错了方向会删掉最近的数据 (用户看 OpsRunsPanel 时
   恰好在排查一个刚失败的任务)。
-- **保留规则不可回归**: wiki_events 的 sink/rebuild 事件是 R-17「可重建」
-  承诺的审计凭据; 带 wiki_path / db_ref 的行是「这条知识是哪次采集产生的」
-  反查链 —— 两者删了就无法追溯, 且反查端点无时间下界, 删了必丢。
+- **证据层不可截断**: wiki_events 是 R-17 的审计凭据 (owner 2026-11-13
+  裁决「wiki 是证据」), 本脚本不得对它做任何删除 —— 由
+  ``test_cli_json_output_parseable`` 的 results 集合守住 (表不在集合内 =
+  没跑截断)。
 - **默认 dry-run**: 破坏性脚本若默认就写库, 一次误调用即丢历史日志。
 - **幂等**: 每小时跑, 第二轮必须删 0 行, 否则会误删仍在窗口内的数据。
 - **失败不扩散**: 单表失败不影响其余表, 且必须被计入 envelope (fail-loud)。
@@ -46,9 +47,6 @@ def _make_db(path: Path) -> sqlite3.Connection:
             cost_usd REAL, latency_ms INTEGER, occurred_at TEXT, ok INTEGER, error TEXT,
             prompt_tokens INTEGER, completion_tokens INTEGER, tokens_estimated INTEGER,
             trace_id TEXT, scene TEXT, config_source TEXT, key_source TEXT);
-        CREATE TABLE wiki_events (
-            id INTEGER PRIMARY KEY, ts TEXT, kind TEXT, wiki_path TEXT, db_table TEXT,
-            db_row_id TEXT, agent TEXT, payload TEXT);
         CREATE TABLE ai_scores (
             id INTEGER PRIMARY KEY, hotspot_id TEXT, score REAL, reason TEXT,
             scorer TEXT, scored_at TEXT, created_at TEXT);
@@ -58,30 +56,19 @@ def _make_db(path: Path) -> sqlite3.Connection:
     return conn
 
 
-def _seed(conn: sqlite3.Connection, table: str, ts_col: str, n: int, *, days_old: float = 1.0,
-          extra: tuple[str, str] | None = None) -> None:
+def _seed(conn: sqlite3.Connection, table: str, ts_col: str, n: int, *, days_old: float = 1.0) -> None:
     """灌 n 行, 时间从 days_old 天前线性分布到今天。"""
     now = datetime.now(timezone.utc)
-    cols = {"job_runs": ("job_id", "started_at"),
-            "admission_log": ("verdict", "created_at"),
-            "llm_usage_log": ("provider", "occurred_at"),
-            "wiki_events": ("kind", "ts"),
-            "ai_scores": ("hotspot_id", "scored_at")}[table]
+    cols = {"job_runs": "job_id",
+            "admission_log": "verdict",
+            "llm_usage_log": "provider",
+            "ai_scores": "hotspot_id"}[table]
     rows = []
     for i in range(n):
         ts = (now - timedelta(days=days_old * (n - i) / n)).isoformat()
-        if table == "wiki_events":
-            kind, wp = (extra if extra else ("agent_write", ""))
-            rows.append((ts, kind, wp, "", "", "agent", "{}"))
-        else:
-            rows.append((cols[0] + f"_{i}", ts))
-    if table == "wiki_events":
-        conn.executemany(
-            "INSERT INTO wiki_events (ts, kind, wiki_path, db_table, db_row_id, agent, payload)"
-            " VALUES (?,?,?,?,?,?,?)", rows)
-    else:
-        conn.executemany(
-            f"INSERT INTO {table} ({cols[0]}, {ts_col}) VALUES (?,?)", rows)
+        rows.append((cols + f"_{i}", ts))
+    conn.executemany(
+        f"INSERT INTO {table} ({cols}, {ts_col}) VALUES (?,?)", rows)
     conn.commit()
 
 
@@ -90,7 +77,7 @@ def log_db(tmp_path: Path) -> Path:
     """日志库 — 种子数据须**确实超阈**才让截断有活干。
 
     超阈口径 (与脚本阈值一致):
-    - job_runs / admission_log: 行数上限 20,000 / 15,000 → 种子需 > 上限
+    - job_runs / admission_log: 行数上限 20,000 / 5,000 → 种子需 > 上限
     - llm_usage_log / ai_scores: 30 天时间窗 → 种子需含 60 天前的行
     故这里给 job_runs 灌 20,050 行 (略超上限), 其余表灌 100 行 + 1 条超龄行。
     """
@@ -127,7 +114,7 @@ def test_execute_trims_below_row_cap(log_db: Path) -> None:
     conn = sqlite3.connect(str(log_db))
     # job_runs 上限 20,000 → 精确封顶 (行值比较 → 无 +1 偏差)
     assert conn.execute("SELECT COUNT(*) FROM job_runs").fetchone()[0] == 20_000
-    # admission_log 100 行 < 15,000 上限 → 不动
+    # admission_log 100 行 < 5,000 上限 → 不动
     assert conn.execute("SELECT COUNT(*) FROM admission_log").fetchone()[0] == 100
     conn.close()
 
@@ -166,51 +153,6 @@ def test_row_cap_keeps_newest_and_drops_oldest(tmp_path: Path) -> None:
     assert remaining == 100, "应保留 100 行"
     assert anchor == 1, "最新行必须保留 (环形方向不能反)"
     assert oldest_kept > boundary, "保留的最旧行必须比被删的边界行新 (环形方向不能反)"
-
-
-def test_wiki_events_keeps_sink_and_rebuild_kinds(tmp_path: Path) -> None:
-    """sink / rebuild / rebuild_diff 事件**永不删** (R-17 审计凭据)。"""
-    p = tmp_path / "we.db"
-    conn = _make_db(p)
-    now = datetime.now(timezone.utc)
-    old = (now - timedelta(days=400)).isoformat()
-    for kind in ("sink", "rebuild", "rebuild_diff", "agent_write"):
-        conn.execute(
-            "INSERT INTO wiki_events (ts, kind, wiki_path, db_table, db_row_id, agent, payload)"
-            " VALUES (?,?,?,?,?,?,?)", (old, kind, "", "", "", "a", "{}"))
-    conn.commit()
-    conn.close()
-
-    from cleanup_log_tables import _trim_wiki_events
-
-    c2 = sqlite3.connect(str(p))
-    _trim_wiki_events(c2, 0)
-    c2.commit()
-    kinds = {r[0] for r in c2.execute("SELECT DISTINCT kind FROM wiki_events")}
-    c2.close()
-    assert {"sink", "rebuild", "rebuild_diff"} <= kinds, "审计事件被误删"
-    assert "agent_write" not in kinds, "无引用无保留 kind 的行应被删"
-
-
-def test_wiki_events_keeps_rows_with_wiki_path(tmp_path: Path) -> None:
-    """带 wiki_path 的行**永不删** (反查端点无时间下界 → 删了必丢追溯链)。"""
-    p = tmp_path / "we2.db"
-    conn = _make_db(p)
-    old = (datetime.now(timezone.utc) - timedelta(days=400)).isoformat()
-    conn.execute(
-        "INSERT INTO wiki_events (ts, kind, wiki_path, db_table, db_row_id, agent, payload)"
-        " VALUES (?,?,?,?,?,?,?)", (old, "agent_write", "items/abc.md", "", "", "a", "{}"))
-    conn.commit()
-    conn.close()
-
-    from cleanup_log_tables import _trim_wiki_events
-
-    c2 = sqlite3.connect(str(p))
-    _trim_wiki_events(c2, 0)
-    c2.commit()
-    n = c2.execute("SELECT COUNT(*) FROM wiki_events").fetchone()[0]
-    c2.close()
-    assert n == 1, "带 wiki_path 的行必须保留"
 
 
 def test_idempotent_second_run_deletes_nothing(log_db: Path) -> None:
@@ -259,8 +201,8 @@ def test_cli_json_output_parseable(log_db: Path) -> None:
     env = json.loads(proc.stdout)
     assert env["ok"] is True
     assert {r["table"] for r in env["data"]["results"]} == {
-        "job_runs", "admission_log", "llm_cache", "llm_usage_log", "wiki_events", "ai_scores"
-    }
+        "job_runs", "admission_log", "llm_cache", "llm_usage_log", "ai_scores"
+    }, "wiki_events 不得出现在截断集合 (owner 2026-11-13 裁决: wiki 是证据)"
 
 
 def test_vacuum_truncates_wal_afterwards(tmp_path: Path) -> None:
@@ -339,7 +281,7 @@ def _counts(db_path: Path) -> dict[str, int]:
     conn = sqlite3.connect(str(db_path))
     out = {
         t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        for t in ("job_runs", "admission_log", "llm_usage_log", "wiki_events", "ai_scores")
+        for t in ("job_runs", "admission_log", "llm_usage_log", "ai_scores")
     }
     conn.close()
     return out

@@ -306,12 +306,12 @@ updated_at: 2026-11-11T...
 
 | 表 | 阈值 | 截断动作 | 预期收益 |
 |---|---|---|---|
-| `job_runs` | 行数 > **20,000** 或 存续 > 14 天 | 删最旧行 + **同时删 3 个索引对应行** | 64.9 MB → **约 8 MB**（表体 3.6 + 索引 3.4） |
-| `admission_log` | 行数 > **15,000** | 删最旧行 + `idx_admission_log_created` | 96 MB → **约 22 MB** |
+| `job_runs` | 行数 > **20,000** 或 存续 > **30 天** | 删最旧行 + **同时删 3 个索引对应行** | 64.9 MB → **约 8 MB**（表体 3.6 + 索引 3.4） |
+| `admission_log` | 行数 > **5,000**（owner 2026-11-13 裁决 2.A，原 15,000） | 删最旧行 + `idx_admission_log_created` | 96 MB → **约 22 MB**（按 5,000 行实测再降） |
 | `llm_usage_log` | 存续 > 30 天 | 删最旧行 | 9.6 MB → 约 6 MB |
-| `wiki_events` | 行数 > **8,000** | 删最旧行（**保留全部 `sink`/`rebuild` 类事件**） | 4.5 MB → 约 1.5 MB |
+| `wiki_events` | **不截断**（owner 2026-11-13 裁决「wiki 是证据」） | 保留全部行；`retention.json` 登记 `action=keep` / `recovery=evidence` | 体积目标为它让路 |
 | `ai_scores` | 随 `hotspots` 同窗 | 删对应行（FK 已剥离，须显式删） | 4.1 MB → 约 1.2 MB |
-| `llm_cache` | TTL 已有 | 不动 | 5.1 MB |
+| `llm_cache` | 每行自己的 TTL | 只删已过期行（ai_hub 活跃缓存，**不删表不清空**） | 5.1 MB → 过期行归零 |
 
 > **`ai_scores` 口径偏差（p2.5.4，owner 裁决 2026-11-12）**：规格原文「随 `hotspots` 同窗（删对应行）」在数据上**不可行** —— 实测 `ai_scores.hotspot_id` 存的是**知识条目 id**（`kl-` 前缀，6,704 个唯一值），与 `hotspots.id`（43,607 个）**交集为 0**，与 wiki md（裸 hash id）亦仅 1 个对得上。`ai_write_back.write_score` 的 docstring 亦明写该字段是「关联 hotspot / knowledge item id」的**双语义字段**，而生产数据全是后者 → **按关联删热点对应行不存在可删集合**。
 > 裁决：改用 **`scored_at` 30 天时间窗**（语义上最接近的可行口径，实测删 9,931 行 / 回收 1.5 MB）。

@@ -30,10 +30,95 @@
     "retention_days": "保留 N 天, 之外 truncate/archive/keep",
     "action": "truncate | archive_db_table | archive_jsonl | keep",
     "source": "telemetry | index | event | state (数据来源定性: 流水/派生可重建/事件审计/业务状态)",
+    "recovery": "cold-feed | recompute | refetch | evidence | unrecoverable (数据丢失后的恢复路径: 冷层 feed 回灌 / 可由上游重算 / 可重新采集 / 即证据不可删 / 无重建路径)",
     "scheduled_in": "telemetry_window | weekly_maintenance | backup | inline | none",
     "notes": "补充说明"
   },
   "tables": [
+    {
+      "table": "_migration_056_placeholder",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "admission_label",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "admission_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": "行数上限 5,000 (owner 2026-11-13 裁决 2.A; scripts/cleanup_log_tables.py 按行数维护, 非 TTL)"
+    },
+    {
+      "table": "admission_set",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "admission_set_items",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "agent_preferences",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "agent_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
     {
       "table": "ai_scores",
       "temp": "WARM",
@@ -42,7 +127,20 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "alert_deliveries",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -53,6 +151,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -64,6 +163,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -75,6 +175,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -86,6 +187,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -97,7 +199,56 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "api_events",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "api_metrics_hourly",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "attack_cwe_map",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "refetch",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "attack_techniques",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "refetch",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -108,6 +259,31 @@
       "retention_days": null,
       "action": "keep",
       "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "audit_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "audit_log_mp2_review",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -119,6 +295,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -130,6 +307,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -141,6 +319,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -152,6 +331,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -163,6 +343,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -174,6 +355,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -185,6 +367,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -196,6 +379,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -207,6 +391,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -218,6 +403,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -229,6 +415,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -240,6 +427,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -251,7 +439,44 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "command_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "compliance_controls",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "refetch",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "compliance_event_map",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "refetch",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -262,6 +487,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -273,6 +499,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -284,6 +511,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -295,6 +523,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -306,6 +535,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -317,6 +547,7 @@
       "retention_days": 7,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "telemetry_window",
       "notes": "SPEC §18 遥测窗口: 7 天滚动截断 (元数据可重生成, 不需 archive)"
     },
@@ -328,6 +559,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -339,6 +571,31 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "dead_letter",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "deep_reads",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -350,6 +607,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -361,6 +619,43 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "event_technique_candidates",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "event_technique_map",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "event_types",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -372,6 +667,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -383,6 +679,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -394,6 +691,31 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "feedback_events",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "feedback_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -405,6 +727,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -416,6 +739,7 @@
       "retention_days": 180,
       "action": "archive_jsonl",
       "source": "telemetry",
+      "recovery": "cold-feed",
       "scheduled_in": "none",
       "notes": "SPEC §1 M2-Task4 180 天非收藏归档 JSONL; 收藏判断 = NOT IN (SELECT hotspot_id FROM favorites), 收藏行永不删"
     },
@@ -427,6 +751,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -438,6 +763,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -449,6 +775,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -460,6 +787,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -471,7 +799,56 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "incident_reports",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "refetch",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "info_filter_rules",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "interest_domain_weights",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "interest_signals",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -482,8 +859,21 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
+    },
+    {
+      "table": "job_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": "行数上限 20,000 + 存续 30 天 (双阈值, scripts/cleanup_log_tables.py 维护)"
     },
     {
       "table": "kl_dead_letters",
@@ -493,6 +883,19 @@
       "retention_days": null,
       "action": "keep",
       "source": "event",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "kl_queue",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -504,6 +907,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -515,6 +919,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -526,6 +931,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -537,6 +943,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -548,6 +955,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -559,6 +967,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -570,6 +979,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -581,6 +991,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -592,6 +1003,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -603,6 +1015,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -614,6 +1027,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -625,6 +1039,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -636,6 +1051,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -647,6 +1063,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -658,6 +1075,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -669,6 +1087,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -680,6 +1099,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -691,6 +1111,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -702,6 +1123,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -713,6 +1135,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -724,6 +1147,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -735,7 +1159,20 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "loop_checkpoints",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -746,6 +1183,19 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "observability_alerts",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -757,6 +1207,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -768,6 +1219,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -779,7 +1231,44 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "playbook_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "playbook_schedules",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "process_events",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -790,6 +1279,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -801,9 +1291,10 @@
       "retention_days": 21,
       "action": "archive_db_table",
       "source": "telemetry",
-      "target": "quality_check_logs_archive",
+      "recovery": "unrecoverable",
       "scheduled_in": "telemetry_window",
-      "notes": "P0.1: 主膨胀源, archive_quality_logs() 已实现; T6.4 后表在 warm.db; DEV-0322 三档模型: 21 = 3 档 × 档宽 7 (weekly 周日跑一次 → 每次恰滚出最旧一档归档)"
+      "notes": "P0.1: 主膨胀源, archive_quality_logs() 已实现; T6.4 后表在 warm.db; DEV-0322 三档模型: 21 = 3 档 × 档宽 7 (weekly 周日跑一次 → 每次恰滚出最旧一档归档)",
+      "target": "quality_check_logs_archive"
     },
     {
       "table": "quality_check_logs_archive",
@@ -813,8 +1304,21 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": "P0.1: archive 表按 archived_at (归档时刻) 保留 90 天, 保证归档行至少可追溯 90 天"
+    },
+    {
+      "table": "quality_custom_rules",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
     },
     {
       "table": "quality_rejection_log",
@@ -824,6 +1328,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -835,6 +1340,7 @@
       "retention_days": 7,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "refetch",
       "scheduled_in": "telemetry_window",
       "notes": "SPEC §18 遥测窗口: 7 天滚动截断; raw_items 是抓取原始 payload, 与 hotspots URL 去重后可清"
     },
@@ -846,6 +1352,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -857,6 +1364,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": "migration 120: SM-2 评分流水 (旧→新全量快照), undo 撤销与保留率/评分分布统计的唯一真数据源"
     },
@@ -868,6 +1376,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -879,6 +1388,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -890,6 +1400,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -901,6 +1412,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -912,6 +1424,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -923,6 +1436,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -934,6 +1448,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -945,6 +1460,19 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "skill_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -956,6 +1484,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -967,6 +1496,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -978,6 +1508,19 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "source_cleanup_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -989,6 +1532,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1000,6 +1544,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1011,19 +1556,9 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
-    },
-    {
-      "table": "wiki_events",
-      "temp": "HOT",
-      "ts_column": "ts",
-      "ts_format": "iso",
-      "retention_days": 180,
-      "action": "truncate",
-      "source": "event",
-      "scheduled_in": "weekly_maintenance",
-      "notes": "v0.5 §18: wiki↔DB 事件对应 (migration 065); db_trace 反查链路, 保留 180 天"
     },
     {
       "table": "sync_history",
@@ -1033,6 +1568,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "event",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": "既有 cleanup_history() 已处理 (90 天)"
     },
@@ -1044,6 +1580,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1055,6 +1592,7 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1066,6 +1604,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "state",
+      "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1077,6 +1616,19 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "token_ledger",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1088,6 +1640,7 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1099,7 +1652,20 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "trigger_tickets",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -1110,6 +1676,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1121,6 +1688,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1132,6 +1700,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1143,6 +1712,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1154,6 +1724,7 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
       "notes": ""
     },
@@ -1165,7 +1736,284 @@
       "retention_days": 60,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "user_memory",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "user_skills",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "state",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_actions",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_artifacts",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_case_actions",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_case_judgments",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_case_materials",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_cases",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_evidence_receipts",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_judgments",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_knowledge",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_knowledge_adoptions",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_knowledge_refs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_knowledge_revisions",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_legacy_mapping",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_legacy_promote_log",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_materials",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_outbox",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_proposals",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_signals",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_subject_identifiers",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "v1_subjects",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -1176,7 +2024,44 @@
       "retention_days": 90,
       "action": "truncate",
       "source": "index",
+      "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
+      "notes": ""
+    },
+    {
+      "table": "wiki_events",
+      "temp": "HOT",
+      "ts_column": "ts",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "event",
+      "recovery": "evidence",
+      "scheduled_in": "none",
+      "notes": "v0.8.8 R-17 证据层: owner 2026-11-13 裁决「wiki 是证据」→ 不截断不删, 体积目标为其让路"
+    },
+    {
+      "table": "wiki_items_fts",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "index",
+      "recovery": "recompute",
+      "scheduled_in": "none",
+      "notes": ""
+    },
+    {
+      "table": "worker_runs",
+      "temp": "HOT",
+      "ts_column": "",
+      "ts_format": "iso",
+      "retention_days": null,
+      "action": "keep",
+      "source": "telemetry",
+      "recovery": "unrecoverable",
+      "scheduled_in": "none",
       "notes": ""
     }
   ],

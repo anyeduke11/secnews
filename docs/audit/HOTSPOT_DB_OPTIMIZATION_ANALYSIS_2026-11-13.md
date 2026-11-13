@@ -222,19 +222,19 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 | **M1** | 零停机空间回收 | 回收空间**不需要停服** | 删除 1 万行后跑 `incremental_vacuum`，期间 `/api/health` 持续 200 |
 | **M2** | FTS 碎片率 | `fts_data 实际 / 重建基线 ≤ 1.2` | 健康检查 job 计算并落 `job_runs.meta` |
 | **M3** | 过期缓存行 | `llm_cache` TTL 过期行数 = 0（表与新鲜行保留） | SQL |
-| **M4** | 可重建率 | 每张非养料表都能回答「丢了怎么恢复」 | `retention.json` 增加 `recovery` 字段，逐表填写 |
+| **M4** | 可重建率 | 每张非养料表都能回答「丢了怎么恢复」 | `retention.json` 增加 `recovery` 字段，逐表填写 —— **已实施**：台账 104 → 169 条，`recovery` 5 值枚举覆盖全部物理表（双向差集 0，仅 FTS5 shadow 表豁免） |
 | **M5** | 召回不降级 | summary 关键词检索回归用例通过 | 新增 `test_hotspots_fts_recall.py`（关键词命中 summary 的样本） |
 
 **体积**降为观测项（记录但不做门禁）：P0 后预期 163.6 → ~127.6 MB。
 
 ---
 
-## 5. 裁决请求（收窄为 2 项）
+## 5. 裁决结果（2026-11-13 owner 已裁决，2 项均落地）
 
 | # | 裁决项 | 选项 | 影响 |
 |---|---|---|---|
-| **1** | `wiki_events` 是**索引**还是**证据** | A. 索引（可删，反查改扫 md）· B. 证据（保留，体积目标作废） | 决定 19.84 MB 能否动、R-17-A2 目标存废 |
-| **2** | `admission_log` 保留策略 | A. 上限降到 5,000 行 · B. 原文外移到 `data/quarantine/` · C. 两者都做 · D. 现状 | 决定 20.71 MB 的处置 |
+| **1** | `wiki_events` 是**索引**还是**证据** | ~~A. 索引~~ · **B. 证据（已裁决 2026-11-13）** | 台账登记 `action=keep` / `recovery=evidence`；`cleanup_log_tables.py` 已摘除截断链 |
+| **2** | `admission_log` 保留策略 | **A. 上限降到 5,000 行（已裁决 2026-11-13，选项 2.A）** · B. 原文外移 · C. 两者都做 · D. 现状 | `cleanup_log_tables.py` 常量 5,000 + 台账 notes 同步 |
 
 ~~v1 的 3 项裁决~~中的「FTS summary 索引」**已撤销**——P0-1 重建后无必要牺牲召回。
 
@@ -249,7 +249,7 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 | **C2.6-P0c** | `auto_vacuum=INCREMENTAL` + `journal_size_limit=32MB` + `cleanup_log_tables.py` 改 `incremental_vacuum` | 无 | M1 零停机验证；WAL 不再超 32 MB |
 | **C2.6-P0d** | 移除 `fts_rebuild_job`（连函数体，非仅语句） | 无 | **已实施**：jobs 数不变（56）；`wiki_items_fts_sync_job` 独立存在且自愈仍工作；调度域 44 passed |
 | **C2.6-P1** | 按 §5 裁决结果实施 wiki_events / admission_log | **owner 裁决** | 逐项验收 |
-| **C2.6-P2** | `retention.json` 增 `recovery` 字段（M4 落地） | P0 完成 | 双向差集 0 |
+| **C2.6-P2** | `retention.json` 增 `recovery` 字段（M4 落地） | P0 完成 | **已实施**：台账 169 条；`test_retention_json_covers_all_physical_tables` 守住单向覆盖、枚举断言守住取值域 |
 
 P0 四项互相独立，可并行开发、串行提交。P0 完成后重测体积与 M1~M5，再决定是否需要 P1。
 

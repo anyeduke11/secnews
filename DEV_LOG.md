@@ -1,4 +1,26 @@
 
+## [DEV-0353] v0.8.8 P2.5 — C2.6-P2 台账全量闭合（M4 可重建率落地）+ owner 两项裁决回写
+
+- **时间**: 2026-11-13
+- **类型**: 数据治理台账补全（**零业务逻辑改动**）+ owner 裁决落地
+- **依据**: [`docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`](docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md) §4 M4 / §5 裁决结果 / §6 C2.6-P2
+- **关联文件**:
+  - `scripts/retention.json`（改）：表条目 104 → **169**；每条新增 `recovery` 字段；`wiki_events` 改 `keep`/`evidence`；`$retention_keys_legend` 增 `recovery` 说明
+  - `scripts/cleanup_log_tables.py`（改）：摘除 `WIKI_EVENT_KEEP_KINDS` 常量 + `_trim_wiki_events()` 函数 + `_record("wiki_events", ...)` 调用；docstring 改述「不截断」
+  - `backend/scheduler/jobs/maintenance.py`（改）：`log_trim_job` docstring 同步 `admission_log` 5,000 / `wiki_events` 不截断 / `llm_cache` 只删 TTL 过期行
+  - `backend/tests/test_db_diet.py`（改）：必填字段增 `source`/`recovery` + 5 值枚举断言 + 新增 `_physical_tables()` helper 与 `test_retention_json_covers_all_physical_tables`
+  - `backend/tests/test_cleanup_log_tables.py`（改）：删 2 个 wiki_events 用例；夹具不再建 `wiki_events`；`_counts()` 去该表；`test_cli_json_output_parseable` 断言截断集合不含 `wiki_events`
+  - `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md` / `docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md` / `docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`（改）：口径同步
+- **问题描述**: M4「可重建率」要求每张非养料表都能回答「丢了怎么恢复」，但 `retention.json` 只登记了 104 张表且无恢复路径字段；同时 `wiki_events` 的截断规则与 owner「wiki 是证据」裁决冲突。
+- **决策**:
+  1. **双向差集 0**：补齐全部物理活表（跨 HOT/WARM ATTACH 扫描），新增条目一行一句「丢了怎么恢复」；`recovery` 收敛为 5 值枚举 `cold-feed` / `recompute` / `refetch` / `evidence` / `unrecoverable`（owner 裁决：不保留语义重叠的 `rebuild` 近义词）。
+  2. **FTS5 shadow 表豁免**：`wiki_items_fts` 的 `_data`/`_idx`/`_docsize`/`_config`/`_content` 不建档 —— 它们由 `CREATE VIRTUAL TABLE` 自动生成、随虚拟表销毁；contentless FTS 在新建库中本就没有 `_content`，逐张登记必然与实际库形态漂移。历史 17 条 shadow 条目保留未动（避免无谓 churn）。
+  3. **`wiki_events` = evidence（owner 2026-11-13 裁决）**：台账 `retention_days:null` / `action:keep` / `scheduled_in:none` / `recovery:evidence`；`cleanup_log_tables.py` 的截断链**物理删除**（不是加开关），并让测试用「截断集合不含该表」守住不可回归。
+  4. **`admission_log` 上限 5,000（owner 裁决 2.A）**：脚本常量已于 DEV-0351 生效，本轮写入台账 notes 使其单一真源一致。
+- **实测**: 生产库（HOT+WARM ATTACH）`ledger 169 / physical 173 / shadow 23 / only_db(non-shadow) [] / only_ledger ['quality_check_logs_archive']` —— 该表是台账独有的惰性归档表（`db_diet.py` 的 `archive_quality_logs` 写入，生产尚未触发故物理不存在），非漏登。
+- **测试验证**: `pytest test_db_diet.py test_cleanup_log_tables.py test_scheduler_jobs_v1_7.py test_repo_write_guard.py -q` → **40 passed**；`python3 -m py_compile scripts/cleanup_log_tables.py` → OK
+- **未做（刻意）**: C2.5「台账两层化」（169 条四层口径 → HOT/冷层真源两层）未动 —— 属独立施工项；M2（碎片率落 `job_runs.meta`）/ M5（`test_hotspots_fts_recall.py`）仍待实施。
+
 ## [DEV-0352] v0.8.8 P2.5 — C2.6-P0d 移除 `fts_rebuild_job`（0 行死表维护）
 
 - **时间**: 2026-11-13

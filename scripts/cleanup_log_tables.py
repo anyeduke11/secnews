@@ -13,11 +13,9 @@ R-17 把 SQLite 定位为「只存热数据」工作集 → 日志类必须**环
   llm_usage_log  存续 30 天
   ai_scores      随 hotspots 同窗 (30 天) —— FK 已剥离 (migration 132),
                  热点下沉后须显式删, 否则悬空引用堆积
-  wiki_events    行数上限 8,000, 但**保留全部 sink / rebuild / rebuild_diff 事件**
-                 且**保留全部带 wiki_path / db_ref 的行** (反查端点
-                 trace_by_wiki_path / trace_by_db_ref 无时间下界, 截断会丢追溯链)
-                 ⚠️ 实测: 生产 wiki_events 29,857 行**全部**带 wiki_path →
-                 可删集合为 0 → 该规则下 wiki_events 实际不截断 (语义安全优先)
+  wiki_events    **不截断** (owner 2026-11-13 裁决: wiki 是证据) —— 该表是
+                 R-17 的审计凭据, 体积目标为它让路; scripts/retention.json
+                 登记为 action=keep / recovery=evidence
 
 设计要点:
   - **环形**: 删最旧行, 保留最新 N 行 (不是删超窗外的全部)
@@ -49,9 +47,6 @@ sys.path.insert(0, str(REPO_ROOT))
 EXIT_OK = 0
 EXIT_PARTIAL = 1
 EXIT_FATAL = 2
-
-# 保留的 wiki_events kind — R-17 沉降/重建的审计链, 任何情况下不得删
-WIKI_EVENT_KEEP_KINDS = ("sink", "rebuild", "rebuild_diff")
 
 
 def _now_iso() -> str:
@@ -122,48 +117,6 @@ def _trim_cache_ttl(conn: sqlite3.Connection, table: str, ts_column: str) -> int
     cur = conn.execute(
         f"DELETE FROM {table} "
         f"WHERE datetime({ts_column}, '+' || ttl_seconds || ' seconds') < datetime('now')"
-    )
-    return cur.rowcount
-
-
-def _trim_wiki_events(conn: sqlite3.Connection, keep: int) -> int:
-    """wiki_events 环形截断 —— 双重保留规则。
-
-    1. **kind 保留**: ``sink`` / ``rebuild`` / ``rebuild_diff`` 永不删
-       (R-17 沉降/重建的审计链, 是「可重建」承诺的凭据)
-    2. **引用保留**: 带 ``wiki_path`` 或 ``db_table``+``db_row_id`` 的行永不删
-       (trace_by_wiki_path / trace_by_db_ref 反查端点无时间下界, 删了会丢
-       「这条知识是哪次采集/哪个 agent 产生的」追溯链)
-    """
-    total = conn.execute("SELECT COUNT(*) FROM wiki_events").fetchone()[0]
-    if total <= keep:
-        return 0
-    # 只在「可删集合」内做环形: 可删 = 非保留 kind 且无引用
-    deletable = (
-        f"(kind NOT IN ({','.join('?' * len(WIKI_EVENT_KEEP_KINDS))})) "
-        f"AND COALESCE(wiki_path, '') = '' "
-        f"AND COALESCE(db_table, '') = ''"
-    )
-    params = list(WIKI_EVENT_KEEP_KINDS)
-    n_del = conn.execute(
-        f"SELECT COUNT(*) FROM wiki_events WHERE {deletable}", params
-    ).fetchone()[0]
-    if n_del == 0:
-        return 0
-    if n_del <= keep:
-        return 0
-    # 可删集合内保留最新 keep 行 → 边界取「可删集合第 keep+1 新」的 (ts, id)
-    # 行值比较 (SQLite ≥ 3.15) → 边界精确, 同 ts 并发行不被连带删
-    boundary = conn.execute(
-        f"SELECT ts, id FROM wiki_events WHERE {deletable} "
-        f"ORDER BY ts DESC, id DESC LIMIT 1 OFFSET ?",
-        (*params, keep),
-    ).fetchone()
-    if boundary is None:
-        return 0
-    cur = conn.execute(
-        f"DELETE FROM wiki_events WHERE {deletable} AND (ts, id) <= (?, ?)",
-        (*params, boundary[0], boundary[1]),
     )
     return cur.rowcount
 
@@ -248,8 +201,6 @@ def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
             "llm_usage_log",
             lambda: _trim_by_age(conn, "llm_usage_log", "occurred_at", 30),
         )
-        # wiki_events: 行数上限 8,000 + 保留 sink/rebuild 与引用行
-        _record("wiki_events", lambda: _trim_wiki_events(conn, 8_000))
         # ai_scores: 随 hotspots 同窗 (30 天) —— FK 已剥离 (migration 132),
         # 热点下沉后须显式删, 否则悬空引用堆积
         _record(

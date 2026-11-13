@@ -154,23 +154,26 @@ def test_retention_json_exists():
     assert len(cfg["tables"]) >= 3
     # 必填字段
     for tbl in cfg["tables"]:
-        for k in ("table", "temp", "ts_column", "ts_format", "retention_days", "action", "scheduled_in"):
+        for k in ("table", "temp", "ts_column", "ts_format", "retention_days", "action",
+                  "source", "recovery", "scheduled_in"):
             assert k in tbl, f"retention.json 表 {tbl.get('table')} 缺字段 {k}"
 
+    # M4 (v0.8.8 R-17): recovery 必须是 5 值枚举之一 —— 枚举外的值等于没回答
+    # 「这张表丢了怎么恢复」, 不能让拼写错误静默通过
+    allowed = {"cold-feed", "recompute", "refetch", "evidence", "unrecoverable"}
+    for tbl in cfg["tables"]:
+        assert tbl["recovery"] in allowed, (
+            f"retention.json 表 {tbl['table']} 的 recovery={tbl['recovery']!r} 不在枚举 {sorted(allowed)}"
+        )
 
-def test_retention_json_referenced_tables_exist():
-    """retention.json 引用的表都必须在 db 中存在 (db_diet.py 会容错 skip)。
 
-    T6.4 物理分离后, 表可能跨 db (main/warm/cold)。本测试 ATTACH warm/cold 后再扫描。
-    """
-    db_path = _config.db_path
-    warm_path = _config.warm_db_path
-    cold_path = _config.cold_db_path
-    conn = sqlite3.connect(str(db_path))
-    if warm_path.exists():
-        conn.execute(f"ATTACH DATABASE '{warm_path}' AS warm")
-    if cold_path.exists():
-        conn.execute(f"ATTACH DATABASE '{cold_path}' AS cold")
+def _physical_tables() -> set[str]:
+    """跨 HOT/WARM/COLD 收集物理表 (排除 sqlite_ 内部表), T6.4 物理分离后需 ATTACH。"""
+    conn = sqlite3.connect(str(_config.db_path))
+    if _config.warm_db_path.exists():
+        conn.execute(f"ATTACH DATABASE '{_config.warm_db_path}' AS warm")
+    if _config.cold_db_path.exists():
+        conn.execute(f"ATTACH DATABASE '{_config.cold_db_path}' AS cold")
     existing: set[str] = set()
     schemas = ["main"]
     for r in conn.execute("PRAGMA database_list").fetchall():
@@ -183,6 +186,12 @@ def test_retention_json_referenced_tables_exist():
         ).fetchall():
             existing.add(r[0])
     conn.close()
+    return existing
+
+
+def test_retention_json_referenced_tables_exist():
+    """retention.json 引用的表都必须在 db 中存在 (db_diet.py 会容错 skip)。"""
+    existing = _physical_tables()
     with open(RETENTION, encoding="utf-8") as f:
         cfg = json.load(f)
     for tbl in cfg["tables"]:
@@ -192,6 +201,24 @@ def test_retention_json_referenced_tables_exist():
         pytest.fail(
             f"retention.json 引用的表 {tbl['table']} 不存在于 db, 应当移除"
         )
+
+
+def test_retention_json_covers_all_physical_tables():
+    """M4 双向差集 0: 每张物理表都必须登记 recovery (丢了怎么恢复)。
+
+    FTS5 shadow 表 (``_data`` / ``_idx`` / ``_docsize`` / ``_config`` /
+    ``_content``) 例外: 它们由 ``CREATE VIRTUAL TABLE`` 自动生成、随虚拟表
+    销毁, 不是独立生命周期对象; 且 contentless FTS 在新建库中根本没有
+    ``_content`` (生产残留是历史格式), 逐张登记必然与实际库形态漂移。
+    """
+    with open(RETENTION, encoding="utf-8") as f:
+        ledger = {t["table"] for t in json.load(f)["tables"]}
+    shadow_suffix = ("_data", "_idx", "_docsize", "_config", "_content")
+    uncovered = sorted(
+        t for t in _physical_tables()
+        if t not in ledger and not t.endswith(shadow_suffix)
+    )
+    assert uncovered == [], f"以下物理表未登记到 retention.json: {uncovered}"
 
 
 # ---------------------------------------------------------------------------

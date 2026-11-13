@@ -142,6 +142,12 @@ def test_row_cap_keeps_newest_and_drops_oldest(tmp_path: Path) -> None:
     conn.execute(
         "INSERT INTO job_runs (job_id, started_at) VALUES (?, ?)", ("ANCHOR_NEWEST", now))
     conn.commit()
+    # 边界值: keep=100 → 「第 101 新」的行会被删, 保留的最旧行必须比它新。
+    # 取边界值做比较 (不用「今天日期字符串」→ 种子跨 1 天时会日期腐烂)
+    boundary = conn.execute(
+        "SELECT started_at FROM job_runs ORDER BY started_at DESC, id DESC "
+        "LIMIT 1 OFFSET 100"
+    ).fetchone()[0]
     conn.close()
 
     # 直接调内部函数 (阈值写死 20k, 用单测难造 2 万行 → 测边界逻辑本身)
@@ -159,7 +165,7 @@ def test_row_cap_keeps_newest_and_drops_oldest(tmp_path: Path) -> None:
     assert deleted == 401, "应删最旧 401 行"
     assert remaining == 100, "应保留 100 行"
     assert anchor == 1, "最新行必须保留 (环形方向不能反)"
-    assert oldest_kept > datetime.now(timezone.utc).isoformat()[:10], "保留的应是较新的行"
+    assert oldest_kept > boundary, "保留的最旧行必须比被删的边界行新 (环形方向不能反)"
 
 
 def test_wiki_events_keeps_sink_and_rebuild_kinds(tmp_path: Path) -> None:

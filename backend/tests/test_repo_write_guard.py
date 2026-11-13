@@ -151,7 +151,6 @@ _EXEMPT_TABLES: dict[str, str] = {
     # collectors 质量钩子的拒绝日志
     "quality_rejection_log": "collectors/quality_hook.py",
     # FTS5 维护 (INSERT INTO x(x) VALUES('rebuild') 是 FTS5 命令语法, 非业务行写入)
-    "unified_fts": "scheduler/jobs/maintenance.py",
     "wiki_items_fts": "scheduler/jobs/maintenance.py, wiki_fs/store.py",
     "hotspots_trigram_fts": "secnews_dashboard.py",
     # 定时聚合表 (scheduler/jobs/maintenance.py 每小时 rollup)

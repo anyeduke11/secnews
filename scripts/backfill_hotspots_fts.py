@@ -8,8 +8,9 @@
     contentless 表**不支持** ``INSERT INTO t(t) VALUES('rebuild')``,
     所以只能按 rowid 显式补插。
   - 触发器 ``hotspots_ai/ad/au`` 存在且正确 → 只缺存量回填, 增量一直正常。
-  - 每 5 分钟的 ``fts_rebuild_job`` 只 rebuild 了 0 行的死表 ``unified_fts``,
-    从不碰 ``hotspots_fts`` — 这就是覆盖率永远修不上来的原因。
+  - 采集尾部链的 ``fts_rebuild_job`` 只 rebuild 了 0 行的死表 ``unified_fts``,
+    从不碰 ``hotspots_fts`` — 这就是覆盖率永远修不上来的原因 (该 job 已在
+    v0.8.8 C2.6-P0d 移除)。
 
 用法::
 

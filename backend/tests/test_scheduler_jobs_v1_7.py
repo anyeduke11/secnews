@@ -166,28 +166,6 @@ class TestSourceHealthCheckJob:
 
 
 # ---------------------------------------------------------------------------
-# fts_rebuild_job
-# ---------------------------------------------------------------------------
-class TestFtsRebuildJob:
-    def test_runs_or_skips_gracefully(self, temp_db):
-        """FTS5 表可能不存在, job 应优雅处理."""
-        # 不应抛异常
-        _run(jobs.fts_rebuild_job())
-
-    def test_executes_rebuild_when_table_exists(self, temp_db):
-        """若 unified_fts 表存在, 执行 rebuild."""
-        from backend.repository.db import get_connection
-        conn = get_connection()
-        # 检查表是否存在
-        row = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='unified_fts'"
-        ).fetchone()
-        if row is None:
-            pytest.skip("unified_fts 表不存在")
-        _run(jobs.fts_rebuild_job())
-
-
-# ---------------------------------------------------------------------------
 # profile_decay_job
 # ---------------------------------------------------------------------------
 class TestProfileDecayJob:
@@ -210,7 +188,7 @@ class TestJobRegistration:
         # v1.8: 移除 review_scheduler / profile_updater / kv_cache_cleanup (NoOp)
         new_jobs = [
             "auto_extract_job", "alert_evaluator_job", "digest_generator_job",
-            "source_health_check_job", "fts_rebuild_job", "profile_decay_job",
+            "source_health_check_job", "profile_decay_job",
         ]
         for name in new_jobs:
             assert hasattr(jobs, name), f"job {name} missing"
@@ -219,7 +197,7 @@ class TestJobRegistration:
     def test_all_jobs_in_all(self):
         new_jobs = {
             "auto_extract_job", "alert_evaluator_job", "digest_generator_job",
-            "source_health_check_job", "fts_rebuild_job", "profile_decay_job",
+            "source_health_check_job", "profile_decay_job",
         }
         assert new_jobs.issubset(set(jobs.__all__)), \
             f"missing in __all__: {new_jobs - set(jobs.__all__)}"

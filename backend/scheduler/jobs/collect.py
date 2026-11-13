@@ -14,10 +14,14 @@ _logger = logger.bind(component="jobs")
 async def collect_all_job() -> None:
     """周期性执行完整采集 + post-ingest 链。
 
-    v1.8 R3: trend_rebuild / fts_rebuild / security_enrichment /
-    url_content_check / export_rebuild 从 5 个独立定时 job 收敛为采集
+    v1.8 R3: trend_rebuild / wiki_items_fts_sync / security_enrichment /
+    url_content_check / export_rebuild 从独立定时 job 收敛为采集
     尾部链式执行 — 这些都是「数据变更后才有意义」的重建/检查, 独立
     定时在无新数据时纯属空转。采集失败时跳过链 (数据未变)。
+
+    v0.8.8 C2.6-P0d: 移除 fts_rebuild_job —— 它只对 0 行死表
+    ``unified_fts`` (migration 033) 做 REBUILD, 全仓无查询消费点;
+    真正在用的 ``hotspots_fts`` 碎片治理见 ``scripts/rebuild_fts_index.py``。
     """
     if _jobs_pkg._service is None:
         _logger.error("service not initialized, skipping collect_all_job")
@@ -34,7 +38,6 @@ async def collect_all_job() -> None:
         return
     # ---- post-ingest 链 (各 job 内部自带异常隔离, 不会中断彼此) ----
     await _jobs_pkg.trend_rebuild_job()
-    await _jobs_pkg.fts_rebuild_job()
     await _jobs_pkg.wiki_items_fts_sync_job()
     await _jobs_pkg.security_enrichment_job()
     await url_content_check_job()

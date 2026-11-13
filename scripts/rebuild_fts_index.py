@@ -10,8 +10,9 @@
     **3.90 MB (−30.74 MB)**, 同 6,548 行 / 同 81,797 词元, **零召回损失**。
   - contentless 表不支持 ``INSERT INTO t(t) VALUES('rebuild')`` (无 content
     表可读), 只能 drop + recreate + 显式重灌 (见 scripts/backfill_hotspots_fts.py)。
-  - 既有 ``fts_rebuild_job`` 每 5 分钟 rebuild 的是 **0 行的死表** ``unified_fts``,
-    从未碰过真正的 ``hotspots_fts`` —— 碎片因此长期无人治理。
+  - 既有 ``fts_rebuild_job`` (采集尾部链) rebuild 的是 **0 行的死表**
+    ``unified_fts``, 从未碰过真正的 ``hotspots_fts`` —— 碎片因此长期无人
+    治理; 该 job 已在 v0.8.8 C2.6-P0d 移除。
 
 设计:
   - **单事务原子切换**: SQLite DDL 可事务化, 故在 ``BEGIN IMMEDIATE`` 内完成

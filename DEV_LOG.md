@@ -1,4 +1,22 @@
 
+## [DEV-0352] v0.8.8 P2.5 — C2.6-P0d 移除 `fts_rebuild_job`（0 行死表维护）
+
+- **时间**: 2026-11-13
+- **类型**: 死代码清理（**零业务行为变化**）
+- **依据**: [`docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`](docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md) §3 P0-4
+- **关联文件**:
+  - `backend/scheduler/jobs/maintenance.py`（删）：整函数 `fts_rebuild_job`
+  - `backend/scheduler/jobs/__init__.py`（删）：import + `__all__` 条目
+  - `backend/scheduler/jobs/collect.py`（删）：post-ingest 链的 `await _jobs_pkg.fts_rebuild_job()`，docstring 同步
+  - `backend/tests/test_scheduler_jobs_v1_7.py`（删）：`TestFtsRebuildJob` 2 用例 + 注册名单条目
+  - `backend/tests/test_repo_write_guard.py`（删）：`unified_fts` 直写豁免条目
+  - `scripts/rebuild_fts_index.py` / `scripts/backfill_hotspots_fts.py`（改）：docstring 中「每 5 分钟 job」改为事实描述（该 job 在采集尾部链，已移除）
+- **问题描述**: `fts_rebuild_job` 对 `unified_fts`（migration 033 建表）执行 `INSERT INTO unified_fts(unified_fts) VALUES('rebuild')`。但该表**0 行且全仓无任何查询消费点**，每轮采集白跑一次全表 rebuild；真正的 `hotspots_fts`（6,651 行）从未被它碰过 —— 这正是 FTS 碎片长期无人治理、涨到 35.87 MB 的结构性原因（DEV-0350 已人工清理）。
+- **决策**: 直接删除而非「保留空壳」。空壳 job 仍在链上运行且什么都不做，比没有更糟；碎片治理能力由 `scripts/rebuild_fts_index.py --check/--defrag` 承接（运维脚本，不进采集链，避免 `scripts/` 被 backend 反向 import —— `scripts/AGENTS.md` 明确禁止 `from scripts.xxx import`）。
+- **jobs 计数**: `generate_meta.py --check` → **jobs=56 不变**。因 v1.8 R3 已把它从独立定时并入采集链，计数按 scheduler 注册表统计，删函数不影响。
+- **测试验证**: `pytest test_scheduler_jobs_v1_7.py test_repo_write_guard.py test_scheduler.py test_auto_intake.py -q` → **44 passed**；`generate_meta.py --check` → OK（56/19/97/157/65）
+- **未做（刻意）**: 不 DROP `unified_fts` 表本体 —— 属于 schema 变更，需单独立项（migration + `dump_schema`/`migrate_temp_layers` 多处联动），且删表对体积收益≈0（0 行）
+
 ## [DEV-0351] v0.8.8 P2.5 — C2.6-P0b/P0c `llm_cache` TTL 清扫 + WAL 高水位治理（生产实跑）
 
 - **时间**: 2026-11-13

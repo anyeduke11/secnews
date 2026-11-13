@@ -116,7 +116,7 @@ v1 的 B1 方案隐含「账能由对象重建，所以账可删」——这是*
 
 | 对象 | 事实 | 处置 |
 |---|---|---|
-| `fts_rebuild_job`（`maintenance.py:502`，每 5 分钟） | `INSERT INTO unified_fts(unified_fts) VALUES('rebuild')`，而 **`unified_fts` 实测 0 行 / 0.02 MB** | 移除该语句（保留同 job 的 `wiki_items_fts` 自愈部分），并把碎片治理指向真正的 `hotspots_fts` |
+| `fts_rebuild_job`（`maintenance.py:502`，v1.8 R3 起挂在采集尾部链而非独立定时） | `INSERT INTO unified_fts(unified_fts) VALUES('rebuild')`，而 **`unified_fts` 实测 0 行 / 0.02 MB** | **整函数移除（C2.6-P0d 已实施）**。`wiki_items_fts` 自愈是**另一个独立 job**（`wiki_items_fts_sync_job`），不受影响；碎片治理由 `scripts/rebuild_fts_index.py` 承接 |
 | `llm_cache`（migration 052 建表） | **活跃缓存表**：`ai_hub/cache.py` 定义，`gateway.py` 5 处消费；18,100 行中 17,315 行已过期 | 只删 TTL 过期行（周期兜底），**不删表不清空**（勘误 §0.3） |
 
 ---
@@ -247,7 +247,7 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 | **C2.6-P0a** | `scripts/rebuild_fts_index.py --defrag` + 碎片率健康检查 | 无 | 副本库实测 34.64 → 3.90 MB；召回用例全绿；`--dry-run` 默认 |
 | **C2.6-P0b** | `llm_cache` TTL 过期行清扫 + 纳入 `cleanup_log_tables.py` | 无 | 幂等（第二轮删 0 行）；新鲜行与表保留 |
 | **C2.6-P0c** | `auto_vacuum=INCREMENTAL` + `journal_size_limit=32MB` + `cleanup_log_tables.py` 改 `incremental_vacuum` | 无 | M1 零停机验证；WAL 不再超 32 MB |
-| **C2.6-P0d** | `fts_rebuild_job` 移除死表 rebuild 语句 | 无 | jobs 数不变；`wiki_items_fts` 自愈仍工作 |
+| **C2.6-P0d** | 移除 `fts_rebuild_job`（连函数体，非仅语句） | 无 | **已实施**：jobs 数不变（56）；`wiki_items_fts_sync_job` 独立存在且自愈仍工作；调度域 44 passed |
 | **C2.6-P1** | 按 §5 裁决结果实施 wiki_events / admission_log | **owner 裁决** | 逐项验收 |
 | **C2.6-P2** | `retention.json` 增 `recovery` 字段（M4 落地） | P0 完成 | 双向差集 0 |
 

@@ -96,7 +96,6 @@ from backend.scheduler.jobs.maintenance import (
     attention_aggregate_job,
     db_diet_job,
     export_rebuild_job,
-    fts_rebuild_job,
     log_trim_job,
     map_rebuild_daily_job,
     observability_aggregator_job,
@@ -177,7 +176,6 @@ __all__.extend([
     "auto_extract_job",
     "collect_validations_cleanup_job",  # P1-1: validation 自动归档
     "digest_generator_job",
-    "fts_rebuild_job",
     "profile_decay_job",
     "source_alert_eval_job",
     "source_health_check_job",

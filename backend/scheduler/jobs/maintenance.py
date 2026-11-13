@@ -499,26 +499,8 @@ async def weekly_maintenance_job() -> None:
     await interest_signals_purge()
 
 
-async def fts_rebuild_job() -> None:
-    """v1.7 Phase 5: FTS5 索引重建 (5min).
-
-    unified_fts 是迁移 033 创建的虚拟表, 此 job 触发其 REBUILD 优化查询性能.
-    """
-    try:
-        from backend.repository.db import get_connection
-
-        def _rebuild():
-            conn = get_connection()
-            conn.execute("INSERT INTO unified_fts(unified_fts) VALUES('rebuild')")
-
-        await asyncio.to_thread(_rebuild)
-    except Exception as e:
-        # 表可能不存在 (旧 DB), 不报严重错
-        _logger.debug(f"fts_rebuild_job: {e}")
-
-
 async def wiki_items_fts_sync_job() -> None:
-    """v0.6 Phase 6: wiki_items_fts 失同步自愈 (与 fts_rebuild_job 链式触发).
+    """v0.6 Phase 6: wiki_items_fts 失同步自愈.
 
     正常路径: 073_v0.6_wiki_items_fts_sync.sql 的 3 触发器 (AI/AD/AU)
     自动维护 wiki_items_fts 与 knowledge_items 同步. 本 job 是兜底:

@@ -20,6 +20,7 @@ from backend.config import config
 from backend.repository import db
 from backend.services.wiki_archiver import (
     _parse_feed_records,
+    delete_sunk_hotspots,
     sink_hotspots_to_feed,
 )
 
@@ -208,3 +209,134 @@ def test_sink_logs_wiki_event(temp_env):
     assert row is not None
     assert row["wiki_path"] == f"feed/{old.strftime('%Y-%m')}.md"
     assert (row["db_table"], row["db_row_id"]) == ("hotspots", "h-old")
+
+
+# ---------------------------------------------------------------------------
+# C2.3b 删行阶段
+# ---------------------------------------------------------------------------
+
+
+def _sink_one(wiki_root, hotspot_id: str, ingested_at: datetime) -> None:
+    """沉降单条 (供删行测试复用)。"""
+    _insert_hotspot(hotspot_id, ingested_at=ingested_at)
+    sink_hotspots_to_feed(wiki_root=wiki_root, days=30)
+
+
+def test_delete_only_rows_with_sink_accounting(temp_env):
+    """删行唯一放行条件是 sink 记账 —— 没账的行绝不删。"""
+    _, wiki_root = temp_env
+    now = datetime.now(tz=timezone.utc)
+    old_a = now - timedelta(days=60)
+    old_b = now - timedelta(days=61)
+    _insert_hotspot("h-sunk", ingested_at=old_b)
+    _insert_hotspot("h-unsunk", ingested_at=old_a)  # 更旧, 但未沉降
+    # limit=1 → 选批按 ingested_at ASC, 只沉 h-sunk
+    sink_hotspots_to_feed(wiki_root=wiki_root, days=30, limit=1)
+
+    stats = delete_sunk_hotspots()
+
+    assert stats["deleted"] == 1
+    conn = db.get_connection()
+    assert conn.execute(
+        "SELECT COUNT(*) FROM hotspots WHERE id = 'h-sunk'"
+    ).fetchone()[0] == 0
+    assert conn.execute(
+        "SELECT COUNT(*) FROM hotspots WHERE id = 'h-unsunk'"
+    ).fetchone()[0] == 1, "无 sink 记账的行不得删"
+
+
+def test_delete_never_touches_favorites(temp_env):
+    """收藏永不下沉, 删行双保险 (选批排除 + 此处 NOT EXISTS 再验)。"""
+    _, wiki_root = temp_env
+    now = datetime.now(tz=timezone.utc)
+    old = now - timedelta(days=60)
+    _insert_hotspot("h-fav", ingested_at=old)
+    db.get_connection().execute(
+        "INSERT INTO favorites (hotspot_id, category, title, source, url, favorited_at) "
+        "VALUES ('h-fav', 'security', 'T', 'S', 'https://example.com/f', ?)",
+        (now.isoformat(),),
+    )
+    # 手动造 sink 记账 (模拟"若被误记账"的极端情况)
+    db.get_connection().execute(
+        "INSERT INTO wiki_events (ts, kind, wiki_path, db_table, db_row_id, agent) "
+        "VALUES (?, 'sink', 'feed/x.md', 'hotspots', 'h-fav', 'test')",
+        (now.isoformat(),),
+    )
+
+    stats = delete_sunk_hotspots()
+
+    assert stats["deleted"] == 0
+    assert db.get_connection().execute(
+        "SELECT COUNT(*) FROM hotspots WHERE id = 'h-fav'"
+    ).fetchone()[0] == 1, "收藏命中的行必须保留"
+
+
+def test_delete_syncs_fts_and_cascade_tags(temp_env):
+    """hotspots_fts 由触发器同步, hotspot_tags 级联删 —— 都不手写 DML。"""
+    _, wiki_root = temp_env
+    old = datetime.now(tz=timezone.utc) - timedelta(days=60)
+    _sink_one(wiki_root, "h-old", old)
+    _add_tag("h-old", "phishing", "钓鱼", 0.9)
+
+    conn = db.get_connection()
+    fts_before = conn.execute(
+        "SELECT COUNT(*) FROM hotspots_fts"
+    ).fetchone()[0]
+    assert fts_before >= 1, "FTS 应有触发器同步的行"
+
+    delete_sunk_hotspots()
+
+    assert conn.execute(
+        "SELECT COUNT(*) FROM hotspots WHERE id = 'h-old'"
+    ).fetchone()[0] == 0
+    assert conn.execute(
+        "SELECT COUNT(*) FROM hotspots_fts"
+    ).fetchone()[0] == 0, "FTS 必须随删除同步清空"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM hotspot_tags WHERE hotspot_id = 'h-old'"
+    ).fetchone()[0] == 0, "hotspot_tags 级联删"
+
+
+def test_delete_same_transaction_removes_ai_scores(temp_env):
+    """ai_scores FK 已剥离 → 同事务显式删, 不留悬空引用。"""
+    _, wiki_root = temp_env
+    old = datetime.now(tz=timezone.utc) - timedelta(days=60)
+    _sink_one(wiki_root, "h-old", old)
+    conn = db.get_connection()
+    # autocommit (isolation_level=None) → INSERT 即生效, 无需 COMMIT
+    conn.execute(
+        "INSERT INTO ai_scores (hotspot_id, score, scored_at) VALUES (?, 8.5, ?)",
+        ("h-old", old.isoformat()),
+    )
+
+    delete_sunk_hotspots()
+
+    assert conn.execute(
+        "SELECT COUNT(*) FROM ai_scores WHERE hotspot_id = 'h-old'"
+    ).fetchone()[0] == 0, "删热点必须同事务删悬空 ai_scores"
+
+
+def test_delete_is_idempotent(temp_env):
+    """重复跑删 0 行 (已删的行没有 sink 记账可匹配)。"""
+    _, wiki_root = temp_env
+    old = datetime.now(tz=timezone.utc) - timedelta(days=60)
+    _sink_one(wiki_root, "h-old", old)
+
+    first = delete_sunk_hotspots()
+    second = delete_sunk_hotspots()
+
+    assert first["deleted"] == 1
+    assert second["deleted"] == 0
+
+
+def test_delete_dry_run_removes_nothing(temp_env):
+    _, wiki_root = temp_env
+    old = datetime.now(tz=timezone.utc) - timedelta(days=60)
+    _sink_one(wiki_root, "h-old", old)
+
+    stats = delete_sunk_hotspots(dry_run=True)
+
+    assert stats["selected"] == 1 and stats["deleted"] == 0
+    assert db.get_connection().execute(
+        "SELECT COUNT(*) FROM hotspots WHERE id = 'h-old'"
+    ).fetchone()[0] == 1

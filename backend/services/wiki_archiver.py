@@ -525,9 +525,86 @@ def sink_hotspots_to_feed(
     return stats
 
 
+def delete_sunk_hotspots(
+    *,
+    limit: int = 500,
+    dry_run: bool = False,
+) -> dict[str, int]:
+    """C2.3b 删行阶段: 删除已有 ``kind='sink'`` 记账的 ``hotspots`` 行。
+
+    安全前提 (R-17 验收): **只删有 sink 记账的行** —— md 已写 + 回读校验通过
+    才记账, 记账是删行的唯一放行条件。收藏命中的行永不下沉 (选批已排除),
+    这里再做一次 ``NOT EXISTS(favorites)`` 双保险。
+
+    同步面:
+    - ``hotspot_tags`` 随 ``hotspots`` **ON DELETE CASCADE** 自动删
+      (migration 024)
+    - ``hotspots_fts`` 由 migration 078 触发器**带旧值**删除, 普通
+      ``DELETE FROM hotspots`` 即自动同步 —— **严禁手写 FTS DML / REINDEX**
+    - ``ai_scores`` FK 已剥离 (migration 132) → **同事务显式删**悬空行,
+      否则删热点后 ``ai_scores`` 成死存储
+
+    事务: 删 ``hotspots`` + 删 ``ai_scores`` 在同一事务, 失败整体回滚
+    (不留"删了热点但悬空引用还在"的中间态)。fail-loud: 任何 SQL 错误
+    计入 ``errors`` 并抛给上层 job。
+
+    幂等: 重复跑删 0 行 (已删的行没有 sink 记账可匹配)。
+
+    Returns:
+        {selected, deleted, errors}
+    """
+    from backend.repository.db import get_connection
+
+    stats = {"selected": 0, "deleted": 0, "errors": 0}
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT h.id FROM hotspots h
+            WHERE EXISTS (
+                SELECT 1 FROM wiki_events w
+                WHERE w.kind = 'sink' AND w.db_table = 'hotspots'
+                  AND w.db_row_id = h.id
+            )
+              AND NOT EXISTS (
+                  SELECT 1 FROM favorites f WHERE f.hotspot_id = h.id
+              )
+            ORDER BY COALESCE(h.ingested_at, h.fetched_at) ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        stats["selected"] = len(rows)
+        if not rows or dry_run:
+            return stats
+
+        ids = [str(r["id"]) for r in rows]
+        placeholders = ",".join("?" * len(ids))
+        # 同事务删 hotspots + ai_scores 悬空行
+        conn.execute("BEGIN")
+        try:
+            cur = conn.execute(
+                f"DELETE FROM hotspots WHERE id IN ({placeholders})", ids
+            )
+            deleted = cur.rowcount
+            conn.execute(
+                f"DELETE FROM ai_scores WHERE hotspot_id IN ({placeholders})", ids
+            )
+            conn.execute("COMMIT")
+            stats["deleted"] = deleted
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+    except Exception as e:
+        stats["errors"] += 1
+        log.error(f"delete_sunk_hotspots failed: {e}")
+    return stats
+
+
 __all__ = [
     "_atomic_write_text",
     "archive_item",
     "archive_overdue_items",
+    "delete_sunk_hotspots",
     "sink_hotspots_to_feed",
 ]

@@ -6,9 +6,10 @@
 R-17 把 SQLite 定位为「只存热数据」工作集 → 日志类必须**环形封顶**,
 不能只靠时间窗。
 
-截断口径 (owner 2026-11-12 裁决):
+截断口径 (owner 2026-11-12 裁决, 2026-11-13 修订):
   job_runs       行数上限 20,000 + 存续 30 天 (对齐 /api/ops/runs hours 上界)
-  admission_log  行数上限 15,000
+  admission_log  行数上限 5,000 (裁决 2.A, 原 15,000 → 实测单表 20.6 MB)
+  llm_cache      只删 TTL 过期行 (ai_hub 活跃缓存, **不是**废弃表)
   llm_usage_log  存续 30 天
   ai_scores      随 hotspots 同窗 (30 天) —— FK 已剥离 (migration 132),
                  热点下沉后须显式删, 否则悬空引用堆积
@@ -106,6 +107,25 @@ def _trim_by_count(
     return cur.rowcount
 
 
+def _trim_cache_ttl(conn: sqlite3.Connection, table: str, ts_column: str) -> int:
+    """删除 TTL 已过期的缓存行 (``ts_column`` 为 ISO8601 写入时间)。
+
+    与 ``_trim_by_age`` 的区别: 过期判定用**每行自己的 TTL**, 不是统一天数。
+    ``ai_hub.cache.get_llm_cache`` 读时也会删单条过期行, 但那只有「被再次读到」
+    的 key 才会被清 —— 冷 key 会永久滞留 (实测 18,100 行中 17,315 行过期,
+    占 95.7%)。这里做全表清扫, 把读路径的惰性清理补成周期兜底。
+
+    ⚠️ 必须用 ``datetime(...)`` 而非 ``strftime('%s', ...)``: 后者返回 TEXT,
+    与 INTEGER 相加/比较会走「INTEGER < TEXT 恒真」的隐式转换, 把**所有行**
+    误判为过期 (实测两者结果 18,100 vs 17,315)。
+    """
+    cur = conn.execute(
+        f"DELETE FROM {table} "
+        f"WHERE datetime({ts_column}, '+' || ttl_seconds || ' seconds') < datetime('now')"
+    )
+    return cur.rowcount
+
+
 def _trim_wiki_events(conn: sqlite3.Connection, keep: int) -> int:
     """wiki_events 环形截断 —— 双重保留规则。
 
@@ -192,6 +212,16 @@ def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
             try:
                 n = fn()
                 results.append({"table": table, "ok": True, "deleted": n})
+            except sqlite3.OperationalError as e:
+                # 表不存在 (旧库 / 窄 schema 测试库) 不算失败: 该表无数据可截
+                if "no such table" in str(e):
+                    results.append(
+                        {"table": table, "ok": True, "deleted": 0, "skipped": "no such table"}
+                    )
+                    return
+                results.append(
+                    {"table": table, "ok": False, "deleted": 0, "error": f"{type(e).__name__}: {e}"}
+                )
             except sqlite3.Error as e:
                 results.append(
                     {"table": table, "ok": False, "deleted": 0, "error": f"{type(e).__name__}: {e}"}
@@ -203,10 +233,15 @@ def trim_all(db_path: Path, *, dry_run: bool, vacuum: bool = False) -> dict:
             lambda: _trim_by_count(conn, "job_runs", "started_at", 20_000)
             + _trim_by_age(conn, "job_runs", "started_at", 30),
         )
-        # admission_log: 行数上限 15,000
+        # admission_log: 行数上限 5,000 (2026-11-13 裁决 2.A, 原 15,000)
         _record(
             "admission_log",
-            lambda: _trim_by_count(conn, "admission_log", "created_at", 15_000),
+            lambda: _trim_by_count(conn, "admission_log", "created_at", 5_000),
+        )
+        # llm_cache: TTL 过期行 (ai_hub 活跃缓存表, 只删过期行不删表)
+        _record(
+            "llm_cache",
+            lambda: _trim_cache_ttl(conn, "llm_cache", "cached_at"),
         )
         # llm_usage_log: 存续 30 天
         _record(

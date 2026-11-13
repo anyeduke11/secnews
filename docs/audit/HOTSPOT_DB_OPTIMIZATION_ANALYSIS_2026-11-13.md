@@ -17,7 +17,7 @@
 | 最大优化对象 | FTS 索引 34.41 MB（判为分词器固有成本） | **FTS 索引碎片 30.74 MB（删行遗留）** |
 | 首推手段 | 去掉 summary 索引（牺牲召回换空间） | **重建 FTS（零能力损失）** |
 | 对 `auto_vacuum=0` / `journal_size_limit=-1` | 视为「SQLite 固有约束」 | **识别为两个可修的配置缺陷** |
-| 对 `llm_cache` | 「TTL 衰减待核」 | **废弃表（全仓零引用），直接清空** |
+| 对 `llm_cache` | 「TTL 衰减待核」 | **只删 TTL 过期行**（v2 误判为废弃表，勘误见 §0.3） |
 | 对 `fts_rebuild_job` | 未发现 | **发现其每 5 分钟重建的是 0 行死表** |
 | 验收指标 | `hotspot.db ≤ 120 MB` | **零停机 / 碎片率 / 过期行 / 可重建率 / 召回不降级** |
 | 兜底基线 | 无 | **「只修缺陷不改架构」基线 = −36 MB，且已足够接近目标** |
@@ -32,8 +32,17 @@
 | E4 | `chunk_service._search_fts` 是 `hotspots_fts` 消费点 | 它查 `knowledge_chunks_fts_cjk`，与 hotspots 无关；且仓库**早有 trigram 中文索引先例** | 源码 L165 |
 | E5 | `kl_transition` 账可由 md 重建 | **不可重建**：23,244 行 / 11,964 path = **1.94 行/path** 的多步时序；md 只有最终 lifecycle | 实测分布 |
 | E6 | `sink` 账可由 md 重建 | **不可重建**：sink 的 `ts` 是归档时刻，md 记录无此字段 | 实测样例 |
-| E7 | `llm_cache` TTL「待核」 | **废弃表**：全仓 `.py/.ts/.tsx/.sql` 零运行时引用；17,230/17,947 行已过期 | 全仓 grep |
+| E7 | `llm_cache` TTL「待核」 | ~~废弃表~~ → **勘误见 §0.3**：活跃缓存表，17,315/18,100 行已过期 | 全仓 grep + `ai_hub/cache.py` |
 | E8 | 「P0+P1 → ~90 MB」 | 算术应为 105.3 MB（差 15.3 MB） | 加总核对 |
+
+### 0.3 v2.1 自我勘误（本方案自身的错误，实施时发现）
+
+| # | v2 论断 | 实测事实 | 证据 |
+|---|---|---|---|
+| **S1** | `llm_cache` 是「废弃表」，全仓零运行时引用，可直接 `DELETE FROM llm_cache` 清空 | **错误**。它是 ai_hub 的**活跃缓存表**：`backend/services/ai_hub/cache.py` 定义读写，`gateway.py` 有 5 处调用（score / classify / ner 等）。此前的 grep 排除了 migrations 但漏了 `ai_hub/` 包内的引用。**正确处置 = 只删 TTL 过期行**（周期兜底清扫冷 key），绝不整表清空/删表 | `ai_hub/cache.py` L1-60 + `gateway.py` 调用点 |
+| **S2** | （同上衍生）「清了不损失能力」 | **会损失**：清空即让全部缓存命中归零，AI 打分/分类链在下一次调用前退化为全量上游请求 | 同上 |
+
+**影响**: P0-2 从「清空废弃表（−5.30 MB）」改为「TTL 过期行清扫（实测 −17,315 行）」。体积收益在实施后确认，**不再作为独立收益项**计入；能力侧的「不打断 AI 调用链」优先。
 
 ---
 
@@ -61,7 +70,7 @@ v1 的方案主体（账下沉 / 原文外移 / 反查改道）**恶化了前两
 | `hotspots_fts` | 否 | **是** | 否 | **留 DB**；但必须**可在线重建**（碎片治理） |
 | `admission_log` 原文 | 否 | 否 | 否 | 可外移，**但绝不进 `llm-wiki-2.0/`**（wiki 只放知识） |
 | `wiki_events` 账 | 是 | 是 | 是 | **先定性「证据 or 索引」，技术方案不能替代定性** |
-| `llm_cache` | 否 | 否 | 否 | **纯派生 → 清空**（非优化，是清废） |
+| `llm_cache` | 否 | 否 | 否 | **纯派生 → 周期性清扫过期行**（活跃表，不可删表） |
 | `v1_materials` | 是 | 是 | 是 | **留**，去重收益 3 MB 不值得改写入路径 |
 
 ### 1.3 「证据」与「索引」必须先定性
@@ -88,7 +97,7 @@ v1 的 B1 方案隐含「账能由对象重建，所以账可删」——这是*
 | `v1_materials` | 6.57 MB | 养料引用层 | 否 |
 | `v1_signals` | 5.61 MB | 养料 | 否 |
 | `llm_usage_log` | 5.62 MB | 日志（30 天已截） | 否 |
-| **`llm_cache`** | **5.30 MB** | **废弃表（17,230 行过期）** | ✅ **−5.30 MB** |
+| **`llm_cache`** | **5.30 MB** | **活跃缓存（17,315 行已过期）** | ✅ **只删过期行**（实测 −17,315 行） |
 | `v1_evidence_receipts` | 4.59 MB | 养料 | 否 |
 | `security_edges` + 索引 | 5.81 MB | 工作集 | 否 |
 | `job_runs` | 3.27 MB | 日志（20k 环截） | 否 |
@@ -108,7 +117,7 @@ v1 的 B1 方案隐含「账能由对象重建，所以账可删」——这是*
 | 对象 | 事实 | 处置 |
 |---|---|---|
 | `fts_rebuild_job`（`maintenance.py:502`，每 5 分钟） | `INSERT INTO unified_fts(unified_fts) VALUES('rebuild')`，而 **`unified_fts` 实测 0 行 / 0.02 MB** | 移除该语句（保留同 job 的 `wiki_items_fts` 自愈部分），并把碎片治理指向真正的 `hotspots_fts` |
-| `llm_cache`（migration 052 建表） | 全仓零运行时引用，17,947 行中 17,230 行已过期 | 清空行（**不删表**，遵守 X-6）；若确认永久不用则登记台账为 dead |
+| `llm_cache`（migration 052 建表） | **活跃缓存表**：`ai_hub/cache.py` 定义，`gateway.py` 5 处消费；18,100 行中 17,315 行已过期 | 只删 TTL 过期行（周期兜底），**不删表不清空**（勘误 §0.3） |
 
 ---
 
@@ -132,13 +141,14 @@ v1 的 B1 方案隐含「账能由对象重建，所以账可删」——这是*
 
 **实测证据**：副本库同一数据 34.64 → 3.90 MB，行数与词元数不变（无召回损失）。
 
-#### P0-2 废弃表 `llm_cache` 清空（−5.30 MB）
+#### P0-2 `llm_cache` TTL 过期行清扫（实测 −17,315 行）
 
-- `DELETE FROM llm_cache`（保留表结构，遵守 X-6）
-- 在 `scripts/retention.json` 登记为 `dead`（若 owner 确认永久不用，则后续可评估整表退役）
+- **不是**「废弃表清空」：`llm_cache` 是 ai_hub 活跃缓存（`gateway.py` 5 处消费），清空会打断 AI 调用链（勘误 §0.3）
+- `DELETE FROM llm_cache WHERE datetime(cached_at, '+' || ttl_seconds || ' seconds') < datetime('now')`
 - 加入 `cleanup_log_tables.py` 的清理清单（幂等，第二轮删 0 行）
+- ⚠️ 判定必须用 `datetime(...)` 同格式文本比较；用 `strftime('%s', ...)` 会因 TEXT/INTEGER 隐式转换把全部行误判过期（实测 18,100 vs 17,315）
 
-**这不是优化，是清废**：一张零引用的表占了 5.3 MB。
+**这是补读路径的惰性清理缺口**：`get_llm_cache` 只在缓存被再次读到时删单条过期行，冷 key 永久滞留（实测 95.7% 行已过期）。
 
 #### P0-3 两个配置缺陷修正（健壮性，非体积）
 
@@ -211,7 +221,7 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 |---|---|---|---|
 | **M1** | 零停机空间回收 | 回收空间**不需要停服** | 删除 1 万行后跑 `incremental_vacuum`，期间 `/api/health` 持续 200 |
 | **M2** | FTS 碎片率 | `fts_data 实际 / 重建基线 ≤ 1.2` | 健康检查 job 计算并落 `job_runs.meta` |
-| **M3** | 废弃 / 过期行 | `llm_cache` 行数 = 0（或表登记为 dead 且 0 行） | SQL |
+| **M3** | 过期缓存行 | `llm_cache` TTL 过期行数 = 0（表与新鲜行保留） | SQL |
 | **M4** | 可重建率 | 每张非养料表都能回答「丢了怎么恢复」 | `retention.json` 增加 `recovery` 字段，逐表填写 |
 | **M5** | 召回不降级 | summary 关键词检索回归用例通过 | 新增 `test_hotspots_fts_recall.py`（关键词命中 summary 的样本） |
 
@@ -235,7 +245,7 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 | 阶段 | 内容 | 前置 | 门禁 |
 |---|---|---|---|
 | **C2.6-P0a** | `scripts/rebuild_fts_index.py --defrag` + 碎片率健康检查 | 无 | 副本库实测 34.64 → 3.90 MB；召回用例全绿；`--dry-run` 默认 |
-| **C2.6-P0b** | `llm_cache` 清空 + 纳入 `cleanup_log_tables.py` | 无 | 幂等（第二轮删 0 行） |
+| **C2.6-P0b** | `llm_cache` TTL 过期行清扫 + 纳入 `cleanup_log_tables.py` | 无 | 幂等（第二轮删 0 行）；新鲜行与表保留 |
 | **C2.6-P0c** | `auto_vacuum=INCREMENTAL` + `journal_size_limit=32MB` + `cleanup_log_tables.py` 改 `incremental_vacuum` | 无 | M1 零停机验证；WAL 不再超 32 MB |
 | **C2.6-P0d** | `fts_rebuild_job` 移除死表 rebuild 语句 | 无 | jobs 数不变；`wiki_items_fts` 自愈仍工作 |
 | **C2.6-P1** | 按 §5 裁决结果实施 wiki_events / admission_log | **owner 裁决** | 逐项验收 |
@@ -265,11 +275,12 @@ c.commit(); print('after', round(sz(),2))
 PY
 
 # 2) 配置缺陷
-sqlite3 backend/hotspot.db "PRAGMA auto_vacuum; PRAGMA journal_size_limit;"   # 0 / -1
+sqlite3 backend/hotspot.db "PRAGMA auto_vacuum; PRAGMA journal_size_limit;"   # 0 / -1 → 0 / 33554432 (P0-3a 已实施)
 
-# 3) 废弃表
-grep -rn "llm_cache" --include=*.py backend/ | grep -v migrations   # 0 运行时引用
-sqlite3 backend/hotspot.db "SELECT COUNT(*) FROM llm_cache;"        # 17947
+# 3) 活跃缓存表 (勘误 §0.3: 不是废弃表)
+grep -rn "llm_cache" --include=*.py backend/ | grep -v migrations   # >0: ai_hub/cache.py + gateway.py 消费点
+sqlite3 backend/hotspot.db \
+  "SELECT COUNT(*), SUM(datetime(cached_at,'+'||ttl_seconds||' seconds') < datetime('now')) FROM llm_cache;"  # 18100 / 17315
 
 # 4) 死 job
 sqlite3 backend/hotspot.db "SELECT COUNT(*) FROM unified_fts;"      # 0

@@ -259,7 +259,7 @@ def test_cli_json_output_parseable(log_db: Path) -> None:
     env = json.loads(proc.stdout)
     assert env["ok"] is True
     assert {r["table"] for r in env["data"]["results"]} == {
-        "job_runs", "admission_log", "llm_usage_log", "wiki_events", "ai_scores"
+        "job_runs", "admission_log", "llm_cache", "llm_usage_log", "wiki_events", "ai_scores"
     }
 
 
@@ -286,6 +286,53 @@ def test_vacuum_truncates_wal_afterwards(tmp_path: Path) -> None:
     wal = p.with_name(p.name + "-wal")
     wal_size = wal.stat().st_size if wal.exists() else 0
     assert wal_size == 0, f"WAL 未被截断 (残留 {wal_size} B) → 净收益为负"
+
+
+def test_llm_cache_ttl_trim_deletes_only_expired(tmp_path: Path) -> None:
+    """llm_cache 只删 TTL 过期行, 新鲜行与**表本身**必须保留。
+
+    WHY: ``llm_cache`` 是 ai_hub 的活跃缓存表 (gateway 打分/分类/NER 读它),
+    不是废弃表 —— 按「废弃表整体删」处理会打断 AI 调用链; 反过来只靠读路径
+    惰性删单条, 冷 key 会永久滞留 (实测 18,100 行中 17,315 行已过期)。
+    正确语义 = 周期兜底清扫过期行。
+
+    回归护栏: 过期判定若用 ``strftime('%s', ...)`` (TEXT) 与 INTEGER 比较,
+    SQLite「INTEGER < TEXT 恒真」会把**所有行**当过期 → 本测试的新鲜行断言
+    会直接失败。
+    """
+    p = tmp_path / "cache.db"
+    conn = sqlite3.connect(str(p))
+    conn.executescript(
+        """
+        CREATE TABLE llm_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, cache_key TEXT NOT NULL UNIQUE,
+            provider TEXT NOT NULL, model TEXT NOT NULL, response TEXT NOT NULL,
+            cached_at TEXT NOT NULL, ttl_seconds INTEGER NOT NULL DEFAULT 86400);
+        """
+    )
+    now = datetime.now(timezone.utc)
+    conn.execute(
+        "INSERT INTO llm_cache (cache_key, provider, model, response, cached_at, ttl_seconds)"
+        " VALUES (?,?,?,?,?,?)",
+        ("stale", "p", "m", "{}", (now - timedelta(days=3)).isoformat(), 3600),
+    )
+    conn.execute(
+        "INSERT INTO llm_cache (cache_key, provider, model, response, cached_at, ttl_seconds)"
+        " VALUES (?,?,?,?,?,?)",
+        ("fresh", "p", "m", "{}", now.isoformat(), 86400),
+    )
+    conn.commit()
+    conn.close()
+
+    env = trim_all(p, dry_run=False)
+    assert env["ok"] is True, env
+    row = next(r for r in env["data"]["results"] if r["table"] == "llm_cache")
+    assert row["deleted"] == 1, "过期行应被删且只删 1 行"
+
+    conn = sqlite3.connect(str(p))
+    keys = {r[0] for r in conn.execute("SELECT cache_key FROM llm_cache")}
+    conn.close()
+    assert keys == {"fresh"}, "缓存表本身及其新鲜行必须保留 (不可整表删)"
 
 
 def _counts(db_path: Path) -> dict[str, int]:

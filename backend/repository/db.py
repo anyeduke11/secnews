@@ -210,6 +210,11 @@ def get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout=5000")
     # M2-T6: wal_autocheckpoint=1000 防 WAL 异常膨胀 (见 storage_design §7.3)
     conn.execute("PRAGMA wal_autocheckpoint=1000")
+    # R-17 C2.6-P0c: journal_size_limit 限 WAL 高水位。
+    # 默认 -1 = checkpoint 后**不截断** → WAL 按历史峰值长期占盘
+    # (实测 2026-11-13 积到 164 MB, autocheckpoint 只回写不复位文件大小)。
+    # 32 MB 足够覆盖单次大批量写入, 只影响 checkpoint 后的截断不影响正确性。
+    conn.execute("PRAGMA journal_size_limit=33554432")
 
     # M2-T6: 启动期 ATTACH warm/cold (HOT/WARM/COLD/FROZEN 分类存储)
     # - warm_db_path: 业务流水 (crawler_runs/raw_items/... 等 WARM 表)

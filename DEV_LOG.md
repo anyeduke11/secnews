@@ -1,4 +1,32 @@
 
+## [DEV-0351] v0.8.8 P2.5 — C2.6-P0b/P0c `llm_cache` TTL 清扫 + WAL 高水位治理（生产实跑）
+
+- **时间**: 2026-11-13
+- **类型**: 技术债清理（日志类表截断 + 连接配置缺陷）+ 方案文档勘误（**零业务逻辑改动**）
+- **依据**: [`docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`](docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md) §3 P0-2 / P0-3a、§0.3 勘误、§6 C2.6-P0b/P0c
+- **关联文件**:
+  - `scripts/cleanup_log_tables.py`（改）：`admission_log` 行数上限 15,000 → **5,000**（owner 裁决 2.A）；新增 `_trim_cache_ttl`；`_record` 对 `no such table` 记 `skipped` 而非失败
+  - `backend/repository/db.py`（改）：新增 `PRAGMA journal_size_limit=33554432`
+  - `backend/tests/test_cleanup_log_tables.py`（改）：CLI 表集合断言补 `llm_cache`；新增 `test_llm_cache_ttl_trim_deletes_only_expired`
+  - `docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`（改）：新增 §0.3 自我勘误，修正 E7 / P0-2 / M3 / 验证命令
+- **问题描述**:
+  1. **方案自身事实错误（E7）**：v2 把 `llm_cache` 定性为「废弃表，全仓零运行时引用」，实测它是 `ai_hub` **活跃缓存表**（`ai_hub/cache.py` + `gateway.py` 5 处消费）。按原方案清空会打断 AI 打分/分类/NER 调用链 → 改为「只删 TTL 过期行」，并回写勘误。
+  2. **冷 key 永久滞留**：读路径 `get_llm_cache` 只在「被再次读到」时删单条过期行 → 实测 18,100 行中 **17,315 行（95.7%）已过期**却长期占盘。
+  3. **WAL 按历史峰值长期占盘**：`journal_size_limit=-1`（默认）→ checkpoint 只回写**不复位文件大小**，实测 WAL 积到 **164.3 MB**。
+- **实现思路**:
+  - **每行自己的 TTL**：`datetime(cached_at,'+'||ttl_seconds||' seconds') < datetime('now')`。⚠️ 必须用 `datetime(...)` 而非 `strftime('%s',...)`：后者返回 TEXT，与 INTEGER 比较走「INTEGER < TEXT 恒真」隐式转换，会把**全部行**误判过期（实测 18,100 vs 17,315）。该陷阱已写入函数 docstring 防回归。
+  - **周期兜底 vs 惰性清理**：读路径保留（命中即删单条），本脚本做全表清扫，二者不冲突且幂等。
+  - **`journal_size_limit=32 MB`**：只影响 checkpoint 后的截断，不影响正确性；32 MB 足够覆盖单次大批量写入。
+- **生产实跑（2026-11-13）**:
+  - `cleanup_log_tables.py --execute` → `deleted_total=27374`（job_runs 59 / admission_log 10,000 / llm_cache 17,315 / 其余 0）
+  - `PRAGMA wal_checkpoint(TRUNCATE)` → **WAL 164.3 MB → 0.00 MB**，总占用 **328 → 163.76 MB**
+  - 剩余 `freelist_count=13602` / `page_count=41835` / `auto_vacuum=0` → ≈53 MB 需 VACUUM（P0-3 维护窗口）
+- **测试验证**: `pytest backend/tests/test_cleanup_log_tables.py backend/tests/test_repo_write_guard.py -q` → **14 passed**（新增 TTL 用例断言「过期行删 / 新鲜行留 / 表本身在」，同时是 `strftime` 陷阱的回归护栏）
+- **遗留**:
+  - `journal_size_limit` 需**重启服务**才对既有连接生效（pragma 是 per-connection）
+  - VACUUM 前必须先重启 + 之后 TRUNCATE checkpoint，否则重演「VACUUM 后 WAL 涨到 210 MB、净收益为负」的历史故障
+  - 回写后方案文档中 P0-2 不再贡献独立体积收益项（−5.30 MB 改为「不打断 AI 链优先」）
+
 ## [DEV-0350] v0.8.8 P2.5 — C2.6-P0a `hotspots_fts` 碎片回收（生产实跑）
 
 - **时间**: 2026-11-13

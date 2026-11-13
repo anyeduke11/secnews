@@ -92,6 +92,7 @@ def instrument_job(job_type: str):
                                   trace_id=trace_id)
             ok = False
             error_msg: str | None = None
+            result = None
             try:
                 result = await coro(*args, **kwargs)
                 ok = True
@@ -103,8 +104,10 @@ def instrument_job(job_type: str):
             finally:
                 duration_ms = int((time.time() - started_at) * 1000)
                 job_done_event(job_type, job_id, duration_ms, ok)
+                # v0.8.8 P2.5 M2: job 返回 dict → 落 job_runs.meta_json (指标可观测)
                 finish_job_run(rowid, ok=ok, duration_ms=duration_ms,
-                               error=error_msg)
+                               error=error_msg,
+                               meta=result if ok and isinstance(result, dict) else None)
                 reset_trace_id(trace_token)
 
         wrapper.__name__ = coro.__name__

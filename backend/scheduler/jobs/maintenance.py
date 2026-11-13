@@ -260,8 +260,31 @@ async def telemetry_window_job() -> None:
     )
 
 
+async def _check_fts_fragmentation(repo_root: Path, env: dict) -> dict | None:
+    """v0.8.8 P2.5 M2: 只读测量 hotspots_fts 碎片率 (落 job_runs.meta)。
+
+    走 ``scripts/rebuild_fts_index.py --check --json`` (mode=ro, 物理上不可能
+    写库) —— 与 defrag 共用同一份阈值与计算公式, 避免两处口径漂移。
+    失败返回 None: 指标缺失不该让 db_diet 主判定失败。
+    """
+    script = repo_root / "scripts" / "rebuild_fts_index.py"
+    try:
+        proc = await asyncio.to_thread(
+            subprocess.run,
+            [sys.executable, str(script), "--check", "--json"],
+            capture_output=True, text=True, env=env, timeout=60,
+        )
+        payload = json.loads(proc.stdout)
+    except Exception as e:
+        _logger.warning(f"db_diet_job: fts fragmentation check failed: {e}")
+        return None
+    keys = ("hotspots_rows", "fts_rows", "fts_bytes", "source_bytes",
+            "ratio", "needs_defrag", "row_mismatch")
+    return {k: payload[k] for k in keys if k in payload}
+
+
 @instrument_job("db_diet")
-async def db_diet_job() -> None:
+async def db_diet_job() -> dict | None:
     """v0.5 M2-Task4: weekly_maintenance 链末尾调 db_diet。
 
     调用 ``scripts/db_diet.py`` 作为子进程 (避免把 cleanup_table 逻辑
@@ -364,6 +387,25 @@ async def db_diet_job() -> None:
             },
             source="db_diet",
         )
+
+    # v0.8.8 P2.5 M2: FTS 碎片率可观测 (方案 v2 §4 M2)。
+    # contentless FTS5 删行只打墓碑不回收页, 且 auto_vacuum=0 下页只进
+    # freelist —— 碎片既不会被 TTL 清理链发现, 也不会自愈。这里只读测量,
+    # 指标随 instrument_job 落 job_runs.meta_json, 超标再告警。
+    frag = await _check_fts_fragmentation(repo_root, env)
+    if frag and (frag.get("needs_defrag") or frag.get("row_mismatch")):
+        _logger.warning(
+            f"db_diet_job: fts 碎片率 {frag.get('ratio')} 超阈值 "
+            f"needs_defrag={frag.get('needs_defrag')} "
+            f"row_mismatch={frag.get('row_mismatch')}"
+        )
+        await _fire_alert(
+            metric="db.fts_fragmentation", level="warn",
+            value=float(frag.get("ratio") or 0),
+            detail={"job": "db_diet", **frag},
+            source="db_diet",
+        )
+    return {"fts": frag} if frag else None
 
 
 @instrument_job("log_trim")

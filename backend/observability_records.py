@@ -60,20 +60,29 @@ def start_job_run(job_type: str, job_id: str, trace_id: str | None = None,
 
 
 def finish_job_run(rowid: int, *, ok: bool, duration_ms: int,
-                   error: str | None = None) -> None:
-    """UPDATE job_runs SET status, finished_at, duration_ms, error。
+                   error: str | None = None,
+                   meta: dict[str, Any] | None = None) -> None:
+    """UPDATE job_runs SET status, finished_at, duration_ms, error (+ meta_json)。
 
     ok=False 时必传 error (≤500 字); rowid=None (start 失败) 时本调用直接返回。
+    ``meta`` (v0.8.8 P2.5 M2): job 返回的指标 dict 落 meta_json; 未传则不动该列
+    (避免把 start 阶段写入的 meta 清空)。超 2,000 字符丢弃 —— job_runs 是
+    20,000 行环表, meta 不承担大对象存储。
     """
     if rowid is None:
         return
     try:
-        get_connection().execute(
-            "UPDATE job_runs SET status = ?, finished_at = ?, duration_ms = ?, "
-            "error = ? WHERE id = ?",
-            ("ok" if ok else "failed", _now_iso(), int(duration_ms),
-             (str(error)[:500] if error else None), int(rowid)),
-        )
+        sql = ("UPDATE job_runs SET status = ?, finished_at = ?, duration_ms = ?, "
+               "error = ?")
+        params: list[Any] = ["ok" if ok else "failed", _now_iso(),
+                             int(duration_ms),
+                             (str(error)[:500] if error else None)]
+        meta_json = json.dumps(meta, ensure_ascii=False, default=str) if meta else None
+        if meta_json is not None and len(meta_json) <= 2000:
+            sql += ", meta_json = ?"
+            params.append(meta_json)
+        params.append(int(rowid))
+        get_connection().execute(sql + " WHERE id = ?", params)
     except Exception as e:
         log.debug(f"finish_job_run failed: {e}")
 

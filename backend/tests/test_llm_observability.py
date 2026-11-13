@@ -158,6 +158,31 @@ def test_job_runs_finish_failed(temp_db):
     assert row["error"] == "boom"
 
 
+def test_job_runs_finish_persists_meta(temp_db):
+    """v0.8.8 P2.5 M2: job 指标 (如 FTS 碎片率) 随收尾落 meta_json。"""
+    import json
+
+    rid = start_job_run("t", "t-meta")
+    finish_job_run(rid, ok=True, duration_ms=1,
+                   meta={"fts": {"ratio": 1.3, "needs_defrag": True}})
+    row = get_connection().execute(
+        "SELECT meta_json FROM job_runs WHERE id = ?", (rid,)
+    ).fetchone()
+    assert json.loads(row["meta_json"])["fts"]["ratio"] == 1.3
+
+
+def test_job_runs_finish_without_meta_keeps_start_meta(temp_db):
+    """finish 不传 meta 时不得清空 start 阶段写入的 meta_json。"""
+    import json
+
+    rid = start_job_run("t", "t-meta-keep", meta={"phase": "start"})
+    finish_job_run(rid, ok=True, duration_ms=1)
+    row = get_connection().execute(
+        "SELECT meta_json FROM job_runs WHERE id = ?", (rid,)
+    ).fetchone()
+    assert json.loads(row["meta_json"]) == {"phase": "start"}
+
+
 def test_job_runs_finish_with_none_rowid_noop(temp_db):
     # start_job_run 失败时返 None; finish_* 收到 None 直接返回, 不抛错
     finish_job_run(None, ok=True, duration_ms=0)
@@ -320,3 +345,22 @@ def test_instrument_job_writes_failed(temp_db):
     assert len(rows) == 1
     assert rows[0]["status"] == "failed"
     assert "simulated" in rows[0]["error"]
+
+
+def test_instrument_job_records_returned_dict_as_meta(temp_db):
+    """v0.8.8 P2.5 M2: job 返回 dict 即指标自述, 自动落 job_runs.meta_json。"""
+    import asyncio
+    import json
+
+    from backend.scheduler.jobs._runtime import instrument_job
+
+    @instrument_job("dummy_meta")
+    async def _j():
+        return {"fts": {"ratio": 1.9}}
+
+    asyncio.run(_j())
+
+    row = get_connection().execute(
+        "SELECT meta_json FROM job_runs WHERE job_type = 'dummy_meta'"
+    ).fetchone()
+    assert json.loads(row["meta_json"]) == {"fts": {"ratio": 1.9}}

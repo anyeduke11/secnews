@@ -220,10 +220,10 @@ MB 是代理指标，会诱导错误优化（v1 即典型案例）。改用五�
 | # | 指标 | 判据 | 测法 |
 |---|---|---|---|
 | **M1** | 零停机空间回收 | 回收空间**不需要停服** | 删除 1 万行后跑 `incremental_vacuum`，期间 `/api/health` 持续 200 |
-| **M2** | FTS 碎片率 | `fts_data 实际 / 重建基线 ≤ 1.2` | 健康检查 job 计算并落 `job_runs.meta` |
+| **M2** | FTS 碎片率 | `fts_data 实际 / 重建基线 ≤ 1.2` | 健康检查 job 计算并落 `job_runs.meta` —— **已实施**：`db_diet_job` 末尾只读调 `scripts/rebuild_fts_index.py --check --json`（与 defrag 共用阈值口径），`needs_defrag`/`row_mismatch` 时发 `db.fts_fragmentation` warn 告警；`finish_job_run(meta=...)` + `instrument_job` 自动落 `job_runs.meta_json`（≤2,000 字符） |
 | **M3** | 过期缓存行 | `llm_cache` TTL 过期行数 = 0（表与新鲜行保留） | SQL |
 | **M4** | 可重建率 | 每张非养料表都能回答「丢了怎么恢复」 | `retention.json` 增加 `recovery` 字段，逐表填写 —— **已实施**：台账 104 → 169 条，`recovery` 5 值枚举覆盖全部物理表（双向差集 0，仅 FTS5 shadow 表豁免） |
-| **M5** | 召回不降级 | summary 关键词检索回归用例通过 | 新增 `test_hotspots_fts_recall.py`（关键词命中 summary 的样本） |
+| **M5** | 召回不降级 | summary 关键词检索回归用例通过 | 新增 `test_hotspots_fts_recall.py`（关键词命中 summary 的样本）—— **已实施**：2 用例（summary-only 关键词可检索 / title 关键词不丢），跑全套 migration 断言生产 schema，钉住「不去 summary 索引」 |
 
 **体积**降为观测项（记录但不做门禁）：P0 后预期 163.6 → ~127.6 MB。
 

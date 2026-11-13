@@ -1,4 +1,23 @@
 
+## [DEV-0354] v0.8.8 P2.5 — M2 FTS 碎片率可观测（job_runs.meta）+ M5 召回不降级护栏
+
+- **时间**: 2026-11-13
+- **类型**: 可观测性能力补全（**零业务逻辑改动**）+ 回归护栏
+- **依据**: [`docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`](docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md) §4 M2 / M5
+- **关联文件**:
+  - `backend/observability_records.py`（改）：`finish_job_run()` 增 `meta` 参数 —— ≤2,000 字符写 `meta_json`，未传则不动 start 阶段写入值，超限丢弃
+  - `backend/scheduler/jobs/_runtime.py`（改）：`instrument_job` wrapper 捕获 job 返回值，`ok and isinstance(result, dict)` 时自动落 meta
+  - `backend/scheduler/jobs/maintenance.py`（改）：新增 `_check_fts_fragmentation()`（子进程跑 `scripts/rebuild_fts_index.py --check --json`，只取 7 个指标键，异常返回 None）；`db_diet_job` 末尾调用并在 `needs_defrag`/`row_mismatch` 时发 `db.fts_fragmentation` warn 告警；签名 `-> None` 改 `-> dict | None`
+  - `backend/tests/test_llm_observability.py`（改）：新增 3 用例（meta 落库 / finish 不传 meta 不清空 start meta / instrumented job 返回 dict 自动落 meta）
+  - `backend/tests/test_hotspots_fts_recall.py`（新建）：2 用例（summary-only 关键词可检索 / title 关键词不丢）
+- **问题描述**: M2「FTS 碎片率 ≤1.2」此前无采集通道 —— `job_runs` 只有 `start_job_run` 能写 `meta_json`，`finish_job_run` 无法追加，job 内部指标无处落地；M5「召回不降级」也没有回归用例，v2 §3 P2 曾提议「FTS 去 summary 索引」（收益 ≤3.4 MB）可静默通过 CI。
+- **决策**:
+  1. **指标自述契约**：job 返回 `dict` 即指标，`instrument_job` 自动落 `job_runs.meta_json`，不为单个 job 写专属写库代码；2,000 字符上限因为 `job_runs` 是 20,000 行环表。
+  2. **口径单一**：碎片率不在 job 内重算，直接调 `rebuild_fts_index.py --check --json`（`mode=ro`，与 `--defrag` 共用同一份 `DEFRAG_RATIO_THRESHOLD` / 公式），避免「测量侧」与「治理侧」阈值漂移。
+  3. **测量不致命**：`_check_fts_fragmentation` 任何异常返回 None，骨架 `db_diet_job` 的清理主判定不受观测失败影响。
+  4. **M5 钉 schema 而非手写 DDL**：用例走 `temp_db` 全套 migration，断言生产 `hotspots_fts` 同时索引 title + summary —— 未来若有人为省空间去掉 summary，测试立即失败。
+- **测试验证**: `pytest test_llm_observability.py test_scheduler_jobs_v1_7.py test_hotspots_fts_recall.py -q` → **38 passed**；`generate_meta.py --check` OK；`ruff check` 通过（5 个改动文件）
+
 ## [DEV-0353] v0.8.8 P2.5 — C2.6-P2 台账全量闭合（M4 可重建率落地）+ owner 两项裁决回写
 
 - **时间**: 2026-11-13

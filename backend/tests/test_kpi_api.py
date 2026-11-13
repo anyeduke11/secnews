@@ -45,14 +45,40 @@ def _seed_parents() -> None:
     conn.commit()
 
 
-def _seed_case_with_signal(signal_created: str, lag_seconds: int, case_id: str = "CASEKPI000000000000000001") -> None:
-    """种 1 信号 + 1 关联 case (时延 = lag_seconds); 信号 id 从 case_id 派生保证独立。"""
+def _days_ago_iso(days: int) -> str:
+    """窗内的相对时间 (ISO `T` 分隔, 与生产 v1 表主格式一致)。
+
+    为什么不用硬编码日期: 服务按 ``datetime('now', '-30 days')`` 取窗,
+    写死日期会随日历推移出窗 → ``samples`` 变 0 (日期腐烂, DEV-0346 定性)。
+    """
+    from datetime import datetime, timedelta
+
+    return (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _seed_case_with_signal(
+    signal_created: str,
+    lag_seconds: int,
+    case_id: str = "CASEKPI000000000000000001",
+    *,
+    sep: str = "T",
+) -> None:
+    """种 1 信号 + 1 关联 case (时延 = lag_seconds); 信号 id 从 case_id 派生保证独立。
+
+    ``sep`` 控制时间戳分隔符: 生产 ``v1_cases.created_at`` 格式**混用**
+    (ISO ``T`` 与 SQLite 原生空格分隔, 实测 6 行里 5 + 1) → 两种都得能被
+    服务解析, 否则空格格式的行被静默跳过 → 时延样本漏算。
+    """
     _seed_parents()
     conn = get_connection()
     from datetime import datetime, timedelta
 
     t0 = datetime.strptime(signal_created, "%Y-%m-%dT%H:%M:%S")
     t1 = t0 + timedelta(seconds=lag_seconds)
+
+    def _fmt(dt: datetime) -> str:
+        return dt.strftime(f"%Y-%m-%d{sep}%H:%M:%S")
+
     sig_id = "SIG" + case_id[3:26]  # 与 case 一一对应 (避免共享信号污染时延样本)
     conn.execute(
         "INSERT OR IGNORE INTO v1_signals (id, subject_id, material_id, summary, "
@@ -60,27 +86,46 @@ def _seed_case_with_signal(signal_created: str, lag_seconds: int, case_id: str =
         "revision, created_at, updated_at) "
         "VALUES (?, 'SUBJKPI000000000000000001', 'MATKPI000000000000000001', 's', "
         "?, 'v', 'test', 'unverified', 'unverified', 1, ?, ?)",
-        (sig_id, signal_created, signal_created, signal_created),
+        (sig_id, _fmt(t0), _fmt(t0), _fmt(t0)),
     )
     conn.execute(
         "INSERT OR IGNORE INTO v1_cases (id, title, question, revision, created_at, updated_at, "
         "tags_json, related_subject_ids_json, related_signal_ids_json, related_case_ids_json) "
         "VALUES (?, 'T', 'Q', 1, ?, ?, '[]', '[]', ?, '[]')",
-        (case_id, t1.strftime("%Y-%m-%dT%H:%M:%S"), t1.strftime("%Y-%m-%dT%H:%M:%S"),
-         json.dumps([sig_id])),
+        (case_id, _fmt(t1), _fmt(t1), json.dumps([sig_id])),
     )
     conn.commit()
 
 
 def test_triage_latency_p50(temp_db) -> None:
-    """种 2 样本 (lag 60s / 600s, 各自独立信号) → P50 介于其间且 samples=2。"""
-    _seed_case_with_signal("2026-10-07T08:00:00", 60, "CASEKPI000000000000000001")
-    _seed_case_with_signal("2026-10-07T09:00:00", 600, "CASEKPI000000000000000002")
+    """种 2 样本 (lag 60s / 600s, 各自独立信号) → P50 介于其间且 samples=2。
+
+    种子时间用**相对时间** (窗内) 而非硬编码日期 —— 服务按
+    ``datetime('now', '-30 days')`` 取窗, 写死日期会随日历推移出窗。
+    """
+    _seed_case_with_signal(_days_ago_iso(1), 60, "CASEKPI000000000000000001")
+    _seed_case_with_signal(_days_ago_iso(2), 600, "CASEKPI000000000000000002")
     out = KpiService().triage_latency(days=30)
     assert out["samples"] == 2 and out["cases_total"] == 2
     assert out["p50_seconds"] is not None
     assert 60 <= out["p50_seconds"] <= 600
     assert out["min_seconds"] == 60.0 and out["max_seconds"] == 600.0
+
+
+def test_triage_latency_accepts_space_separated_timestamps(temp_db) -> None:
+    """空格分隔的时间戳也必须计入样本 (生产 `v1_cases.created_at` 格式混用)。
+
+    WHY: 生产实测 `v1_cases.created_at` 6 行里 5 行 ISO ``T`` 分隔 + 1 行
+    SQLite 原生空格分隔。若服务只认 ``T``, 那行会被静默跳过 → 分母
+    (cases_total) 含它、分子 (samples) 不含 → 口径不一致 + 时延漏算。
+    """
+    _seed_case_with_signal(
+        _days_ago_iso(1), 120, "CASEKPI000000000000000009", sep=" "
+    )
+    out = KpiService().triage_latency(days=30)
+    assert out["cases_total"] == 1
+    assert out["samples"] == 1, "空格分隔格式的时间戳被静默跳过了"
+    assert out["min_seconds"] == 120.0 and out["max_seconds"] == 120.0
 
 
 def test_triage_latency_case_without_signal_skipped(temp_db) -> None:

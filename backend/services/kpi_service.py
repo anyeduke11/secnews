@@ -14,9 +14,25 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 from backend.repository.db import get_connection
+
+# v1 表的 created_at 格式**混用**: 生产实测 `v1_cases` 6 行里 5 行 ISO
+# (`T` 分隔) + 1 行 SQLite 原生 (空格分隔)。只认一种 → 另一种被静默跳过。
+_TS_FORMATS = ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S")
+
+
+def _parse_ts(raw: object) -> datetime | None:
+    """解析时间戳 → naive datetime; 两种分隔符都认, 解析不了返回 None。"""
+    s = str(raw or "")[:19]
+    for fmt in _TS_FORMATS:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 class KpiService:
@@ -29,8 +45,10 @@ class KpiService:
         """
         rows = get_connection().execute(
             "SELECT c.created_at, c.related_signal_ids_json FROM v1_cases c "
-            "WHERE c.created_at >= datetime('now', ?) "
-            "ORDER BY c.created_at",
+            # datetime() 包一层: 裸字符串比较在格式混用时不可靠 (边界日
+            # `'...T08:00' >= '... 07:00'` 恒真 → 窗外的行被误纳)
+            "WHERE datetime(c.created_at) >= datetime('now', ?) "
+            "ORDER BY datetime(c.created_at)",
             (f"-{int(days)} days",),
         ).fetchall()
         latencies: list[float] = []
@@ -47,13 +65,9 @@ class KpiService:
             ).fetchone()
             if not sig or not sig[0]:
                 continue
-            from datetime import datetime
-
-            fmt = "%Y-%m-%dT%H:%M:%S"
-            try:
-                t0 = datetime.strptime(str(sig[0])[:19], fmt)
-                t1 = datetime.strptime(str(created_at)[:19], fmt)
-            except ValueError:
+            t0 = _parse_ts(sig[0])
+            t1 = _parse_ts(created_at)
+            if t0 is None or t1 is None:
                 continue
             latencies.append((t1 - t0).total_seconds())
         latencies.sort()

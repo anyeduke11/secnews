@@ -1,4 +1,29 @@
 
+## [DEV-0350] v0.8.8 P2.5 — C2.6-P0a `hotspots_fts` 碎片回收（生产实跑）
+
+- **时间**: 2026-11-13
+- **类型**: 技术债清理（索引碎片）+ 新增运维脚本（**零业务逻辑改动**）
+- **依据**: [`docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md`](docs/audit/HOTSPOT_DB_OPTIMIZATION_ANALYSIS_2026-11-13.md) §3 P0-1 / §6 C2.6-P0a
+- **关联文件**:
+  - `scripts/rebuild_fts_index.py`（新建，286 行）：`--check`(mode=ro 只读) / `--defrag` / `--force` / `--json`
+  - `backend/tests/test_rebuild_fts_index.py`（新建，6 测试）
+- **问题描述**: `hotspots_fts` 是 `content=''` 的 contentless FTS5，DELETE 只打墓碑**不回收页**；C2.3b 生产删 37,317 行后索引残留大量死页，实测 FTS 35.87 MB / ratio 13.73（稳态应 ≈1.5）。既有 `fts_rebuild_job` 每 5 分钟 rebuild 的是 **0 行死表 `unified_fts`**，从未治理过真正索引 → 碎片长期无人管。
+- **实现思路**:
+  - **单事务原子切换**：SQLite DDL 可事务化 → `BEGIN IMMEDIATE` 内完成「DROP 3 触发器 → DROP FTS → CREATE FTS → 全量重灌 → 重建 3 触发器」，取写锁消除「触发器缺失窗口」的并发写入，**无需停服**（实测 149 ms ≪ `busy_timeout` 5 s）。
+  - **不牺牲召回**：完整保留 `title + summary` 两列与 `unicode61`（v1 方案曾提议去 summary，批判审查已撤销：仅省 ≤3.4 MB 且 `MATCH` 无列过滤会静默降召回）。
+  - **可重建即免备份**：FTS 完全由 `hotspots` 派生，属 R-17「可重建」范畴，不做 DB 快照（C2.1 已退役备份链）。
+  - **碎片自判双重门槛**：`ratio > 3.0` **且** `fts_bytes > 4 MB`——小库 `dbstat` 对 FTS 影子表统计不可靠（30k 行小库可报 16 KB），绝对门槛避免误判。
+  - **两阶段空间回收如实分离**：defrag 只把页推入 freelist，`auto_vacuum=0` 时**文件不缩**；脚本输出显式区分「索引已整理 N MB」与「文件需 VACUUM」。
+- **生产实跑（2026-11-13，服务在跑，uptime 11.3h）**:
+  - 前：`rows=6651 fts_rows=6651 fts=35.87MB src=2.61MB ratio=13.73`
+  - 后：`FTS 35.87MB → 3.94MB（整理 31.93MB）| 149ms | rows=6651/6651`
+  - 复核：触发器 `hotspots_ad/ai/au` 全在；`MATCH 'AI'` 2296 命中；`/api/hotspots?search=安全` 879 条正常；`/api/health` ok
+  - 文件未缩（328.02 → 328.08 MB，−0.06 噪声）：符合 `auto_vacuum=0` 预期 → **P0-3 的前置依据**
+- **测试验证**: `pytest backend/tests/test_rebuild_fts_index.py -q` → **6 passed**（行为正确性 / 召回零差异 / 触发器存活 / check 不写 / 幂等 / auto_vacuum=0 时跳过回收）
+- **遗留观察（不在本项范围，如实记录）**:
+  - `unicode61` 无 CJK 分词：`MATCH '安全'` 仅 4 命中（整段中文被当作单一 token），而 `/api/hotspots` 的 879 条来自 `LIKE`。即 **FTS 对中文检索贡献极低**，其价值主要在英文/词元级；此为既有特性，P0-1 前后一致，未改动
+  - 文件真实缩小需 VACUUM 或 `auto_vacuum=INCREMENTAL`（P0-3 处理，须维护窗口）；`journal_size_limit=-1` 致 WAL 已积 164 MB，同属 P0-3
+
 ## [DEV-0349] v0.8.8 P2.5 — 开发流程复盘与优化（需求完成情况确认）
 
 - **时间**: 2026-11-13

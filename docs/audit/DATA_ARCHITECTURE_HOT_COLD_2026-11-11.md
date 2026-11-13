@@ -189,6 +189,14 @@ P2 消融（20 对象 × 约 23 min）正在当前工作树运行，改 `db.py` 
 >
 > ⚠️ **`favorites` 可解析率的既有孤儿（非本轮引入）**：重建后 `favorites` 可解析 **8/9**。逐条核查 → `favorites#8`（`github_TopHub GitHub 热榜_10`，2026-07-08 收藏）的热点**在生产库中本就不存在**（`hotspots` 查无此 id，`sink` 记账为 0）——**生产库当前（从未执行过任何删行）收藏可解析率本就是 8/9 = 88%**，属 2026-07-08 起的历史孤儿，与 C2.3a/C2.3b 无关。故 C2.3b 验收条件⑤应表述为「**可解析率不下降**」（基线 8/9）而非「绝对 100%」。
 
+> **C2.3b 生产执行事实（2026-11-13，p2.5.7）**：删行阶段在**生产库真实执行**（零错误）。`delete_sunk_hotspots(limit=5000)` 循环 8 批 → **删除 37,317 行 / 耗时 1.7 s**（与 C2.3a 沉降的 37,255 + 删行前采集新增 62 行一致）。删后核验：`hotspots` 43,721 → **6,414**（−37,317；多 10 行系服务运行期新采集入库，属正常）；`hotspots_fts` 同步 **6,414**（migration 078 触发器带旧值删除生效）；`hotspot_tags` 43,938 → **8,806**（级联删）；`favorites` **9** 条全保留，可解析率 **8/9**（与基线一致，**未下降**）；`wiki_events(kind='sink')` 账 **37,317** 不删（保留为重建凭据）；`ai_scores` **25,320** 行零误删（其 `hotspot_id` 存 `kl-*` 知识条目 id，与 `hotspots.id` 交集为 0 → 防御性同事务删未命中，符合预期）；`PRAGMA integrity_check` → **ok**。
+>
+> **T4 副本库重建复核**（`/tmp/c23b/rb.db`，生产不碰）：`rebuild_hot_index.py --from-cold` → `cold_records 37,317 / inserted 37,317 / tag_links 35,146 / skipped_tag_links 0 / diff_total 0 / missing_count 0` → 最终行数 **43,731 == 删前基线 43,721（容差 0，差 10 系新采集）**。
+>
+> **WAL 治理闭环**：删行后 `auto_vacuum=0` 下空间未回收 → 显式 `VACUUM`（202 MB → 164.6 MB，回收 37 MB）；WAL 模式下 VACUUM 把整库写入 WAL（165 MB），服务持有 WAL 连接时 `checkpoint(TRUNCATE)` 无法截断 → **停服后独立连接 checkpoint**，WAL 归零、库 175 MB。服务重启后 `/api/health` → `status: ok` / `integrity: ok` / `hotspots_count: 6414` / 56 jobs。
+>
+> **消费点生产复验**：`/api/health` ok；`/api/hotspots?days=2` → total 733（`list_picked` 按 pick_score 筛选的精选集域内计数，与删行无关）；`/api/favorites` → total 9 / count 9；`/api/ops/kpi` → `triage_latency.samples: 0`（30 天窗内无信号→case 样本，非数据问题）。
+
 **冷层记录契约（`feed/{yyyy-mm}.md`，实现即此格式）**：
 
 ```
@@ -440,7 +448,7 @@ updated_at: 2026-11-11T...
 | **P2.5-4** | 管道 B 重建脚本（§4.2）+ T4 门禁增量（§6.3） | ✅ **已交付**：`scripts/rebuild_hot_index.py` + `test_rebuild_hot_index.py`；T4 实测 36,855 冷层记录 → 重建 36,855 行（容差 0）、FTS 一致、对账差异 0 |
 | **P2.5-1** | 备份链退役（§6.1 + §6.2） | P2.5-4 通过（重建能力已就位，RA-14） + `grep backup` 0 残留 → ✅ **已交付**（p2.5.3）：2 service + 3 job + 3 端点 + 2 脚本 + 3 测试文件物理删除；`config.backup_dir` 移除；`retention.json` BACKUP_* 键清理；CI step + 前端 MaintPage 备份卡整块退役；`backend/backups/` 449 MB 目录消失；架构数字 jobs 57→55 / services 159→157 |
 | **P2.5-2** | 日志环截（§5） | T2 全绿 + 体积实测下降 → ✅ **已交付**（p2.5.4）：`scripts/cleanup_log_tables.py` + `log_trim_job`（每小时）；实测 199.36 → 49.26 MB（含索引，−75%），文件 363.9 → 196.9 MB（回收 167 MB）；消费点回归全绿（`/api/ops/runs` 30 天最大窗语义完整） |
-| **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 ✅ + 备份链已退役 ✅ + **生产实跑 T4 闭环复核通过**（2026-11-12，p2.5.5：用真实生产冷层 37,255 条删→重建→43,608 == 原值，容差 0）→ **就绪待启** |
+| **P2.5-3b** | 管道 A **删行阶段**开启 | P2.5-4 的 T4 全绿 ✅ + 备份链已退役 ✅ + **生产实跑 T4 闭环复核通过**（2026-11-12，p2.5.5：用真实生产冷层 37,255 条删→重建→43,608 == 原值，容差 0）→ ✅ **已交付**（2026-11-13，p2.5.7）：`delete_sunk_hotspots()` 生产执行 37,317 行 / 8 批 / 1.7 s / 零错误；删后 `hotspots` 6,414 / `hotspots_fts` 6,414（触发器同步）/ `hotspot_tags` 8,806（级联）/ `favorites` 9 全保留可解析率 8/9 未下降 / `ai_scores` 25,320 零误删 / integrity ok；副本库 T4 重建 37,317（`diff_total 0` / `missing_count 0`）→ 43,731 ≈ 删前基线；VACUUM 回收 37 MB + 停服 checkpoint 截断 WAL |
 | **P2.5-5** | `retention.json` 台账两层化重写 | `generate_meta --check` 通过 + 台账与实际表一致 |
 
 > **顺序修订说明**：原稿把 P2.5-4 排在 P2.5-1 之前（RA-14），但 P2.5-4 的输入 `feed/*.md` 由 P2.5-3 产出 → 「删库 → 重建 → 行数一致」在 3 落地前无真实数据可验。故 3 拆为 **3a 只写 / 3b 删行**，3a 提到最前；「重建先于备份退役」（4 先于 1）与「删行最后」（3b 最后）两条约束同时满足。

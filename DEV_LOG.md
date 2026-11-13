@@ -1,4 +1,67 @@
 
+## [DEV-0348] v0.8.8 P2.5 — 修复 KPI 日期腐烂 + 时间戳格式脆弱（C2.3b 附带）
+
+- **时间**: 2026-11-13
+- **类型**: Bug修复（**0 新能力 / 0 服务结构改动**；+2 测试 / −0 / +1 双格式解析辅助）
+- **依据**: `test_kpi_api.py::test_triage_latency_p50` 失败（既有问题定性）
+- **问题根因（2 处）**:
+  1. **测试侧日期腐烂**: `_seed_case_with_signal("2026-10-07T08:00:00", ...)` 硬编码种子日期 → 服务按 `datetime('now','-30 days')` 取窗 → 2026-10-07 随日历推移出窗 → `samples=0` → `assert 0 == 2`
+  2. **服务侧时间戳格式脆弱**: `kpi_service.triage_latency` 原用 `datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")` 只认 ISO `T` 分隔 → 生产实测 `v1_cases.created_at` 格式**混用**（6 行里 5 行 ISO `T` + 1 行 SQLite 原生空格分隔）→ 空格格式行被 `except ValueError: continue` **静默跳过** → 分母 `cases_total` 含它、分子 `samples` 不含 → 口径不一致 + 时延漏算
+- **修复**:
+  - 测试侧: 新增 `_days_ago_iso(days)` 辅助函数用**相对时间**（窗内）替代硬编码日期；`_seed_case_with_signal` 增加 `sep` 参数可指定分隔符
+  - 服务侧: 新增 `_parse_ts()` 双格式解析（`%Y-%m-%dT%H:%M:%S` + `%Y-%m-%d %H:%M:%S`）；SQL 侧 `WHERE datetime(c.created_at) >= datetime('now', ?)` 归一（裸字符串比较在格式混用时不可靠，边界日恒真会误纳窗外行）
+- **测试**:
+  - 新增 `test_triage_latency_accepts_space_separated_timestamps`（锁定空格格式必须计入样本）
+  - `pytest backend/tests/test_kpi_api.py` → **6 passed**（原 5 + 新 1）
+  - `pytest -k kpi` → **6 passed, 5405 deselected**
+  - `ruff check backend/services/kpi_service.py backend/tests/test_kpi_api.py` → All checks passed
+- **同类修复**: `test_cleanup_log_tables.py::test_row_cap_keeps_newest_and_drops_oldest` 同为日期腐烂（断言用「今天日期字符串」比较，种子跨 1 天时昨天数据必然失败）→ 改为与「第 101 新」的边界值比较（日期无关）→ `test_cleanup_log_tables.py` **10 passed**
+- **生产核验**: `v1_cases.created_at` 格式分布实测（6 行: 5 ISO `T` + 1 空格）→ 修复后双格式均纳入
+- **门禁**: `generate_meta --check` 数字零漂移；`harness_analyze --check` errors 0
+- **关联文件**: `backend/services/kpi_service.py`、`backend/tests/test_kpi_api.py`、`backend/tests/test_cleanup_log_tables.py`
+
+## [DEV-0347] v0.8.8 P2.5 — C2.3b 沉降删行交付 + 生产实跑完成
+
+- **时间**: 2026-11-13
+- **类型**: 功能交付 + 生产执行（**0 新增端点 / 0 新增 job / 0 schema 变更**；+1 service 函数 / +6 测试）
+- **依据**: [`docs/v0.8.8/V0.8.8_REFACTOR_PRD.md`](docs/v0.8.8/V0.8.8_REFACTOR_PRD.md) §4.17 R-17；[`docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md`](docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md) §4.1 / §9 / §10；[`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3
+- **实现**: `backend/services/wiki_archiver.py::delete_sunk_hotspots()`
+  - **删行唯一放行条件 = `wiki_events(kind='sink')` 记账** —— md 已写 + 回读校验通过才记账，记账是删行的唯一凭据
+  - **`favorites` 命中双保险**: 选批已排除 + 此处 `NOT EXISTS(favorites)` 再验 → 收藏永不下沉
+  - **`hotspot_tags`** 随 `hotspots` ON DELETE CASCADE 自动删（migration 024）
+  - **`hotspots_fts`** 由 migration 078 触发器**带旧值**删除 → 普通 `DELETE FROM hotspots` 即自动同步，**不手写 FTS DML、不 REINDEX**
+  - **`ai_scores`** FK 已剥离（migration 132）→ **同事务显式删**悬空行
+  - **事务**: 删 `hotspots` + 删 `ai_scores` 同事务（`BEGIN/COMMIT/ROLLBACK`，与代码库既有约定一致），失败整体回滚，不留中间态
+  - **幂等**: 重复跑删 0 行（已删行无 sink 记账可匹配）
+- **测试（`test_hot_cold_sink.py` 新增 6，共 12）**:
+  - `test_delete_only_rows_with_sink_accounting` —— 无账的行绝不删
+  - `test_delete_never_touches_favorites` —— 收藏命中双保险（手动造账模拟极端情况）
+  - `test_delete_syncs_fts_and_cascade_tags` —— FTS 触发器同步 + hotspot_tags 级联
+  - `test_delete_same_transaction_removes_ai_scores` —— 同事务删悬空行
+  - `test_delete_is_idempotent` —— 重复跑删 0 行
+  - `test_delete_dry_run_removes_nothing` —— dry-run 只算不删
+- **生产执行前基线**: `hotspots` 43,721 / `hotspots_fts` 43,721 / `hotspot_tags` 43,938 / `favorites` 9 / `ai_scores` 25,320 / `wiki_events sink` 37,317 / 可删行数（sink 账+无收藏）37,317 / 收藏命中 8
+- **生产实跑**: `delete_sunk_hotspots(limit=5000)` 循环 8 批 → **删除 37,317 行 / 耗时 1.7 s / 零错误**
+- **删后核验**:
+
+  | 项 | 删前 | 删后 | 说明 |
+  |---|---|---|---|
+  | `hotspots` | 43,721 | **6,414** | −37,317；+10 系服务运行期新采集入库（正常） |
+  | `hotspots_fts` | 43,721 | **6,414** | migration 078 触发器带旧值删除生效 |
+  | `hotspot_tags` | 43,938 | **8,806** | ON DELETE CASCADE 级联删 |
+  | `favorites` | 9 | **9** | 全保留，可解析率 **8/9**（与基线一致，未下降） |
+  | `wiki_events sink` | 37,317 | **37,317** | 账不删，保留为重建凭据 |
+  | `ai_scores` | 25,320 | **25,320** | 零误删（`hotspot_id` 存 `kl-*` 与 `hotspots.id` 交集 0，防御性同事务删未命中，符合预期） |
+  | `integrity_check` | ok | **ok** | — |
+
+- **T4 副本库重建复核**（`/tmp/c23b/rb.db`，生产不碰）: `rebuild_hot_index.py --from-cold` → `cold_records 37,317 / inserted 37,317 / tag_links 35,146 / skipped_tag_links 0 / diff_total 0 / missing_count 0` → 最终行数 **43,731 ≈ 删前基线 43,721（容差 0，差 10 系新采集）**
+- **WAL 治理闭环**: 删行后 `auto_vacuum=0` 下空间未回收 → 显式 `VACUUM`（202 → 164.6 MB，回收 37 MB）；WAL 模式下 VACUUM 把整库写入 WAL（165 MB），服务持有 WAL 连接时 `checkpoint(TRUNCATE)` 无法截断 → **停服后独立连接 checkpoint**，WAL 归零、库 175 MB（复用 C2.2 已修复的 WAL 治理顺序）
+- **服务重启**: `tmux` 会话托管（延续 DEV-0345 方式）→ 重启后 `/api/health` → `status: ok` / `integrity: ok` / `hotspots_count: 6414` / 56 jobs
+- **消费点生产复验**: `/api/hotspots?days=2` → total 733（`list_picked` 按 pick_score 筛选的精选集域内计数，与删行无关）；`/api/favorites` → total 9 / count 9；`/api/ops/kpi` → `triage_latency.samples: 0`（30 天窗内无信号→case 样本，非数据问题）
+- **全量回归**: `pytest backend/tests/` → **5407 passed / 1 failed / 2 errors**（1 failed = `test_check_temp_db_sizes::test_hot_violation_when_over_limit` 断言字符串格式不匹配，2 errors = `test_cold_db_crypto` T01 隔离守卫冲突，均为**既有问题**，与 C2.3b 无关）
+- **门禁**: `ruff check` All checks passed；`generate_meta --check` OK（56/19/97/157/65，数字零漂移）；`harness_analyze --check` errors 0
+- **文档同步**: R-17 审计文档 §4.1（C2.3b 生产执行事实块）/ §9（P2.5-3b 行标已交付）；PRD 状态行 + `v0.8.8-p2.5.7` 修订行；实施计划 plan.7 + 状态行 + 阶段表 + C2.3b 行
+
 ## [DEV-0346] v0.8.8 P2.5 — C2.2 WAL 治理缺陷修复（VACUUM 后未 checkpoint → 净收益为负）
 
 - **时间**: 2026-11-12

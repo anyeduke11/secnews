@@ -1,4 +1,15 @@
 
+## [DEV-0369] v0.8.9 P0 基线盘点 — 执行链勘察审计落档（C0-1）
+
+- **时间**: 2026-11-14
+- **类型**: 基线盘点落档（P0 唯一 commit；零代码改动）
+- **依据**: `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` §1 C0-1（D1~D8 已裁决 DEV-0368）
+- **关联文件**:
+  - `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`（新建）：§1 六断点总表 + §2~§9 八节全量 file:line 证据（run 推进链 / action 链 / pi·dsh 执行能力 / P10 设计对照表 / Case 关闭与 SK-04 断点 / 提案通道 / v1_runs schema / 观测面含 artifact_yield 口径 bug）+ §10 基线快照冻结 + §11 D1~D8 裁决↔证据映射
+  - `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` + `V0.8.9_PRD.md`：P0 行闭合 ✅
+- **基线快照（冻结）**: v1_runs=0 / v1_artifacts=0 / proposals=2 / actions planned=1 / judgments published=1 / cases 6 open 0 closed / signals 7,684 / receipts 15,549 / outbox 355 行 0 积压 / trigger_tickets 53 全遗物
+- **验证**: 全部数字本日只读实测复核（F-2 生产首跑复核纪律：冻结前二次核验）；P1（C1-1 Run 人工回执 API）前置全绿可启动
+
 ## [DEV-0368] v0.8.9 裁决 D1~D8 — 按推荐项定稿，实施全解锁
 
 - **时间**: 2026-11-14

@@ -5,7 +5,7 @@
  *  - 6 个按钮全渲染 (c4 范围约束)
  *  - 路由型按钮调用 useNavigate
  *  - API 型按钮调用 fetch + 显示 toast
- *  - 端点未就绪的按钮 (转 Case) 置灰且不发起请求
+ *  - 「转 Case」POST /api/v1/cases 成功跳 /action, 失败 fail-loud (C5-6)
  *  - busy 状态互斥 (一次只能一个按钮忙)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -82,18 +82,56 @@ describe('KnowledgeActionBar', () => {
     });
   });
 
-  it('「转 Case」置灰且不发起请求 (R-13: /api/todos 已下线, 端点未就绪)', async () => {
+  it('「转 Case」POST /api/v1/cases 成功后跳 /action (C5-6: R-13 替代链收尾)', async () => {
+    // POST /api/v1/cases 成功响应带 {item:{id}} → toast 带实体 id + 跳转 /action
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true, status: 201,
+        json: async () => ({ version: '1.0', item: { id: 'case-x1' } }),
+      } as Response)
+    );
     render(
       <MemoryRouter>
         <KnowledgeActionBar />
       </MemoryRouter>
     );
     const btn = screen.getByRole('button', { name: /转 Case/ });
-    expect(btn).toBeDisabled();
-    expect(btn).toHaveAttribute('title', '转 Case（端点未就绪）');
+    expect(btn).not.toBeDisabled();
     fireEvent.click(btn);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/v1/cases',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"source":"knowledge"'),
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/action');
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('已创建');
+      expect(screen.getByRole('status')).toHaveTextContent('case-x1');
+    });
+  });
+
+  it('「转 Case」失败 fail-loud: 错误 toast + 不跳转', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: false, status: 500 } as Response)
+    );
+    render(
+      <MemoryRouter>
+        <KnowledgeActionBar />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByText('转 Case'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('失败');
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('shows toast on api success', async () => {

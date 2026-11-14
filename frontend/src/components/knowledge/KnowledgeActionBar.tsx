@@ -5,7 +5,8 @@
  *  - 出题复习     → /knowledge/review (ReviewMode 复用 SM-2 抽认卡)
  *  - 概念卡       → /knowledge/process (KnowledgeProcess 概念详情)
  *  - 写日报周报   → /api/digests/generate (POST) 触发 ai_hub 日报
- *  - 转 Case       → 端点未就绪 (R-13 待办域退役, 原 /api/todos 已下线), 置灰
+ *  - 转 Case       → POST /api/v1/cases 快捕立项 (R-13 替代链收尾 C5-6:
+ *                    原「转待办 /api/todos」已退役, 改建 Case 并跳 /action)
  *  - KL 进度可视化 → /knowledge/compile (LifecycleProgress 复用)
  *  - 研判流打通   → /knowledge/process (KnowledgeProcess KL 阶段详情)
  *
@@ -40,6 +41,8 @@ export interface ActionButton {
   apiBody?: Record<string, unknown>;
   /** 成功后是否显示 toast */
   showToast?: boolean;
+  /** 成功后跳转路由 (C5-6: 转 Case 成功 → /action 处置) */
+  redirectTo?: string;
   /** accent 颜色 (CSS var) */
   accent: 'ai' | 'info' | 'startup' | 'success' | 'warning';
   /** 置灰 (端点未就绪); 点击无动作, description 作 tooltip */
@@ -93,8 +96,17 @@ export const KNOWLEDGE_ACTION_BUTTONS: ActionButton[] = [
   {
     key: 'todo',
     label: '转 Case',
-    description: '转 Case（端点未就绪）',
-    disabled: true,
+    description: 'POST /api/v1/cases 快捕立项 → /action 处置',
+    apiEndpoint: '/api/v1/cases',
+    apiMethod: 'POST',
+    apiBody: {
+      title: '从知识管理转 Case',
+      question: '从知识管理转 Case：待补充研究问题与范围',
+      source: 'knowledge',
+      tags: ['from-knowledge'],
+    },
+    showToast: true,
+    redirectTo: '/action',
     iconPath: (
       <>
         <polyline points="9 11 12 14 22 4" />
@@ -152,15 +164,19 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
       setBusyKey(btn.key);
       try {
         // 非 2xx 由 apiFetch 抛错 → 与原非 ok 分支同样以 toast 呈现
-        await apiFetch(btn.apiEndpoint, {
+        const data = await apiFetch<{ item?: { id?: string } }>(btn.apiEndpoint, {
           method: btn.apiMethod ?? 'POST',
           body: btn.apiBody ? JSON.stringify(btn.apiBody) : undefined,
         });
         if (btn.showToast) {
-          setToast(`${btn.label} 已触发`);
+          // C5-6: 创建类端点返回 {item:{id}} 时 toast 带实体 id (POST /api/v1/cases)
+          const entityId = data?.item?.id;
+          setToast(entityId ? `${btn.label} 已创建（${entityId}）` : `${btn.label} 已触发`);
           setTimeout(() => setToast(null), 2500);
         }
+        if (btn.redirectTo) navigate(btn.redirectTo);
       } catch (e) {
+        // fail-loud: 失败显式报错, 不静默、不跳转
         setToast(`${btn.label} 失败: ${(e as Error).message}`);
         setTimeout(() => setToast(null), 2500);
       } finally {

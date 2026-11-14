@@ -59,7 +59,7 @@ def _collect_sources() -> list[dict]:
             # P0 SSRF 副作用根除 (Layer 2): wechat / sogou / disabled 源不需要 url,
             # 其他 renderer 必须有可抓 URL, 否则跳过后续 fetch_source 走 aiohttp
             # fallback 会 session.get("") 抛 InvalidUrlClientError。
-            # 与 backend/services/crawler_seed.py:146 守卫同语义。
+            # (R-16: 原 crawler_seed.py:146 守卫同语义 — 该孤儿 service 已删除)
             if enabled and renderer not in ("wechat", "sogou", "disabled", ""):
                 if not (url or feed_url):
                     continue

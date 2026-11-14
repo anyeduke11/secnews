@@ -1,4 +1,4 @@
-"""Tests for DegradationMatrix, CostMonitor, and T1/T3 hybrid AI integration.
+"""Tests for DegradationMatrix and T1/T3 hybrid AI integration.
 
 Phase 16 — Hybrid AI 配置降级 + 成本监控 + T1/T3 LLM 集成测试。
 
@@ -9,12 +9,6 @@ Coverage
    - status() 方法返回正确 JSON
    - create_degradation_matrix() 工厂函数
 
-2. CostMonitor (7 tests):
-   - record_usage() 写入 DB
-   - check_limits() 无超限 / 日限额超限 / 月限额超限
-   - get_daily_cost() / get_monthly_cost()
-   - get_on_exceeded_strategy()
-   - _estimate_cost() 静态函数
 
 3. T1/T3 Hybrid (3 tests):
    - T1 _score_with_llm() 调用 llm_service.score() 并正确回退
@@ -45,7 +39,6 @@ from backend.metrics.kl_metrics import kl_metrics
 from backend.repository import db as db_module
 from backend.repository.db import get_connection
 from backend.services.ai_hub import llm_service
-from backend.services.cost_monitor import CostMonitor, _estimate_cost
 from backend.services.triggers import T1Trigger, T3Trigger
 
 # ===================================================================
@@ -221,126 +214,6 @@ class TestDegradationMatrix:
         )
         matrix = create_degradation_matrix(fake_path)
         assert matrix.scenario == "no_config"
-
-
-# ===================================================================
-# CostMonitor
-# ===================================================================
-
-class TestCostMonitor:
-    """CostMonitor: record_usage, check_limits, cost queries, estimate."""
-
-    def test_estimate_cost(self):
-        """_estimate_cost 对已知/未知模型和零 token 返回正确值."""
-        # 已知模型
-        assert _estimate_cost("gpt-4o-mini", 1_000_000) == 0.15
-        assert _estimate_cost("gpt-4o", 1_000_000) == 5.0
-        # 未知模型 → 默认 $0.5/1M
-        assert _estimate_cost("unknown-model", 1_000_000) == 0.5
-        # 零 token
-        assert _estimate_cost("gpt-4o-mini", 0) == 0.0
-        # 负 token
-        assert _estimate_cost("gpt-4o-mini", -100) == 0.0
-
-    def test_record_usage(self, temp_db):
-        """record_usage() 写入 DB 后可读出."""
-        monitor = CostMonitor()
-        monitor.record_usage(
-            provider="openai",
-            model="gpt-4o-mini",
-            task="score",
-            tokens=150,
-            cost_usd=0.0001,
-            latency_ms=250,
-        )
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT provider, model, task, tokens, cost_usd, latency_ms "
-            "FROM llm_usage_log"
-        ).fetchall()
-        assert len(rows) == 1
-        assert rows[0]["provider"] == "openai"
-        assert rows[0]["model"] == "gpt-4o-mini"
-        assert rows[0]["task"] == "score"
-        assert rows[0]["tokens"] == 150
-        assert rows[0]["cost_usd"] == 0.0001
-        assert rows[0]["latency_ms"] == 250
-
-    def test_record_usage_multiple(self, temp_db):
-        """多次 record_usage() 累积写入."""
-        monitor = CostMonitor()
-        for _i in range(3):
-            monitor.record_usage("ollama", "qwen2.5:7b", "score", 100, 0.0, 50)
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM llm_usage_log"
-        ).fetchone()
-        assert rows["cnt"] == 3
-
-    def test_get_daily_cost_empty(self, temp_db):
-        """无记录时 get_daily_cost() 返回 0.0."""
-        monitor = CostMonitor()
-        assert monitor.get_daily_cost() == 0.0
-
-    def test_get_monthly_cost_empty(self, temp_db):
-        """无记录时 get_monthly_cost() 返回 0.0."""
-        monitor = CostMonitor()
-        assert monitor.get_monthly_cost() == 0.0
-
-    def test_get_daily_cost_with_data(self, temp_db):
-        """有记录时 get_daily_cost() 返回正确总和."""
-        monitor = CostMonitor()
-        monitor.record_usage("openai", "gpt-4o-mini", "score", 100, 0.5, 100)
-        monitor.record_usage("openai", "gpt-4o-mini", "score", 100, 1.5, 100)
-        assert monitor.get_daily_cost() == 2.0
-
-    def test_check_limits_no_limit(self, temp_db):
-        """未超限额时 check_limits() 返回 True."""
-        monitor = CostMonitor()
-        # 无配置 → 不检查 → True
-        assert monitor.check_limits() is True
-
-    def test_check_limits_daily_exceeded(self, temp_db, monkeypatch):
-        """日限额超限时 check_limits() 返回 False."""
-        cfg = _make_llm_config(daily_usd_limit=1.0, monthly_usd_limit=100.0)
-        monitor = CostMonitor(cfg)
-        # 插入超限数据
-        conn = get_connection()
-        now = datetime.now(timezone.utc).isoformat()
-        conn.execute(
-            "INSERT INTO llm_usage_log (provider, model, task, tokens, cost_usd, latency_ms, occurred_at) "
-            "VALUES ('openai', 'gpt-4o-mini', 'score', 100, 2.0, 0, ?)",
-            (now,),
-        )
-        # Mock _trigger_alert 避免 cg_events 表列名不匹配
-        monkeypatch.setattr(CostMonitor, "_trigger_alert", lambda *a, **kw: None)
-        assert monitor.check_limits() is False
-
-    def test_check_limits_monthly_exceeded(self, temp_db, monkeypatch):
-        """月限额超限时 check_limits() 返回 False."""
-        cfg = _make_llm_config(daily_usd_limit=100.0, monthly_usd_limit=5.0)
-        monitor = CostMonitor(cfg)
-        # 插入数据，日限额内但月限额超
-        conn = get_connection()
-        now = datetime.now(timezone.utc).isoformat()
-        conn.execute(
-            "INSERT INTO llm_usage_log (provider, model, task, tokens, cost_usd, latency_ms, occurred_at) "
-            "VALUES ('openai', 'gpt-4o-mini', 'score', 100, 10.0, 0, ?)",
-            (now,),
-        )
-        monkeypatch.setattr(CostMonitor, "_trigger_alert", lambda *a, **kw: None)
-        assert monitor.check_limits() is False
-
-    def test_get_on_exceeded_strategy_default(self):
-        """无配置时 get_on_exceeded_strategy() 返回 'warn'."""
-        monitor = CostMonitor()
-        assert monitor.get_on_exceeded_strategy() == "warn"
-
-    def test_get_on_exceeded_strategy_configured(self):
-        """配置为 block 时返回 'block'."""
-        cfg = _make_llm_config(on_exceeded="block")
-        monitor = CostMonitor(cfg)
-        assert monitor.get_on_exceeded_strategy() == "block"
 
 
 # ===================================================================

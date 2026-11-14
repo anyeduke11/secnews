@@ -1,19 +1,14 @@
-"""v0.7 Batch ⑤ — FeedbackAnalyzer + UserMemoryService 测试.
+"""v0.7 Batch ⑤ — UserMemoryService 测试 (R-16: FeedbackAnalyzer 孤儿 service 已删除).
 
 覆盖:
-- FeedbackAnalyzer.analyze_batch: 空批次、LLM 返回 JSON、记忆写入
 - UserMemoryService: 写入/读取/列表/上下文聚合
 """
 from __future__ import annotations
-
-import json
 
 import pytest
 
 from backend.config import config
 from backend.repository import db
-from backend.repository.feedback_repo import FeedbackRepository
-from backend.services.feedback_analyzer import FeedbackAnalyzer
 from backend.services.user_memory_service import UserMemoryService
 
 
@@ -25,58 +20,6 @@ def temp_db(monkeypatch: pytest.MonkeyPatch, tmp_path):
     db.init_db()
     yield test_db
     db.close_db()
-
-
-@pytest.fixture
-def analyzer(temp_db):
-    return FeedbackAnalyzer()
-
-
-def _insert_feedback(category="ai", source="test", tags=None):
-    repo = FeedbackRepository()
-    return repo.record(
-        entity_type="hotspot",
-        entity_id="h-1",
-        action="like",
-        signal=0.4,
-        category=category,
-        source=source,
-        tags=tags or ["vulnerability"],
-        title="Test",
-    )
-
-
-class TestFeedbackAnalyzer:
-    def test_empty_batch_returns_noop(self, analyzer):
-        result = analyzer.analyze_batch(batch_size=20)
-        assert result["ok"] is True
-        assert result["analyzed"] == 0
-        assert result["memory_keys"] == []
-
-    def test_analyze_batch_with_llm_mock(self, analyzer, temp_db, monkeypatch):
-        _insert_feedback()
-        mock_response = json.dumps({
-            "interests": ["ai", "vulnerability"],
-            "dislikes": ["noise"],
-            "preferred_sources": ["test"],
-            "reading_style": "deep",
-            "confidence": 0.9,
-            "summary": "AI 安全爱好者"
-        })
-        call_count = [0]
-
-        async def mock_generate(prompt, **kwargs):
-            call_count[0] += 1
-            return mock_response
-
-        monkeypatch.setattr("backend.services.ai_hub.llm_service.generate", mock_generate)
-
-        result = analyzer.analyze_batch(batch_size=20)
-        assert result["ok"] is True
-        assert result["analyzed"] == 1
-        assert len(result["memory_keys"]) > 0
-        assert call_count[0] >= 1
-        assert call_count[0] >= 1
 
 
 class TestUserMemoryService:

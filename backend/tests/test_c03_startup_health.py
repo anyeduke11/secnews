@@ -144,7 +144,6 @@ _RUFF_EXCLUDE_PATHS: list[str] = [
     "backend/services/alert_service.py",
     "backend/services/codegarden_drift.py",
     "backend/services/compilation_pipeline.py",
-    "backend/services/feedback_analyzer.py",
     "backend/services/source_pipeline.py",  # v0.8 业务代码, 不在 C03
     "backend/services/v1_evidence_service.py",  # 预先 F401
     "backend/api/legacy_migrate_api.py",  # 预先

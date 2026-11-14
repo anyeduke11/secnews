@@ -1,6 +1,10 @@
 {
   "$schema": "v0.5 M2-T6 全站表生命周期台账",
   "$purpose": "single-source-of-truth: 每张表 → 温度层 / 物理 db / retention / action / 关联 job。db_diet.py + migrate_temp_layers.py 读取此台账。",
+  "$logical_layers": {
+    "db": "热层 SQLite (hotspot.db + hotspot-warm.db ATTACH): 工作集 / 索引 / 状态",
+    "wiki": "冷层 llm-wiki-2.0/ md 真源: DB 行仅为投影, 丢失后可由 md 重建"
+  },
   "$temp_layers": {
     "HOT": {
       "db": "hotspot.db",
@@ -25,7 +29,8 @@
   },
   "$retention_keys_legend": {
     "table": "SQLite 表名",
-    "temp": "HOT | WARM | COLD | FROZEN",
+    "temp": "HOT | WARM | COLD | FROZEN (物理层: 行实际落在哪个 db 文件; migrate_temp_layers.py 依赖此字段)",
+    "layer": "db | wiki (逻辑两层: db=热层 SQLite 为权威工作集; wiki=冷层 llm-wiki-2.0 md 为权威, DB 行仅为可重建投影)",
     "ts_column": "时间戳列 (iso)",
     "retention_days": "保留 N 天, 之外 truncate/archive/keep",
     "action": "truncate | archive_db_table | archive_jsonl | keep",
@@ -38,6 +43,7 @@
     {
       "table": "_migration_056_placeholder",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -50,6 +56,7 @@
     {
       "table": "admission_label",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -62,6 +69,7 @@
     {
       "table": "admission_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -74,6 +82,7 @@
     {
       "table": "admission_set",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -86,6 +95,7 @@
     {
       "table": "admission_set_items",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -98,6 +108,7 @@
     {
       "table": "agent_preferences",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -110,6 +121,7 @@
     {
       "table": "agent_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -122,6 +134,7 @@
     {
       "table": "ai_scores",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -134,6 +147,7 @@
     {
       "table": "alert_deliveries",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -146,6 +160,7 @@
     {
       "table": "alert_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -158,6 +173,7 @@
     {
       "table": "alert_rule_definitions",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -170,6 +186,7 @@
     {
       "table": "alert_rules",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -182,6 +199,7 @@
     {
       "table": "alerts",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -194,6 +212,7 @@
     {
       "table": "annotations",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -206,6 +225,7 @@
     {
       "table": "api_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -218,6 +238,7 @@
     {
       "table": "api_metrics_hourly",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -230,6 +251,7 @@
     {
       "table": "attack_cwe_map",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -242,6 +264,7 @@
     {
       "table": "attack_techniques",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -254,6 +277,7 @@
     {
       "table": "attention_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -266,6 +290,7 @@
     {
       "table": "audit_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -278,6 +303,7 @@
     {
       "table": "audit_log_mp2_review",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -290,6 +316,7 @@
     {
       "table": "catchup_checkpoints",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "started_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -302,6 +329,7 @@
     {
       "table": "catchup_runs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "started_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -314,6 +342,7 @@
     {
       "table": "cg_dependencies",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -326,6 +355,7 @@
     {
       "table": "cg_drift_assessments",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -338,6 +368,7 @@
     {
       "table": "cg_events",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -350,6 +381,7 @@
     {
       "table": "cg_project_activities",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -362,6 +394,7 @@
     {
       "table": "cg_project_links",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -374,6 +407,7 @@
     {
       "table": "cg_project_stages",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -386,6 +420,7 @@
     {
       "table": "cg_projects",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -398,6 +433,7 @@
     {
       "table": "cg_resources",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -410,6 +446,7 @@
     {
       "table": "cg_services",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -422,6 +459,7 @@
     {
       "table": "collect_validations",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -434,6 +472,7 @@
     {
       "table": "collection_runs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "started_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -446,6 +485,7 @@
     {
       "table": "command_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -458,6 +498,7 @@
     {
       "table": "compliance_controls",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -470,6 +511,7 @@
     {
       "table": "compliance_event_map",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -482,6 +524,7 @@
     {
       "table": "content_calendar",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -494,6 +537,7 @@
     {
       "table": "content_drafts",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -506,6 +550,7 @@
     {
       "table": "content_fingerprints",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -518,6 +563,7 @@
     {
       "table": "coverage_runs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -530,6 +576,7 @@
     {
       "table": "crawl_url_checks",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "checked_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -542,6 +589,7 @@
     {
       "table": "crawler_runs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "started_at",
       "ts_format": "iso",
       "retention_days": 7,
@@ -554,6 +602,7 @@
     {
       "table": "crawler_sources",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -566,6 +615,7 @@
     {
       "table": "custom_sources",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -578,6 +628,7 @@
     {
       "table": "dead_letter",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -590,6 +641,7 @@
     {
       "table": "deep_reads",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -602,6 +654,7 @@
     {
       "table": "digests",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -614,6 +667,7 @@
     {
       "table": "encryption_keys",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -626,6 +680,7 @@
     {
       "table": "event_technique_candidates",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -638,6 +693,7 @@
     {
       "table": "event_technique_map",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -650,6 +706,7 @@
     {
       "table": "event_types",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -662,6 +719,7 @@
     {
       "table": "favorites",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -674,6 +732,7 @@
     {
       "table": "favorites_snapshot",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -686,6 +745,7 @@
     {
       "table": "favorites_stats",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -698,6 +758,7 @@
     {
       "table": "feedback_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -710,6 +771,7 @@
     {
       "table": "feedback_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -722,6 +784,7 @@
     {
       "table": "hotspot_tags",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -734,6 +797,7 @@
     {
       "table": "hotspots",
       "temp": "HOT",
+      "layer": "wiki",
       "ts_column": "ingested_at",
       "ts_format": "iso",
       "retention_days": 180,
@@ -746,6 +810,7 @@
     {
       "table": "hotspots_fts",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -758,6 +823,7 @@
     {
       "table": "hotspots_fts_config",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -770,6 +836,7 @@
     {
       "table": "hotspots_fts_data",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -782,6 +849,7 @@
     {
       "table": "hotspots_fts_docsize",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -794,6 +862,7 @@
     {
       "table": "hotspots_fts_idx",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -806,6 +875,7 @@
     {
       "table": "incident_reports",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -818,6 +888,7 @@
     {
       "table": "info_filter_rules",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -830,6 +901,7 @@
     {
       "table": "interest_domain_weights",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -842,6 +914,7 @@
     {
       "table": "interest_signals",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -854,6 +927,7 @@
     {
       "table": "item_entities",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -866,6 +940,7 @@
     {
       "table": "job_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -878,6 +953,7 @@
     {
       "table": "kl_dead_letters",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -890,6 +966,7 @@
     {
       "table": "kl_queue",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -902,6 +979,7 @@
     {
       "table": "knowledge_chunks",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -914,6 +992,7 @@
     {
       "table": "knowledge_chunks_fts",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -926,6 +1005,7 @@
     {
       "table": "knowledge_chunks_fts_cjk",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -938,6 +1018,7 @@
     {
       "table": "knowledge_chunks_fts_cjk_config",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -950,6 +1031,7 @@
     {
       "table": "knowledge_chunks_fts_cjk_data",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -962,6 +1044,7 @@
     {
       "table": "knowledge_chunks_fts_cjk_docsize",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -974,6 +1057,7 @@
     {
       "table": "knowledge_chunks_fts_cjk_idx",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -986,6 +1070,7 @@
     {
       "table": "knowledge_chunks_fts_config",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -998,6 +1083,7 @@
     {
       "table": "knowledge_chunks_fts_data",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1010,6 +1096,7 @@
     {
       "table": "knowledge_chunks_fts_docsize",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1022,6 +1109,7 @@
     {
       "table": "knowledge_chunks_fts_idx",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1034,6 +1122,7 @@
     {
       "table": "knowledge_concepts",
       "temp": "HOT",
+      "layer": "wiki",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1046,6 +1135,7 @@
     {
       "table": "knowledge_graph",
       "temp": "HOT",
+      "layer": "wiki",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1058,6 +1148,7 @@
     {
       "table": "knowledge_items",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "ingested_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1070,6 +1161,7 @@
     {
       "table": "knowledge_links",
       "temp": "WARM",
+      "layer": "wiki",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1082,6 +1174,7 @@
     {
       "table": "knowledge_plans",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1094,6 +1187,7 @@
     {
       "table": "knowledge_progress",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "updated_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1106,6 +1200,7 @@
     {
       "table": "knowledge_skill_config",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1118,6 +1213,7 @@
     {
       "table": "knowledge_tasks",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1130,6 +1226,7 @@
     {
       "table": "llm_cache",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1142,6 +1239,7 @@
     {
       "table": "llm_secrets",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1154,6 +1252,7 @@
     {
       "table": "llm_usage_log",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1166,6 +1265,7 @@
     {
       "table": "loop_checkpoints",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1178,6 +1278,7 @@
     {
       "table": "mcp_tool_registry",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1190,6 +1291,7 @@
     {
       "table": "observability_alerts",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1202,6 +1304,7 @@
     {
       "table": "personal_profile",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1214,6 +1317,7 @@
     {
       "table": "planning_action_log",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1226,6 +1330,7 @@
     {
       "table": "planning_actions",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1238,6 +1343,7 @@
     {
       "table": "playbook_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1250,6 +1356,7 @@
     {
       "table": "playbook_schedules",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1262,6 +1369,7 @@
     {
       "table": "process_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1274,6 +1382,7 @@
     {
       "table": "proxy_health_log",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1286,6 +1395,7 @@
     {
       "table": "quality_check_logs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "checked_at",
       "ts_format": "iso",
       "retention_days": 21,
@@ -1299,6 +1409,7 @@
     {
       "table": "quality_check_logs_archive",
       "temp": "COLD",
+      "layer": "db",
       "ts_column": "archived_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1311,6 +1422,7 @@
     {
       "table": "quality_custom_rules",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1323,6 +1435,7 @@
     {
       "table": "quality_rejection_log",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1335,6 +1448,7 @@
     {
       "table": "raw_items",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "fetched_at",
       "ts_format": "iso",
       "retention_days": 7,
@@ -1347,6 +1461,7 @@
     {
       "table": "reading_states",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1359,6 +1474,7 @@
     {
       "table": "review_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": null,
@@ -1371,6 +1487,7 @@
     {
       "table": "schema_version",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1383,6 +1500,7 @@
     {
       "table": "secret_access_logs",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1395,6 +1513,7 @@
     {
       "table": "security_edges",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1407,6 +1526,7 @@
     {
       "table": "security_entities",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1419,6 +1539,7 @@
     {
       "table": "security_synonyms",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1431,6 +1552,7 @@
     {
       "table": "security_taxonomy",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1443,6 +1565,7 @@
     {
       "table": "security_terms",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1455,6 +1578,7 @@
     {
       "table": "settings",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1467,6 +1591,7 @@
     {
       "table": "skill_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1479,6 +1604,7 @@
     {
       "table": "skills",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1491,6 +1617,7 @@
     {
       "table": "sm2_reviews",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1503,6 +1630,7 @@
     {
       "table": "source_alerts",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1515,6 +1643,7 @@
     {
       "table": "source_cleanup_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1527,6 +1656,7 @@
     {
       "table": "source_reputation",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1539,6 +1669,7 @@
     {
       "table": "source_stats",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1551,6 +1682,7 @@
     {
       "table": "sync_configs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1563,6 +1695,7 @@
     {
       "table": "sync_history",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "started_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1575,6 +1708,7 @@
     {
       "table": "sync_states",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1587,6 +1721,7 @@
     {
       "table": "tags",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1599,6 +1734,7 @@
     {
       "table": "tech_stack",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1611,6 +1747,7 @@
     {
       "table": "todos",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1623,6 +1760,7 @@
     {
       "table": "token_ledger",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1635,6 +1773,7 @@
     {
       "table": "trend_daily_snapshots",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1647,6 +1786,7 @@
     {
       "table": "trend_snapshots",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -1659,6 +1799,7 @@
     {
       "table": "trigger_tickets",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1671,6 +1812,7 @@
     {
       "table": "unified_fts",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1683,6 +1825,7 @@
     {
       "table": "unified_fts_config",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1695,6 +1838,7 @@
     {
       "table": "unified_fts_content",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1707,6 +1851,7 @@
     {
       "table": "unified_fts_data",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1719,6 +1864,7 @@
     {
       "table": "unified_fts_docsize",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1731,6 +1877,7 @@
     {
       "table": "unified_fts_idx",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 60,
@@ -1743,6 +1890,7 @@
     {
       "table": "user_memory",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1755,6 +1903,7 @@
     {
       "table": "user_skills",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1767,6 +1916,7 @@
     {
       "table": "v1_actions",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1779,6 +1929,7 @@
     {
       "table": "v1_artifacts",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1791,6 +1942,7 @@
     {
       "table": "v1_case_actions",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1803,6 +1955,7 @@
     {
       "table": "v1_case_judgments",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1815,6 +1968,7 @@
     {
       "table": "v1_case_materials",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1827,6 +1981,7 @@
     {
       "table": "v1_cases",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1839,6 +1994,7 @@
     {
       "table": "v1_evidence_receipts",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1851,6 +2007,7 @@
     {
       "table": "v1_judgments",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1863,6 +2020,7 @@
     {
       "table": "v1_knowledge",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1875,6 +2033,7 @@
     {
       "table": "v1_knowledge_adoptions",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1887,6 +2046,7 @@
     {
       "table": "v1_knowledge_refs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1899,6 +2059,7 @@
     {
       "table": "v1_knowledge_revisions",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1911,6 +2072,7 @@
     {
       "table": "v1_legacy_mapping",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1923,6 +2085,7 @@
     {
       "table": "v1_legacy_promote_log",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1935,6 +2098,7 @@
     {
       "table": "v1_materials",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1947,6 +2111,7 @@
     {
       "table": "v1_outbox",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1959,6 +2124,7 @@
     {
       "table": "v1_proposals",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1971,6 +2137,7 @@
     {
       "table": "v1_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1983,6 +2150,7 @@
     {
       "table": "v1_signals",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -1995,6 +2163,7 @@
     {
       "table": "v1_subject_identifiers",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -2007,6 +2176,7 @@
     {
       "table": "v1_subjects",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -2019,6 +2189,7 @@
     {
       "table": "weekly_reports",
       "temp": "WARM",
+      "layer": "db",
       "ts_column": "created_at",
       "ts_format": "iso",
       "retention_days": 90,
@@ -2031,6 +2202,7 @@
     {
       "table": "wiki_events",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "ts",
       "ts_format": "iso",
       "retention_days": null,
@@ -2043,6 +2215,7 @@
     {
       "table": "wiki_items_fts",
       "temp": "HOT",
+      "layer": "wiki",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,
@@ -2055,6 +2228,7 @@
     {
       "table": "worker_runs",
       "temp": "HOT",
+      "layer": "db",
       "ts_column": "",
       "ts_format": "iso",
       "retention_days": null,

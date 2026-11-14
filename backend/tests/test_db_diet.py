@@ -154,8 +154,9 @@ def test_retention_json_exists():
     assert len(cfg["tables"]) >= 3
     # 必填字段
     for tbl in cfg["tables"]:
-        for k in ("table", "temp", "ts_column", "ts_format", "retention_days", "action",
-                  "source", "recovery", "scheduled_in"):
+        for k in ("table", "temp", "layer", "ts_column", "ts_format",
+                  "retention_days", "action", "source", "recovery",
+                  "scheduled_in"):
             assert k in tbl, f"retention.json 表 {tbl.get('table')} 缺字段 {k}"
 
     # M4 (v0.8.8 R-17): recovery 必须是 5 值枚举之一 —— 枚举外的值等于没回答
@@ -164,6 +165,13 @@ def test_retention_json_exists():
     for tbl in cfg["tables"]:
         assert tbl["recovery"] in allowed, (
             f"retention.json 表 {tbl['table']} 的 recovery={tbl['recovery']!r} 不在枚举 {sorted(allowed)}"
+        )
+
+    # C2.5: layer 表达逻辑两层 (db=热层权威 / wiki=冷层 md 权威) —
+    # 与 temp 物理层正交; 枚举外即失去区分意义
+    for tbl in cfg["tables"]:
+        assert tbl["layer"] in {"db", "wiki"}, (
+            f"retention.json 表 {tbl['table']} 的 layer={tbl['layer']!r} 不在 {{db, wiki}}"
         )
 
 

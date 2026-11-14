@@ -1,4 +1,19 @@
 
+## [DEV-0355] v0.8.8 P2.5 — C2.5 台账两层化（temp 物理层保留 + layer 逻辑层）
+
+- **时间**: 2026-11-14
+- **类型**: 数据治理台账结构调整（**零业务逻辑改动**，仅台账 schema 与门禁）
+- **依据**: [`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §3 C2.5
+- **关联文件**:
+  - `scripts/retention.json`（改）：169 条各增 `layer ∈ {db, wiki}`（插在 `temp` 后）；新增 `$logical_layers` 顶层声明；legend 的 `temp` 注明「物理层」
+  - `backend/tests/test_db_diet.py`（改）：必填字段增 `layer` + `{db, wiki}` 枚举断言
+- **问题描述**: 台账同时承担两件事——① 物理落库（`migrate_temp_layers.py` 读 `temp` 决定 hot/warm/cold）；② 数据归属（该表丢了从哪恢复）。原先四层 `temp` 把两者混在一起，无法回答「这张表属于热层工作集还是 wiki 冷层投影」。
+- **决策**:
+  1. **不压平 `temp`**：压平成 HOT 会让 `migrate_temp_layers.py --layer hot` 把 56 张 WARM 表误搬进主库——物理层信息必须保留。
+  2. **`layer` 与 `temp` 正交**：`db` = 热层 SQLite 为权威（152 条）；`wiki` = 冷层 `llm-wiki-2.0` md 为权威、DB 行仅为可重建投影（17 条，判定依据为既有沉降管道与 wiki-first 真源声明）。
+  3. **双向差集 0 不变**：`layer` 是语义补全，不新增/删除表条目。
+- **测试验证**: `pytest test_db_diet.py test_migrate_temp_layers.py test_cleanup_log_tables.py -q` → **32 passed**；`ruff check` 通过；`git diff` 为 169 行新增 + 3 行 legend/声明，无格式漂移
+
 ## [DEV-0354] v0.8.8 P2.5 — M2 FTS 碎片率可观测（job_runs.meta）+ M5 召回不降级护栏
 
 - **时间**: 2026-11-13

@@ -92,7 +92,23 @@ force-add 产物 frontend/test-results/.last-run.json 移除 + .gitignore knowle
 收紧为根锚定; 版本/文档/资产全链对齐 (version.py 单一真源 + AGENTS/CLAUDE/PROJECT/
 README + CHANGELOG + assets/readme/*.svg); 承接文档中已标注 v0.8.7 的 P2/P3 收口工作
 (随 v0.8.6 主干一并交付)。
+v0.8.8 (2026-11-14): 质量版 + 前端结构优化 — 重构/去冗余/核心链路强化 (零新业务能力)。
+四硬约束保护主干 (壳冻结 C-1 / 主干冻结 C-2 / ai_hub 红线 C-3 / 存储哲学 C-4)。
+- P3 移除: 零消费 router 整链下线 (trends/categories/weekly_report) + 待办域退役 (410
+  Gone 垫片 → /action) + 泳道页 /garden 退役; routers 101→97。
+- P2.5 数据架构热冷分层 (R-17): 备份链退役 (449MB 回收, 备份语义改「可重建」) +
+  hotspots 沉降 llm-wiki-2.0/feed/ (37,317 行生产实跑) + 重建管道 (容差 0) +
+  日志环形截断 (−75%) + 台账两层化 (layer=db/wiki); 主库 794MB→111MB。
+- P4 强化: R-10 七段链路埋点 (trunk stage spans → audit_log + trace 查询端点) +
+  R-11 幂等/错误语义 (envelope error_code/retryable + Case client_request_id +
+  Artifact run_id+hash 去重)。
+- P4.5: 四菜单结构优化 (R-15 四段执行指挥台) + R-16 孤儿清理 (4 service/20 死导出/
+  13 组件, services 157→153) + 知识→行动「转 Case」接线 (R-13 替代链收尾)。
+详见 docs/v0.8.8/V0.8.8_REFACTOR_PRD.md; 权威 PRD =
+docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md。
+
+
 """
 
-APP_VERSION = "0.8.7"
+APP_VERSION = "0.8.8"
 

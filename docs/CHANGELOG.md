@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.8.8 (2026-11-14) — 质量版: 重构/去冗余/核心链路强化 (tag 待 owner 打点)
+
+**版本性质**: 零新业务能力 (四硬约束: 壳冻结 C-1 / 主干冻结 C-2 / ai_hub 红线 C-3 / 存储哲学 C-4)。版本族文档 = `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md` + `V0.8.8_IMPLEMENTATION_PLAN.md` (plan.8)。
+
+### P3 移除 (DEV-0340)
+- 零消费 router 整链下线: trends / categories / weekly_report (router + service + repo + job 41/42; 两表停写不 DROP)
+- 待办域退役 (R-13): /api/todos 410 Gone 垫片 (E_GONE 映射) + /todos → /action 重定向 + sync 显式跳过 + KnowledgeActionBar「转 Case」替代
+- 泳道页退役 (R-14): /garden → /action 重定向; 架构数字 routers 101→97 / jobs 59→57 / services 161→159
+
+### P2.5 数据架构热冷分层 (R-17, DEV-0341~0355)
+- 备份链退役: backup_service/verify (1,048 行) + 2 job + 3 端点 + 449MB 产物; 备份语义「可拷贝」→「可重建」
+- 沉降管道 (hot→cold): `sink_hotspots_to_feed()` 写 `llm-wiki-2.0/feed/` 全列保真 → 回读校验 → 才删行; **生产实跑 37,255 沉降 + 37,317 删行 / 零错误**
+- 重建管道 (cold→hot): `scripts/rebuild_hot_index.py --from-cold`, T4 实测容差 0; FTS 触发器同步不手写 DML
+- 日志环形截断: 5 表封顶 (199.36→49.26 MB, −75%) + WAL 治理 (VACUUM 后 TRUNCATE checkpoint, journal_size_limit=32MB)
+- 台账两层化: retention.json 169 条 `layer ∈ {db, wiki}` 与 temp 物理层正交, 双向差集 0
+- C2.6 优化追加批: FTS 碎片回收 (35.87→3.94MB) + llm_cache TTL 清扫 + fts_rebuild_job 死 job 移除; **主库 794MB→111MB (R-17-A2 ≤120MB 达标)**
+
+### P4 强化 (DEV-0357/0358)
+- R-10 七段链路埋点: `stage_span` (Item→Signal→Case→Claim→Run→Artifact→Knowledge) 落 audit_log (复用现表) + `GET /api/observability/trace/{trace_id}` + 开关 `HOTSPOT_TRUNK_TRACE`
+- R-11 幂等/错误语义: 错误 envelope 增 `error_code` + `retryable` (429/5xx=True); Case create `client_request_id` 确定性幂等键 (重放/409); Artifact create (run_id, content_hash) 去重 (rejected 豁免保 §8.3 防蒙混)
+
+### P4.5 前端 (DEV-0359 + R-15/R-16)
+- 四菜单结构优化 (R-15): 行动页四段执行指挥台 (Case/Claim/Run/Artifact 共享 selectedCaseId) + 资讯三段 feed + 知识主路径 hero + 设置四组+危险区
+- R-16 孤儿清理: 4 后端 service (−2,077 行) / 20 前端死导出 (审计 24, R-15 复活 4) / 13 孤儿组件 (−1,394 行); services → **153**
+- C5-6 知识→行动「转 Case」接线: 接既有 `POST /api/v1/cases` (R-13 置灰条件解除), 成功跳 /action
+
+### 验证 (2026-11-14)
+- 后端全量 pytest **5,374 passed / 7 skipped / 0 failed** (三轮门禁全绿) · 前端 tsc 0 / vitest 703 / build OK · `generate_meta.py --check` (56/19/97/153/65) + `harness_analyze.py --check` exit 0
+- 遗留: M-4 包体 742,547 B (−1.8% 未达 −3% 目标, R-15 新增量对冲, 待 owner 裁决 `docs/audit/P45_ACCEPTANCE_TAIL_2026-11-14.md`) · T8 三主题走查待人工 · M-9/M-10 观测窗依赖 R-10 落库积累
+
 ## v0.8.7 (2026-10-14) — 公开仓库交付收口: PII 卫生 + 全链版本对齐 (tag v0.8.7)
 
 **非功能补丁**: v0.8.6 主干 (AI Native 证据工作台) 零改动, 本版仅做公开仓库交付前的卫生清理与版本/文档/资产全链对齐。承接文档中已标注 v0.8.7 的 P2/P3 收口工作 (2026-10-08, DEV-0286/0289~0292) 随 v0.8.6 主干一并交付, 本版不再重复计入。

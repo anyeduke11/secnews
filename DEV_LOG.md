@@ -1,4 +1,17 @@
 
+## [DEV-0362] v0.8.8 P5 C6-1 — 版本收口 0.8.8（version 单一真源 + 全链文档对齐）
+
+- **时间**: 2026-11-14
+- **类型**: 发布收口（P5；零业务逻辑改动，版本陈述 + CHANGELOG）
+- **依据**: 实施计划 §6 C6-1
+- **联动内容**:
+  - `backend/version.py::APP_VERSION` 0.8.7 → **0.8.8**（docstring 增 v0.8.8 版本段）
+  - `frontend/package.json` 0.8.7 → 0.8.8（对齐后端，v0.8.7 先例）
+  - `docs/CHANGELOG.md` 增 v0.8.8 条目（P3 移除 / P2.5 热冷分层 / P4 强化 / P4.5 前端 / 验证与遗留）
+  - `AGENTS.md` 头部当前状态 → (2026-11-14, v0.8.8) + v0.8.8 状态段；`CLAUDE.md` / `PROJECT.md` / `README.md`（中英版本表 + main 动态）+ `assets/readme/{hero,architecture,roadmap}.svg` 版本字符串与架构数字（97/153/56/19 · MCP 23）
+  - `generate_meta.py --check` 三项全绿（数字 + 版本一致性门）
+- **tag 留白**: `v0.8.8` tag 打点待 owner 授权（C6-2）；README 版本表源码链接留占位
+
 ## [DEV-0360] v0.8.8 P4 C4-3 — R-12 门禁与文档联动收口（双 check 脚本 + PRD 架构数字同步）
 
 - **时间**: 2026-11-14

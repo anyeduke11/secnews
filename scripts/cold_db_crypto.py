@@ -26,8 +26,14 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-COLD_DB = REPO_ROOT / "backend" / "hotspot-cold.db"
-COLD_ENC = REPO_ROOT / "backend" / "hotspot-cold.db.enc"
+# 路径解析: env HOTSPOT_COLD_DB_PATH 优先 (T01 测试隔离根; conftest 注入,
+# 子进程自动继承), 未设置时保持既有生产默认 backend/hotspot-cold.db。
+# COLD_ENC 恒为 COLD_DB 的 ".enc" 侧车 (与既有命名一致)。
+COLD_DB = Path(
+    os.environ.get("HOTSPOT_COLD_DB_PATH")
+    or (REPO_ROOT / "backend" / "hotspot-cold.db")
+)
+COLD_ENC = Path(str(COLD_DB) + ".enc")
 
 
 def get_fernet(master_key: str):

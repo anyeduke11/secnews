@@ -21,8 +21,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "cold_db_crypto.py"
 BACKEND = REPO_ROOT / "backend"
-COLD_DB = BACKEND / "hotspot-cold.db"
-COLD_ENC = BACKEND / "hotspot-cold.db.enc"
+# T01 隔离适配: conftest 已把 HOTSPOT_COLD_DB_PATH 注入为会话隔离根, 测试与
+# 被测脚本 (env 同源解析, 子进程继承) 都落在隔离根, 不再触碰生产路径。
+# env 未设置时 (直接跑本文件) 回退生产默认, 保持既有行为。
+COLD_DB = Path(
+    os.environ.get("HOTSPOT_COLD_DB_PATH") or (BACKEND / "hotspot-cold.db")
+)
+COLD_ENC = Path(str(COLD_DB) + ".enc")
 
 TEST_KEY = "test-cold-db-master-key-fixture"
 

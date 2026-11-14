@@ -96,8 +96,10 @@ def test_hot_violation_when_over_limit() -> None:
     if violations:
         assert report["summary"].startswith("FAIL")
     else:
+        # 脚本摘要带说明尾 (scripts/check_temp_db_sizes.py: "OK: all layers
+        # within limits"), 按前缀断言即可 — 旧 `== "OK"` 是严格比较残留,
+        # 此前被「本地库超标先失败」掩盖, C2.6 缩库后首次到达本行 (2026-11-14)
         assert report["summary"].startswith("OK")
-        assert report["summary"] == "OK"
 
 
 def test_json_output_parseable() -> None:

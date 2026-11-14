@@ -1,4 +1,16 @@
 
+## [DEV-0364] v0.8.8 P3 验收复核 — 停写观测窗判定 + 端点行为活体实测（P3 唯一未复核验收项闭合）
+
+- **时间**: 2026-11-14
+- **类型**: 验收复核（零代码改动；P3 已于 2026-11-11 交付关闭，本轮补齐其唯一从未复核的验收证据）
+- **依据**: PRD §4.3 R-03 验收③「`trend_daily_snapshots` / `weekly_reports` 连续 2 日无新增行（SQL 计数比对）」——P3 落地至本轮已 3 天，观测窗满足，首次真实复核
+- **取证（生产实例 :8000 活体 + warm 库只读）**:
+  - **端点行为**: `/api/todos`+子路径 **410**，契约体完整（code=E_GONE / deprecated_since=0.8.8 / replacement=/action / sunset_date=0.9.0）；`/api/trends` `/api/categories` `/api/weekly-report/list` **404**；回归面 `/api/reports/weekly/overview` 路由活体（422 缺参校验，非 404）；`/api/health` 200
+  - **两表停写**: 两表物理位置在 **warm 库**（非主库——PRD §4.3「停写保留」未指明库，本轮口径修正）；`trend_daily_snapshots` 175 行最新 snapshot_date=**2026-11-04**、`weekly_reports` 3 行最新 week_end=**2026-11-08**，均早于 P3 生效日 11-11 → **停写持续 3+ 天，验收③通过且超窗**
+  - **口径修正留档**: warm.db 36 表实测零 v1_* 命中（DEV-0363 边界声明一致）；`/garden` 重定向由 nav4_shell 守卫覆盖（11-14 vitest 703 passed 内含）
+- **关联文件**: `docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md` §2 头部改「✅ 已关闭 + 验收复核通过」；PRD §8.1 P3 行「停写待观测 2 日」注记收口
+- **验证**: 本轮为只读复核 + 文档同步；`generate_meta.py --check` 未受影响
+
 ## [DEV-0363] v0.8.8 P2.5 收口 — WARM 层边界与保留策略声明（p2.5.3④ 遗留义务闭合）
 
 - **时间**: 2026-11-14

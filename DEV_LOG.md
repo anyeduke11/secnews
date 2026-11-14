@@ -1,4 +1,13 @@
 
+## [DEV-0368] v0.8.9 裁决 D1~D8 — 按推荐项定稿，实施全解锁
+
+- **时间**: 2026-11-14
+- **类型**: 版本立项裁决（零代码改动）
+- **依据**: owner 指令「先裁决 D1~D8」→ 按推荐项定稿（推荐项均有当日 file:line 取证支撑；改判通道 = 修订 PRD §9 裁决表 + DEV_LOG 留痕）
+- **裁决结果**: ✅ D1 P10 设计继承（superseded 横幅加继承注记，执行器设计部分升格 v0.8.9 设计权威）/ ✅ D2 ExecutionPlan 另加三列（executor/boundary_hash/execution_plan_json；plan_json 账本语义不动）/ ✅ D3 pi 走 agent_bridge jsonl / ✅ D4 direct 人担保 / ✅ D5 只读类试点 / ✅ D6 close 守卫 (d) 保留 / ✅ D7 artifact_yield 口径修复 = bug 修复 / ✅ D8 SK-04 事件直连（TriggerGate 遗物不复活）
+- **关联文件**: `docs/v0.8.9/V0.8.9_PRD.md` §9 裁决表（加裁决结果+理由列；头部 draft.1 → 定稿）· `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` 状态行（→ 已裁决，C0-1 起解锁）· `docs/DESIGN_P10_EXECUTOR_2026-09-13.md` 横幅继承注记 · `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` 变更记录更新
+- **验证**: 纯文档；PRD/计划/P10/权威 PRD 四文档裁决口径一致
+
 ## [DEV-0367] v0.8.9 立项 — 主干流量专项 PRD 草案 + 实施计划（待 owner 裁决 D1~D8）
 
 - **时间**: 2026-11-14

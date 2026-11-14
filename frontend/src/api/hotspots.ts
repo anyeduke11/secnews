@@ -18,7 +18,7 @@
  */
 
 import { getJSON, postJSON } from '../lib/api';
-import type { GetHotspotResponse, HotspotResponse } from '../types';
+import type { HotspotResponse } from '../types';
 
 // ---------------------------------------------------------------------------
 // Query (对齐 list_hotspots 的 Query 参数; 未传时走后端默认值)
@@ -73,11 +73,6 @@ export function listHotspots(
     `/api/hotspots${buildQuery(q as Record<string, unknown>)}`,
     { signal: opts.signal },
   );
-}
-
-/** GET /api/hotspots/{id} — 单条详情 ({version, item}) */
-export function getHotspot(id: string): Promise<GetHotspotResponse> {
-  return getJSON<GetHotspotResponse>(`/api/hotspots/${encodeURIComponent(id)}`);
 }
 
 /**

@@ -14,7 +14,7 @@ import type {
   Artifact as DomainArtifact,
   ArtifactFormat, ArtifactKind, ArtifactStatus, VerificationResult,
 } from '../domain/v1_0';
-import { getJSON, postJSON, apiFetch } from '../lib/api';
+import { getJSON, postJSON } from '../lib/api';
 
 // 枚举一律取自 codegen 真源 (backend/domain/v1_0_models.py), 不在本文件手写副本。
 export type { ArtifactFormat, ArtifactKind, ArtifactStatus, VerificationResult };
@@ -52,21 +52,6 @@ export interface CreateCaseBody {
   source?: string;
 }
 
-export interface UpdateCaseBody {
-  expected_revision: number;
-  status?: CaseStatus;
-  title?: string;
-  question?: string;
-  goal?: string;
-  scope?: string;
-  priority?: CasePriority;
-  due_at?: string;
-  tags?: string[];
-  related_subject_ids?: string[];
-  related_signal_ids?: string[];
-  related_case_ids?: string[];
-  reason?: string;
-}
 
 export interface CloseCaseBody {
   expected_revision: number;
@@ -113,13 +98,6 @@ export function createCase(body: CreateCaseBody): Promise<ApiVersioned<Case>> {
   return postJSON<ApiVersioned<Case>>('/api/v1/cases', body);
 }
 
-export function updateCase(id: string, body: UpdateCaseBody): Promise<ApiVersioned<Case>> {
-  return apiFetch<ApiVersioned<Case>>(`/api/v1/cases/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
-
 export function closeCase(id: string, body: CloseCaseBody): Promise<ApiVersioned<Case>> {
   return postJSON<ApiVersioned<Case>>(`/api/v1/cases/${encodeURIComponent(id)}/close`, body);
 }
@@ -163,10 +141,6 @@ export function listJudgments(q: ListJudgmentsQuery): Promise<ApiList<Judgment>>
     }
   }
   return getJSON<ApiList<Judgment>>(`/api/v1/judgments?${params.toString()}`);
-}
-
-export function getJudgment(id: string): Promise<ApiVersioned<Judgment>> {
-  return getJSON<ApiVersioned<Judgment>>(`/api/v1/judgments/${encodeURIComponent(id)}`);
 }
 
 export function publishJudgment(
@@ -312,14 +286,6 @@ export interface ListRunsQuery {
   offset?: number;
 }
 
-export interface CreateArtifactBody {
-  run_id: string;
-  kind: ArtifactKind;
-  title: string;
-  content: string;
-  format?: ArtifactFormat;
-  content_ref?: string;
-}
 
 export interface VerifyArtifactBody {
   verified_by: string;
@@ -361,10 +327,6 @@ export function listActions(q: ListActionsQuery): Promise<ApiList<Action>> {
   return getJSON<ApiList<Action>>(`/api/v1/actions?${params.toString()}`);
 }
 
-export function getAction(id: string): Promise<ApiVersioned<Action>> {
-  return getJSON<ApiVersioned<Action>>(`/api/v1/actions/${encodeURIComponent(id)}`);
-}
-
 export function generateAction(body: GenerateActionBody): Promise<GenerateActionResponse> {
   return postJSON<GenerateActionResponse>('/api/v1/actions/generate', body);
 }
@@ -395,10 +357,6 @@ export function listRuns(q: ListRunsQuery): Promise<ApiList<Run>> {
   return getJSON<ApiList<Run>>(`/api/v1/runs?${params.toString()}`);
 }
 
-export function getRun(id: string): Promise<ApiVersioned<Run>> {
-  return getJSON<ApiVersioned<Run>>(`/api/v1/runs/${encodeURIComponent(id)}`);
-}
-
 export function listArtifacts(q: ListArtifactsQuery): Promise<ApiList<Artifact>> {
   // v1.0 C04 R13 修复: 同 listJudgments, 走 URLSearchParams 一次构建
   const params = new URLSearchParams();
@@ -411,14 +369,6 @@ export function listArtifacts(q: ListArtifactsQuery): Promise<ApiList<Artifact>>
     }
   }
   return getJSON<ApiList<Artifact>>(`/api/v1/artifacts?${params.toString()}`);
-}
-
-export function getArtifact(id: string): Promise<ApiVersioned<Artifact>> {
-  return getJSON<ApiVersioned<Artifact>>(`/api/v1/artifacts/${encodeURIComponent(id)}`);
-}
-
-export function createArtifact(body: CreateArtifactBody): Promise<ApiVersioned<Artifact>> {
-  return postJSON<ApiVersioned<Artifact>>('/api/v1/artifacts', body);
 }
 
 export function verifyArtifact(id: string, body: VerifyArtifactBody): Promise<ApiVersioned<Artifact>> {
@@ -465,16 +415,6 @@ export interface Knowledge {
   updated_at: string;
 }
 
-export interface GenerateKnowledgeBody {
-  case_id: string;
-  judgment_id: string;
-  action_id: string;
-  subject_name: string;
-  cve_id: string;
-  kind: KnowledgeKind;
-  evidence_materials?: EvidenceMaterial[];
-  submitted_by?: string;
-}
 
 export interface GenerateKnowledgeResponse {
   version: string;
@@ -549,22 +489,7 @@ export interface OutcomeKnowledgeBody {
   outcome_note?: string;
 }
 
-export interface RecallResponse {
-  version: string;
-  knowledge_id: string;
-  case_id: string;
-  applicable: boolean;
-  prerequisite_match: { matched: string[]; mismatched: string[] };
-  counter_example_conflict: { conflicting: string[] };
-  adoption_history: Adoption[];   // 该 case 对该知识的历史采用记录
-}
 
-export interface AdoptionsListResponse {
-  version: string;
-  knowledge_id: string;
-  items: Adoption[];
-  total: number;
-}
 
 export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>> {
   // v1.0 C04 R13 修复: URLSearchParams 一次构建, 处理 case_id 可选 (T15.5)
@@ -583,16 +508,8 @@ export function listKnowledge(q: ListKnowledgeQuery): Promise<ApiList<Knowledge>
   return getJSON<ApiList<Knowledge>>(`/api/v1/knowledge${qs ? "?" + qs : ""}`);
 }
 
-export function getKnowledge(id: string): Promise<ApiVersioned<Knowledge>> {
-  return getJSON<ApiVersioned<Knowledge>>(`/api/v1/knowledge/${encodeURIComponent(id)}`);
-}
-
 export function getKnowledgeReuse(id: string): Promise<ReuseReceiptResponse> {
   return getJSON<ReuseReceiptResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/reuse`);
-}
-
-export function generateKnowledge(body: GenerateKnowledgeBody): Promise<GenerateKnowledgeResponse> {
-  return postJSON<GenerateKnowledgeResponse>('/api/v1/knowledge/generate', body);
 }
 
 export function publishKnowledge(id: string, body: StateChangeBody): Promise<ApiVersioned<Knowledge>> {
@@ -612,20 +529,8 @@ export function adoptKnowledge(id: string, body: AdoptKnowledgeBody): Promise<Ap
   return postJSON<ApiVersioned<Adoption>>(`/api/v1/knowledge/${encodeURIComponent(id)}/adopt`, body);
 }
 
-export function listAdoptions(id: string, opts?: { case_id?: string; decision?: 'adopted' | 'skipped' | 'rejected' }): Promise<AdoptionsListResponse> {
-  const params = new URLSearchParams();
-  if (opts?.case_id) params.set('case_id', opts.case_id);
-  if (opts?.decision) params.set('decision', opts.decision);
-  const qs = params.toString();
-  return getJSON<AdoptionsListResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/adoptions${qs ? "?" + qs : ""}`);
-}
-
 export function recordKnowledgeOutcome(id: string, body: OutcomeKnowledgeBody): Promise<ApiVersioned<Adoption>> {
   return postJSON<ApiVersioned<Adoption>>(`/api/v1/knowledge/${encodeURIComponent(id)}/outcome`, body);
-}
-
-export function recallKnowledgeForCase(id: string, case_id: string): Promise<RecallResponse> {
-  return getJSON<RecallResponse>(`/api/v1/knowledge/${encodeURIComponent(id)}/recall?case_id=${encodeURIComponent(case_id)}`);
 }
 
 // ===========================================================================
@@ -662,18 +567,6 @@ export interface SkillV1 {
   manifest_path: string | null;
 }
 
-export interface ListV1SkillsQuery {
-  status?: SkillV1Status;
-  category?: 'operations' | 'compliance' | 'analysis' | 'report';
-}
-
-export function listV1Skills(q: ListV1SkillsQuery = {}): Promise<ApiList<SkillV1>> {
-  return getJSON<ApiList<SkillV1>>(`/api/skill-registry/v1${buildQuery(q as Record<string, unknown>)}`);
-}
-
-export function getV1Skill(id: string): Promise<ApiVersioned<SkillV1>> {
-  return getJSON<ApiVersioned<SkillV1>>(`/api/skill-registry/v1/${encodeURIComponent(id)}`);
-}
 
 // ===========================================================================
 // T15 Signal API (Intel 入口真实化, 复用 T05 v1_signals)

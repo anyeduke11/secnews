@@ -12,7 +12,6 @@ import type { CommandResult } from '../../api/commands';
 
 vi.mock('../../api/commands', () => ({
   runCommand: vi.fn(),
-  listCommands: vi.fn(),
 }));
 
 import { runCommand } from '../../api/commands';

@@ -127,35 +127,9 @@ export function getSourceHealthV2(): Promise<SourceHealthPayload> {
   return getJSON<SourceHealthPayload>(`${SOURCES_URL}/health/v2`);
 }
 
-export function getSourceHealthTrend(): Promise<SourceHealthPayload> {
-  return getJSON<SourceHealthPayload>(`${SOURCES_URL}/health/trend`);
-}
-
-export function getSourceHealthTrendBySource(source: string): Promise<SourceHealthPayload> {
-  return getJSON<SourceHealthPayload>(
-    `${SOURCES_URL}/health/trend/${encodeURIComponent(source)}`,
-  );
-}
-
-export function getSourceHealthBySource(
-  category: string,
-  sourceName: string,
-): Promise<SourceHealthPayload> {
-  return getJSON<SourceHealthPayload>(
-    `${SOURCES_URL}/health/by-source/${encodeURIComponent(category)}/${encodeURIComponent(sourceName)}`,
-  );
-}
-
 export function resetSourceHealth(category: string, sourceName: string): Promise<SourceHealthPayload> {
   return postJSON<SourceHealthPayload>(
     `${SOURCES_URL}/health/by-source/${encodeURIComponent(category)}/${encodeURIComponent(sourceName)}/reset`,
-    undefined,
-  );
-}
-
-export function markSourceDead(category: string, sourceName: string): Promise<SourceHealthPayload> {
-  return postJSON<SourceHealthPayload>(
-    `${SOURCES_URL}/health/by-source/${encodeURIComponent(category)}/${encodeURIComponent(sourceName)}/dead`,
     undefined,
   );
 }
@@ -174,22 +148,4 @@ export interface SourceAlertsQuery {
   since?: string;
   page?: number;
   page_size?: number;
-}
-
-export function getSourceAlerts(q: SourceAlertsQuery = {}): Promise<SourceHealthPayload> {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(q)) {
-    if (v === undefined || v === null) continue;
-    params.set(k, String(v));
-  }
-  const qs = params.toString();
-  return getJSON<SourceHealthPayload>(`${SOURCES_URL}/alerts${qs ? `?${qs}` : ''}`);
-}
-
-/** 对任意信源 (source_id) 发起手动探测 */
-export function probeSource(sourceId: string): Promise<SourceHealthPayload> {
-  return postJSON<SourceHealthPayload>(
-    `${SOURCES_URL}/${encodeURIComponent(sourceId)}/probe`,
-    undefined,
-  );
 }

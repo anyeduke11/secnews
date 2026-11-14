@@ -1,4 +1,16 @@
 
+## [DEV-0373] v0.8.9 P1 试点演练① — 人工回执全链（首个 closed case，G2 达成）
+
+- **时间**: 2026-11-14
+- **类型**: T7 链路演练验收（生产实例 :8000；脚手架经服务层合法通道，全链操作经 HTTP API）
+- **依据**: 实施计划 §2 C1-3 演练① / PRD §7 T7 / G2
+- **前置**: 生产后端重启加载 P1 代码（tmux `hotspot-prod`；新端点 envelope 404 验证 + generate 422 路由可达）
+- **链路实体**: case `EEFGGXMNMOQRAOFFRGWZFZPPMM` → judgment(published) `DVBAS4RHADEZSEWV4EENRFICQA` → action `PTPEGO437ZY6KRVDHZ6KMSSHOV` → run(direct) `run_4QMMNC767QOXWEC4TAS3OK5CQL` → artifact `PTHQO2MURAQDDDBE4XL6HODFRR`
+- **全链**: approve→start(run queued)→claim→start→人工完成(产物落盘)→artifact 登记(R08)→verify→accept→**finish run(done, RA-9 过, artifact_ids 实表回填, duration 32,408ms)**→**finish action**→**close case**
+- **结果**: **首个 closed case（G2 达成）**；v1_runs/v1_artifacts 从 0 → 各 1 行（断点①②修复的产线实证）；v1_run outbox 事件 3 条（claimed/started/finished）；audit_log run.* 3 行；**CAS 防重复终态产线实证**（二次 finish → 409 E_CONFLICT）；close 四守卫 (a)(b)(c)(d) 全过非绕过
+- **留档**: `docs/audit/V089_PILOT_DRILL_2026-11-14.md`（步骤表 + 附加验证 + 终态快照 + 已知限制：脚手架为服务层直写非纯浏览器操作，浏览器全链随 C1-3 UI 验收补）
+- **验证**: 终态快照 sqlite 实测；v1_runs=1 / v1_artifacts=1 / cases closed 1 open 6
+
 ## [DEV-0371] v0.8.9 P1 C1-2 — Action finish 收口端点（断点②闭合）
 
 - **时间**: 2026-11-14

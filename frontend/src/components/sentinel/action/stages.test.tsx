@@ -100,6 +100,92 @@ describe('RunStage', () => {
     expect(screen.getAllByTestId('run-stage-run').length).toBe(1);
   });
 
+  it('v0.8.9 R-1: queued run → 认领/取消按钮; claimed → 开工; 点击回调 run', () => {
+    const onClaim = vi.fn();
+    const onStartRun = vi.fn();
+    const onCancel = vi.fn();
+    render(
+      <RunStage
+        {...base}
+        actions={[mkAction('a1', 'running'), mkAction('a2', 'running')]}
+        runs={[mkRun('r1', 'a1', 'queued'), mkRun('r2', 'a2', 'claimed')]}
+        onStart={vi.fn()}
+        onClaimRun={onClaim}
+        onStartRun={onStartRun}
+        onCancelRun={onCancel}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('run-claim'));
+    expect(onClaim.mock.calls[0][0].id).toBe('r1');
+    fireEvent.click(screen.getAllByTestId('run-start')[0]);
+    expect(onStartRun).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getAllByTestId('run-cancel')[0]);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('v0.8.9 R-1: running run → 登记结果表单 (outcome 选择 + failed 须 error 才可提交)', () => {
+    const onFinish = vi.fn();
+    render(
+      <RunStage
+        {...base}
+        actions={[mkAction('a1', 'running')]}
+        runs={[mkRun('r1', 'a1', 'running')]}
+        onStart={vi.fn()}
+        onFinishRun={onFinish}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('run-finish-open'));
+    // 默认 outcome=done 无需 error → 直接提交
+    fireEvent.click(screen.getByTestId('run-finish-submit'));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onFinish.mock.calls[0][1].outcome).toBe('done');
+    // 失败真实性: failed 无 error → 提交按钮 disabled
+    render(
+      <RunStage
+        {...base}
+        actions={[mkAction('a2', 'running')]}
+        runs={[mkRun('r2', 'a2', 'running')]}
+        onStart={vi.fn()}
+        onFinishRun={onFinish}
+      />,
+    );
+    fireEvent.click(screen.getAllByTestId('run-finish-open')[0]);
+    fireEvent.change(screen.getByTestId('run-finish-outcome'), { target: { value: 'failed' } });
+    expect((screen.getByTestId('run-finish-submit') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId('run-finish-error'), { target: { value: '原因' } });
+    expect((screen.getByTestId('run-finish-submit') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('v0.8.9 C1-2: run 全终态且 action running → 收口按钮; 回调 action', () => {
+    const onFinishAction = vi.fn();
+    render(
+      <RunStage
+        {...base}
+        actions={[mkAction('a1', 'running')]}
+        runs={[mkRun('r1', 'a1', 'succeeded')]}
+        onStart={vi.fn()}
+        onFinishAction={onFinishAction}
+      />,
+    );
+    const btn = screen.getByTestId('action-finish');
+    fireEvent.click(btn);
+    expect(onFinishAction).toHaveBeenCalledTimes(1);
+    expect(onFinishAction.mock.calls[0][0].id).toBe('a1');
+  });
+
+  it('v0.8.9: 未传回执回调时 (旧调用方) 不渲染回执按钮 — 向后兼容', () => {
+    render(
+      <RunStage
+        {...base}
+        actions={[mkAction('a1', 'running')]}
+        runs={[mkRun('r1', 'a1', 'queued'), mkRun('r2', 'a1', 'running')]}
+        onStart={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('run-claim')).toBeNull();
+    expect(screen.queryByTestId('run-finish-open')).toBeNull();
+  });
+
   it('outcome 只映射真实 run.status: timed_out → 超时失败, succeeded → 成功', () => {
     render(
       <RunStage

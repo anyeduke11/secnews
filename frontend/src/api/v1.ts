@@ -343,6 +343,37 @@ export function cancelAction(id: string, body: StateChangeBody): Promise<ApiVers
   return postJSON<ApiVersioned<Action>>(`/api/v1/actions/${encodeURIComponent(id)}/cancel`, body);
 }
 
+// R-1 人工回执 (v0.8.9, D4 裁决: direct 执行体 = 人) — run 生命周期 CAS 迁移
+export function claimRun(id: string): Promise<ApiVersioned<Run>> {
+  return postJSON<ApiVersioned<Run>>(`/api/v1/runs/${encodeURIComponent(id)}/claim`, {});
+}
+
+export function startRun(id: string): Promise<ApiVersioned<Run>> {
+  return postJSON<ApiVersioned<Run>>(`/api/v1/runs/${encodeURIComponent(id)}/start`, {});
+}
+
+export interface RunFinishBody {
+  outcome: 'done' | 'failed' | 'cancelled' | 'timeout' | 'needs_human';
+  result_excerpt?: string | null;
+  error?: string | null;
+}
+
+export function finishRun(id: string, body: RunFinishBody): Promise<ApiVersioned<Run>> {
+  return postJSON<ApiVersioned<Run>>(`/api/v1/runs/${encodeURIComponent(id)}/finish`, body);
+}
+
+export function cancelRun(id: string, body: { reason?: string | null } = {}): Promise<ApiVersioned<Run>> {
+  return postJSON<ApiVersioned<Run>>(`/api/v1/runs/${encodeURIComponent(id)}/cancel`, body);
+}
+
+// C1-2: action 收口 (running → succeeded/failed, 须关联 run 终态)
+export function finishAction(
+  id: string,
+  body: { expected_revision: number; succeeded: boolean; reason?: string | null },
+): Promise<ApiVersioned<Action>> {
+  return postJSON<ApiVersioned<Action>>(`/api/v1/actions/${encodeURIComponent(id)}/finish`, body);
+}
+
 export function listRuns(q: ListRunsQuery): Promise<ApiList<Run>> {
   // v1.0 C04 R13 修复: 同 listJudgments, 走 URLSearchParams 一次构建
   const params = new URLSearchParams();

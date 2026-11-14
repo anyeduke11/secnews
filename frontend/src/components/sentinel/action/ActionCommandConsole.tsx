@@ -9,8 +9,18 @@
  * 硬约束: 端点不可用时如实渲染「不可用」, 不造假数据 (PRD §4.15.7)。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { getCaseAggregate, listCases, startAction, type CaseAggregate } from '../../../api/v1';
-import type { Action, Case, CaseStatus } from '../../../domain/v1_0';
+import {
+  cancelRun,
+  claimRun,
+  finishAction,
+  finishRun,
+  getCaseAggregate,
+  listCases,
+  startAction,
+  startRun,
+  type CaseAggregate,
+} from '../../../api/v1';
+import type { Action, Case, CaseStatus, Run } from '../../../domain/v1_0';
 import { CaseStage } from './CaseStage';
 import { ClaimStage } from './ClaimStage';
 import { RunStage } from './RunStage';
@@ -100,6 +110,63 @@ export function ActionCommandConsole() {
     [selectedCaseId, loadAggregate],
   );
 
+  // v0.8.9 R-1 人工回执 (D4: direct 执行体 = 人) — 四操作 + action 收口, 全部 fail-loud 后刷新聚合
+  const [receiptBusy, setReceiptBusy] = useState<string | null>(null);
+  const receipt = useCallback(
+    async (key: string, op: () => Promise<unknown>) => {
+      if (!selectedCaseId) return;
+      setReceiptBusy(key);
+      setAggError(null);
+      try {
+        await op();
+        await loadAggregate(selectedCaseId);
+      } catch (e) {
+        setAggError(`人工回执失败：${errText(e)}`);
+      } finally {
+        setReceiptBusy(null);
+      }
+    },
+    [selectedCaseId, loadAggregate],
+  );
+  const handleClaimRun = useCallback(
+    (run: Run) => void receipt(run.id, () => claimRun(run.id)),
+    [receipt],
+  );
+  const handleStartRun = useCallback(
+    (run: Run) => void receipt(run.id, () => startRun(run.id)),
+    [receipt],
+  );
+  const handleFinishRun = useCallback(
+    (run: Run, body: { outcome: string; error?: string | null; result_excerpt?: string | null }) =>
+      void receipt(run.id, () => finishRun(run.id, {
+        outcome: body.outcome as 'done' | 'failed' | 'cancelled' | 'timeout' | 'needs_human',
+        error: body.error,
+        result_excerpt: body.result_excerpt,
+      })),
+    [receipt],
+  );
+  const handleCancelRun = useCallback(
+    (run: Run) => void receipt(run.id, () => cancelRun(run.id, { reason: 'owner 中止' })),
+    [receipt],
+  );
+  const handleFinishAction = useCallback(
+    (action: Action) => {
+      if (!selectedCaseId) return;
+      // 收口方向: 名下任一 run succeeded → succeeded, 否则 failed (失败真实性由 run 行 error 承载)
+      void receipt(`act:${action.id}`, async () => {
+        const agg = await getCaseAggregate(selectedCaseId);
+        const myRuns = (agg.runs ?? []).filter(r => r.action_id === action.id);
+        const succeeded = myRuns.some(r => r.status === 'succeeded');
+        await finishAction(action.id, {
+          expected_revision: action.revision ?? 1,
+          succeeded,
+          reason: succeeded ? null : 'run 未成功 (详见 run 行 error)',
+        });
+      });
+    },
+    [receipt, selectedCaseId],
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
@@ -133,6 +200,12 @@ export function ActionCommandConsole() {
         error={aggError}
         starting={starting}
         onStart={handleStart}
+        receiptBusy={receiptBusy}
+        onClaimRun={handleClaimRun}
+        onStartRun={handleStartRun}
+        onFinishRun={handleFinishRun}
+        onCancelRun={handleCancelRun}
+        onFinishAction={handleFinishAction}
       />
       <ArtifactStage
         caseId={selectedCaseId}

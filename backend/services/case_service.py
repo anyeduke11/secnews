@@ -19,6 +19,8 @@
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import sqlite3
 import string
 import uuid
@@ -98,6 +100,17 @@ def _submission_key(source: str, ulid: str) -> str:
     return f"v1-case-{source}-{ulid[:16]}"
 
 
+def _ulid_from_client_key(client_request_id: str) -> str:
+    """R-11 幂等键 → 确定性 case id (sha256 → RFC4648 base32 取 26 位).
+
+    alphabet 恒为 A-Z2-7, 与 ``^[A-Z2-7]{26}$`` ULID 约束严格匹配; 同一
+    client_request_id 永远派生同一 id → 重放路径可先查既有行返回。
+    130 bit 熵, 碰撞概率可忽略。
+    """
+    digest = hashlib.sha256(client_request_id.encode("utf-8")).digest()
+    return base64.b32encode(digest).decode("ascii")[:26]
+
+
 # ---------------------------------------------------------------------------
 # 主体
 # ---------------------------------------------------------------------------
@@ -166,18 +179,45 @@ class CaseService:
         related_signal_ids: list[str] | None = None,
         related_case_ids: list[str] | None = None,
         source: str = "manual",
+        client_request_id: str | None = None,
     ) -> Case:
         """创建 Case — 单一入口.
 
         流程:
-          1. 生成 ULID
+          1. 生成 ULID (R-11: 传 client_request_id 时由其确定性派生)
           2. V1EvidenceService.create_intent("case", body) — pending receipt
           3. repo.create — 落 v1_cases
           4. evidence.commit_intent — receipt → committed (entity_id = case.id)
         失败回滚: 抛异常时由 caller 走 rollback_intent (本方法不持有 intent_id 跨调用)
+
+        R-11 幂等语义 (client_request_id 提供时):
+          - 同键同语义 body 重放 → 返回既有 case, 不产生重复行 (不写 evidence receipt)
+          - 同键不同 body → ConflictException 409 (RunService 守卫 2 同款语义)
+          - 键空间: client_request_id 全局唯一 (不掺 source — 跨端重试同一请求时
+            source 可能变化)
         """
         # 字段校验 — 走 Pydantic Case 兜底 (title ≤120, question ≤500)
-        ulid = _ulid()
+        if client_request_id:
+            # R-11 幂等快路径: id 由 client_request_id 确定性派生 → 重放可先查行。
+            # 同语义 body → 返回既有 case; 不同 body → 409 (不产生重复行)。
+            ulid = _ulid_from_client_key(client_request_id)
+            existing = self._repo.get(ulid)
+            if existing is not None:
+                if (
+                    existing.title == title
+                    and existing.question == question
+                    and (existing.goal or None) == (goal or None)
+                    and (existing.scope or None) == (scope or None)
+                    and existing.priority == priority
+                    and (existing.due_at or None) == (due_at or None)
+                ):
+                    return self._record_to_case(existing)
+                raise ConflictException(
+                    f"client_request_id={client_request_id!r} reused with different body "
+                    f"(existing case {ulid} has different title/question/goal/scope/priority/due_at)"
+                )
+        else:
+            ulid = _ulid()
         body = {
             "id": ulid,
             "title": title,

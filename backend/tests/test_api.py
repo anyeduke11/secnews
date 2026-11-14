@@ -556,11 +556,19 @@ def test_export_returns_304_when_etag_matches(client, temp_db, tmp_path, monkeyp
 # 12. 错误响应格式 (5 个异常类型 + version + trace_id)
 # ---------------------------------------------------------------------------
 def test_error_format_includes_version_and_trace_id(client):
-    """所有 HotspotException 应有 {code, message, trace_id, version}。"""
+    """所有 HotspotException 应有 {code, error_code, retryable, message, trace_id, version}。
+
+    v0.8.8 P4 R-11 ③: envelope 增 error_code (code 显式命名) + retryable
+    (错误语义分级) — 4xx False / 429+5xx True。
+    """
     r = client.get("/api/hotspots/does-not-exist")
     assert r.status_code == 404
     data = r.json()
-    assert set(data.keys()) == {"code", "message", "trace_id", "version"}
+    assert set(data.keys()) == {
+        "code", "error_code", "retryable", "message", "trace_id", "version",
+    }
+    assert data["error_code"] == data["code"]
+    assert data["retryable"] is False  # 404 不可盲重试
     assert data["version"] == API_VERSION
     assert len(data["trace_id"]) > 0
 

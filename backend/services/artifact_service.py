@@ -119,6 +119,15 @@ class ArtifactService:
                 f"content_ref hash mismatch: disk={on_disk_hash[:16]}... "
                 f"content={ch[:16]}... (R08: 篡改或挂错文件)"
             )
+        # R-11 幂等: (run_id, content_hash) 已登记且**非 rejected** → 返回既有
+        # artifact (重放, 不产生重复行)。rejected 状态不去重 — 保持 contracts
+        # §8.3 防重传蒙混语义: 同 hash 重传走新行, accept 时由守卫 409
+        # (test_resubmit_after_reject_same_hash_raises_409 钉住)。
+        # 应用级查重 (UNIQUE 约束按 X-6 约定延后单列子需求); 单实例 SQLite
+        # 写串行下 TOCTOU 窗口极小。
+        existing = self.repo.find_by_run_and_hash(run_id, ch)
+        if existing is not None and existing.get("status") != "rejected":
+            return existing
         aid = _ulid26()
         now = _utcnow_iso()
         size = len(content.encode("utf-8"))

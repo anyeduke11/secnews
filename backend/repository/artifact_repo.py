@@ -17,6 +17,19 @@ class ArtifactRepository:
     def _c(self) -> sqlite3.Connection:
         return self._conn or get_connection()
 
+    def find_by_run_and_hash(self, run_id: str, content_hash: str) -> dict[str, Any] | None:
+        """R-11 幂等查询: (run_id, content_hash) 已登记的 artifact (无则 None)。
+
+        走 idx_v1_artifacts_run + idx_v1_artifacts_hash 现有索引, 无 schema 变更
+        (UNIQUE 约束按 X-6 约定延后单列子需求)。
+        """
+        row = self._c().execute(
+            "SELECT * FROM v1_artifacts WHERE run_id = ? AND content_hash = ? "
+            "ORDER BY created_at ASC LIMIT 1",
+            (run_id, content_hash),
+        ).fetchone()
+        return self._row_to_dict(row) if row is not None else None
+
     def insert(self, a: dict[str, Any]) -> None:
         self._c().execute(
             "INSERT INTO v1_artifacts "

@@ -1,4 +1,32 @@
 
+## [DEV-0358] v0.8.8 P4 C4-2 — R-11 幂等/并发/错误语义（envelope retryable + Case/Artifact 幂等键）
+
+- **时间**: 2026-11-14
+- **类型**: 契约强化（R-11；错误 envelope 增量字段 + 两处幂等键，主干业务语义零变更）
+- **依据**: [`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §4 C4-2 / PRD §4.11 R-11
+- **七段写端点幂等键定义（R-11 ① 台账）**:
+  | 端点 | 幂等键 | 状态 |
+  |---|---|---|
+  | Run create_or_replay | (action_id, attempt) + (idempotency_key, action_id) + body_hash 三层 | 既有 ✅ contracts §7.4 |
+  | Judgment create | v1-judgment-{case}-{claim_type}-{hash16} 确定性键 | 既有 ✅ |
+  | Judgment/Knowledge publish | CAS expected_revision（重放 409 不产重复行） | 既有 ✅ |
+  | **Case create (POST /api/v1/cases)** | **client_request_id（新）**：确定性派生 case id（sha256→base32 26 位）→ 同键同语义 body 重放返回既有行 / 同键不同 body 409 | 本轮新增 |
+  | **Artifact create (POST /api/v1/artifacts)** | **(run_id, content_hash)（新）**：应用级查重重放；rejected 不去重（保 §8.3 防重传蒙混） | 本轮新增 |
+  | Action create | 走 RunLedger 提案链（proposal_id 幂等） | 既有 ✅ |
+- **关联文件**:
+  - `backend/exceptions.py`（改）：`_err_response` 增 `error_code`（=code 显式命名，code 保留兼容别名）+ `retryable`（429/5xx=True，R-11 ③ 错误语义分级）
+  - `backend/services/case_service.py`（改）：`_ulid_from_client_key()` + `create_case` 增 `client_request_id` 快路径重放 / 409 冲突
+  - `backend/api/v1_case_write_api.py`（改）：`CreateCaseRequest.client_request_id`（≤128 可选）透传
+  - `backend/repository/artifact_repo.py`（改）：`find_by_run_and_hash()`（现有索引，无 schema 变更 — UNIQUE 约束按 X-6 延后）
+  - `backend/services/artifact_service.py`（改）：create 重放检查（非 rejected）
+  - `backend/tests/test_trunk_write_semantics.py`（新建）：8 用例（envelope 三态 / case 重放零重复行+单 receipt / 同键不同 body 409 / 无键行为不变 / API 透传 / artifact 去重+不误伤+rejected×防蒙混交叉）
+  - `backend/tests/test_api.py`（改）：envelope 契约测试更新为六键集（Rule 9 契约升级随行）
+- **设计决策**:
+  1. Case 幂等用**确定性 id 派生**而非 evidence 键复用 — body 含每次新生成的 ULID，复用 submission_key 会因 body_hash 漂移失效；确定性派生后重放可先查行返回（不写 receipt，避免 receipt 与重放行错位）
+  2. Artifact 去重**显式豁免 rejected** — 与 contracts §8.3「同 hash 重传走新行、accept 守卫 409」交叉验证（test_resubmit_after_reject_same_hash_raises_409 保持全绿 + 新增交叉用例）
+  3. 并发口径：单实例 SQLite 写串行，用连续同键双调用断言等价；真线程竞态由 UNIQUE(submission_key, body_hash) / PRIMARY KEY 兜底，artifact TOCTOU 窗口留档
+- **测试验证**: `test_trunk_write_semantics` 8 passed；`test_api+test_exceptions+test_trunk_*+test_artifact_service+test_gate_error_policy` 97 passed；ruff 0
+
 ## [DEV-0357] v0.8.8 P4 C4-1 — R-10 七段链路埋点（trunk stage spans）+ trace 查询端点
 
 - **时间**: 2026-11-14

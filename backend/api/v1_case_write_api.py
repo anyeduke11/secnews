@@ -49,6 +49,10 @@ class CreateCaseRequest(BaseModel):
     related_signal_ids: list[str] = Field(default_factory=list)
     related_case_ids: list[str] = Field(default_factory=list)
     source: str = Field(default="manual", description="提交方标识 (manual|agent|system)")
+    client_request_id: str | None = Field(
+        default=None, max_length=128,
+        description="R-11 幂等键: 提供时同键同语义 body 重放返回既有 case, 同键不同 body 409",
+    )
 
 
 class CloseCaseRequest(BaseModel):
@@ -77,6 +81,7 @@ def _create(req: CreateCaseRequest) -> dict[str, Any]:
             related_signal_ids=req.related_signal_ids,
             related_case_ids=req.related_case_ids,
             source=req.source,
+            client_request_id=req.client_request_id,
         )
     except CaseValidationError as e:
         raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})

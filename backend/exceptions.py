@@ -97,13 +97,19 @@ def _err_response(
     headers: dict[str, str] | None = None,
     extras: dict | None = None,
 ) -> JSONResponse:
-    """统一构造错误响应：{code, message, trace_id, version[, ...extras]}。
+    """统一构造错误响应：{code, error_code, retryable, message, trace_id, version[, ...extras]}。
 
-    extras: HTTPException detail dict 中的附加结构化字段 (如
-    current_revision / valid_modes), 平铺到顶层避免信息丢失。
+    - ``error_code``: 与 ``code`` 同值 (v0.8.8 P4 R-11 ③: 契约字段显式命名;
+      ``code`` 保留为既有消费方兼容别名, 不删除)。
+    - ``retryable`` (R-11 ③ 错误语义分级): 429 与全部 5xx = True (可原样重试),
+      其余 4xx = False (参数/状态类, 盲重试无意义 — 409 需先解决冲突)。
+    - extras: HTTPException detail dict 中的附加结构化字段 (如
+      current_revision / valid_modes), 平铺到顶层避免信息丢失。
     """
     content: dict = {
         "code": code,
+        "error_code": code,
+        "retryable": status == 429 or status >= 500,
         "message": message,
         "trace_id": _get_trace_id(request),
         "version": API_VERSION,

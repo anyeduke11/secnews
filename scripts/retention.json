@@ -5,6 +5,14 @@
     "db": "热层 SQLite (hotspot.db + hotspot-warm.db ATTACH): 工作集 / 索引 / 状态",
     "wiki": "冷层 llm-wiki-2.0/ md 真源: DB 行仅为投影, 丢失后可由 md 重建"
   },
+  "$warm_boundary": {
+    "purpose": "WARM 层 (hotspot-warm.db) 边界与保留策略 — v0.8.8 P2.5 收口 (p2.5.3④ 要求, DEV-0363)。本键为声明性文档, 不参与 migrate_temp_layers 门禁。",
+    "定位": "运营流水/遥测层: 采集运行 (crawler_runs/collection_runs/catchup_*) · 质量门禁日志 (quality_check_logs 三档滚动) · 内容草稿 (content_*) · 知识投影缓存 (knowledge_chunks, layer=wiki — 物理在此, 真源在 llm-wiki-2.0 md)",
+    "边界硬规则": "七段主干实体 (v1_subjects/materials/signals/cases/judgments/actions/runs/artifacts/knowledge/evidence_receipts) 永不落 WARM — 2026-11-14 实测 warm.db 36 表零 v1_* 命中; 台账 temp=WARM 56 张为物理落库意图声明, 未落地差集属单库起步合法态 (DEV-0319 豁免口径)",
+    "保留策略": "逐表按本台账执行: quality_check_logs 21d (三档×7 每周滚出最旧一档) / quality_check_logs_archive 90d / 其余按各自 retention_days; recovery=unrecoverable 的表不承诺重建 — WARM 无任何备份作业 (C2.1), 丢失即按 recovery 字段定性",
+    "陈旧副本事件闭环": "2026-11-08 warm.db 曾 unlink 仅存于进程 fd; C2.1 (DEV-0343) 以 backups 内 2026-11-08 快照恢复为活跃层。2026-11-08→11-12 窗口的 warm 行不可恢复 (unrecoverable, owner 接受); 恢复后服务持续写入 — 2026-11-14 实测 quality_check_logs MAX(checked_at) = 当日, 层已回归活跃",
+    "与 layer 的正交": "temp=WARM 是物理位置; layer 字段才是数据归属 (db=权威工作集 / wiki=md 权威可重建)。WARM 中 layer=wiki 的表 (knowledge_chunks 等) 丢失后由冷层重建, 不依赖本库持久性"
+  },
   "$temp_layers": {
     "HOT": {
       "db": "hotspot.db",

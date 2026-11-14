@@ -1,4 +1,27 @@
 
+## [DEV-0360] v0.8.8 P4 C4-3 — R-12 门禁与文档联动收口（双 check 脚本 + PRD 架构数字同步）
+
+- **时间**: 2026-11-14
+- **类型**: 文档/门禁联动（零代码改动）
+- **依据**: 实施计划 §4 C4-3 / PRD §4.12 R-12
+- **联动内容**:
+  - `generate_meta.py --check` exit 0（jobs 56 / collectors 19 / routers 97 / services 153 / core_routers 65，与 AST 反推一致；services 153 已随 C5-5① commit `840fc68` 经 --fix 全链同步 7 份文档）
+  - `harness_analyze.py --check` exit 0（agent assets lint 门）
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` §6.1 架构数字由 2026-10-08 快照（100/159/58/14, 5,281 tests）刷新为 2026-11-14 实测（97/153/56/19, 5,374 tests）
+  - 本轮全量 pytest 三跑全绿：C4-1 门 5,427+3 存量修复 → C4-2 门 **5,438 passed/0 failed** → C5-5① 门 **5,374 passed/0 failed**（−64 = 删除的孤儿测试）
+- **验证**: 双 check 脚本 exit 0；PRD/计划/DEV_LOG 三文档互证一致
+
+## [DEV-0359] v0.8.8 P4.5 C5-5① — R-16 后端孤儿 service 清理（4 文件 + 锚点回写）
+
+- **时间**: 2026-11-14
+- **类型**: 孤儿删除（R-16 sub-commit ①；零生产引用复核后执行）
+- **依据**: 实施计划 §5.1 核准清单（2026-11-14 复核：4 文件零 import 引用，feedback_analyzer 仅字符串 source 默认值命中）
+- **删除**: `crawler_seed.py`(192 行) / `cost_monitor.py`(209 行) / `feedback_analyzer.py`(194 行) / `codegarden_scanner_service.py`(619 行) / `test_codegarden_scanner.py`(663 行) — 合计 −2,077 行
+- **锚点回写**: `backend/scripts/seed_crawler_sources.py:62` 注释（原引用 crawler_seed.py:146 守卫，改注明孤儿已删除）/ `test_c03_startup_health.py` `_RUFF_EXCLUDE_PATHS` 删 feedback_analyzer 条目 / `test_hybrid_ai.py` 删 import + TestCostMonitor 类段 + docstring（DegradationMatrix/T1/T3 全保留）/ `test_feedback_analyzer.py` 删 TestFeedbackAnalyzer + analyzer fixture + FeedbackRepository import（TestUserMemoryService 4 用例全保留）
+- **架构数字**: services 157 → **153**（generate_meta --fix 全链同步 ARCHITECTURE.md/AGENTS.md×3/PROJECT.md/README.md/CLAUDE.md）
+- **测试验证**: 触面 25 passed + 1 skipped；全量 **5,374 passed / 7 skipped / 0 failed**；ruff 0；`generate_meta.py --check` exit 0
+- **留档**: feedback_analyzer 的 `source="feedback_analyzer"` 字符串默认值保留于 user_memory_repo/user_memory_service（历史数据溯源标识，非 import）
+
 ## [DEV-0358] v0.8.8 P4 C4-2 — R-11 幂等/并发/错误语义（envelope retryable + Case/Artifact 幂等键）
 
 - **时间**: 2026-11-14

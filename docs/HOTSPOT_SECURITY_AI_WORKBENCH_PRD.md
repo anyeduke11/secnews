@@ -336,13 +336,13 @@
 
 | 指标 | 数值 | 说明 |
 |---|---|---|
-| **Routers** | 100 | AST 反推 (generate_meta --check 维护, 2026-10-08); 含聚合 router |
-| **Services** | 159 | 13 包 + v1 域服务 (2026-10-08) |
+| **Routers** | 97 | AST 反推 (generate_meta --check 维护, 2026-11-14); 含聚合 router; v0.8.8 P3 退役零消费 router 后实测 |
+| **Services** | 153 | 13 包 + v1 域服务 (2026-11-14); v0.8.8 P2.5 备份链退役 −2 + P4.5 R-16 孤儿清理 −4 |
 | **Migrations** | 133 | 缺号 066-069 为历史编号空洞 (informational, 勿改名) |
-| **Jobs** | 58 | APScheduler (2026-10-08) |
-| **Collectors** | 14 | SSRF 防护走 url_safety; 14 号为 arXiv 论文单源 (category=paper, 2026-09-26) |
+| **Jobs** | 56 | APScheduler (2026-11-14); v0.8.8 P3 −3 / 备份链 −2 / log_trim_job +1 / fts_rebuild_job −1 |
+| **Collectors** | 19 | SSRF 防护走 url_safety (2026-11-14 实测) |
 | **Feature Gates** | 16 | 开 15 / 关 1 (mcp；管线 LLM 三 gate semantic_filter / ai_classify / pipeline_ner 2026-09-19 开闸, env HOTSPOT_FEATURE_GATES 可应急回关) |
-| **Tests** | 5,281 passed | 全量 pytest (2026-10-08, 9 skipped); 数字随提交滚动, 以最近 DEV_LOG 为准 |
+| **Tests** | 5,374 passed | 全量 pytest (2026-11-14, 7 skipped, 0 failed); 数字随提交滚动, 以最近 DEV_LOG 为准 |
 | **MCP Tools** | 23 | 16 读 + 7 写 (v0.8.7 P3-B +4 只读: list_proposals/runs/artifacts/cases) |
 
 ### 6.2 前端

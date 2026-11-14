@@ -1,4 +1,16 @@
 
+## [DEV-0371] v0.8.9 P1 C1-2 — Action finish 收口端点（断点②闭合）
+
+- **时间**: 2026-11-14
+- **类型**: 主干能力补全（端点 exposing 既有 service 方法 + 一致性守卫）
+- **依据**: 实施计划 §2 C1-2（ActionService.finish 既有实现无 HTTP 出口，action_api.py:196-231 仅 approve/start/cancel）
+- **关联文件**:
+  - `backend/services/action_service.py`（改）：`finish()` 增 R-1 一致性守卫——名下所有 run 必须已终态（queued/claimed/running → 409 active runs）；`finish(succeeded)` 须 ≥1 succeeded run（RA-9 一致性）
+  - `backend/api/action_api.py`（改）：增 `FinishActionRequest`（succeeded + reason）+ `_finish` handler + `POST /api/v1/actions/{id}/finish`（404/409/400 走既有 HTTPException 码位）
+- **口径偏差留档**: 计划原文写「run 未终态 → 422」，实现取 **409 E_CONFLICT**（与仓库冲突语义一致——状态不允许当前动作均 409）
+- **测试**: `test_run_receipt.py` 增 4 用例（active run 409 / succeeded 须 succeeded run / run 终态后收口成功 / HTTP 端点含 envelope）；连同 C1-1 共 14 passed
+- **验证**: 相关面 59 passed（test_action_service + test_run_ledger + test_run_receipt）；全量 pytest 后台门禁
+
 ## [DEV-0370] v0.8.9 P1 C1-1 — Run 人工回执 API（direct 执行体 = 人，断点①闭合）
 
 - **时间**: 2026-11-14

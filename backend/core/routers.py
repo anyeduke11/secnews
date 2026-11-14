@@ -56,7 +56,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # ungated 基础设施 (gate 管理面自身不受 gate 限制; P0-8 补登记)
     "mcp_settings_api", "settings_flags_api",
     # v1.0 端到端 API (T08-T18/C13/MP-2 等, 无 gate 限制; P0-8 补登记)
-    "case_api", "judgment_api", "action_api", "run_api", "artifact_api",
+    "case_api", "judgment_api", "action_api", "action_ops_api", "run_api", "artifact_api",
     "run_ledger_api",  # v0.8.6 P1-1: proposal 审批 + Run 账本
     "command_bar_api",  # v0.8.6 P1-4: M4 命令栏
     "quality_api",  # v0.8.6 P1-5: 拒收回放

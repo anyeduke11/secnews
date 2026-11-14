@@ -2,12 +2,14 @@
 
 路由清单 (前缀 /api/v1/actions)
 --------
-- ``POST /api/v1/actions/generate``       dsh 调 inspection-materials 落 planned action
+- ``POST /api/v1/actions/generate``       dsh 调 inspection-materials (拆分至 action_generate_api)
 - ``GET  /api/v1/actions``                列表 (query: case_id 必填 + status/judgment_id/limit/offset)
 - ``GET  /api/v1/actions/{id}``           详情
 - ``POST /api/v1/actions/{id}/approve``   planned → approved (CAS expected_revision)
 - ``POST /api/v1/actions/{id}/start``     approved → running (CAS + 创建 Run)
 - ``POST /api/v1/actions/{id}/cancel``    任何非终态 → cancelled
+- ``POST /api/v1/actions/{id}/finish``    v0.8.9 C1-2 (拆分至 action_finish_api, 聚合注册)
+- ``POST /api/v1/actions/{id}/finish``    v0.8.9 C1-2: running → succeeded/failed (须名下 run 全终态)
 
 错误
 ----
@@ -38,17 +40,26 @@ router = APIRouter(prefix="/api/v1/actions", tags=["v1-actions"])
 # ---------------------------------------------------------------------------
 # Request / Response 模型
 # ---------------------------------------------------------------------------
-class GenerateActionRequest(BaseModel):
-    """POST /api/v1/actions/generate — dsh 调 inspection-materials."""
+# ---------------------------------------------------------------------------
+# 端点
+# ---------------------------------------------------------------------------
+def _list(
+    case_id: str, status: str | None, judgment_id: str | None, limit: int, offset: int,
+) -> dict[str, Any]:
+    svc = ActionService()
+    result = svc.list_by_case(
+        case_id, status=status, judgment_id=judgment_id, limit=limit, offset=offset,
+    )
+    return _list_response(result["items"], total=result["total"])
 
-    case_id: str = Field(min_length=1, max_length=26)
-    judgment_id: str = Field(min_length=1, max_length=26)
-    title: str = Field(min_length=1, max_length=200)
-    subject_name: str = Field(min_length=1, max_length=200)
-    cve_id: str = Field(min_length=1, max_length=64)
-    scope: str = Field(default="", max_length=2000)
-    evidence_materials: list[dict[str, Any]] = Field(default_factory=list)
-    submitted_by: str = Field(default="user")
+
+def _get(action_id: str) -> dict[str, Any]:
+    svc = ActionService()
+    try:
+        a = svc.get(action_id)
+    except ActionNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
+    return {"version": API_VERSION, "item": _action_to_dict(a)}
 
 
 class StateChangeRequest(BaseModel):
@@ -68,80 +79,6 @@ class StartActionRequest(StateChangeRequest):
     protocol: str = Field(pattern="^(dsh|pi|direct)$")
     trigger_source: str = Field(default="user", pattern="^(user|agent|system|scheduled|webhook)$")
     skill_id: str | None = None
-
-
-def _action_to_dict(a: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "id": a["id"],
-        "case_id": a["case_id"],
-        "judgment_id": a["judgment_id"],
-        "title": a["title"],
-        "scope": a.get("scope"),
-        "plan": a["plan"],
-        "plan_hash": a["plan_hash"],
-        "tool_versions": a.get("tool_versions", {}),
-        "expected_artifacts": a.get("expected_artifacts", []),
-        "success_criteria": a.get("success_criteria"),
-        "expires_at": a.get("expires_at"),
-        "status": a["status"],
-        "approved_by": a.get("approved_by"),
-        "approved_at": a.get("approved_at"),
-        "rejection_reason": a.get("rejection_reason"),
-        "revision": a["revision"],
-        "allowed_actions": a.get("allowed_actions", []),
-        "reason": a.get("reason"),
-        "created_at": a["created_at"],
-        "updated_at": a["updated_at"],
-    }
-
-
-def _list_response(items: list[dict[str, Any]], total: int | None = None) -> dict[str, Any]:
-    return {
-        "version": API_VERSION,
-        "items": [_action_to_dict(a) for a in items],
-        "total": total if total is not None else len(items),
-    }
-
-
-# ---------------------------------------------------------------------------
-# 端点
-# ---------------------------------------------------------------------------
-def _generate(req: GenerateActionRequest) -> dict[str, Any]:
-    svc = ActionService()
-    try:
-        result = svc.create_with_dsh(
-            case_id=req.case_id, judgment_id=req.judgment_id, title=req.title,
-            subject_name=req.subject_name, cve_id=req.cve_id, scope=req.scope,
-            evidence_materials=req.evidence_materials, submitted_by=req.submitted_by,
-        )
-    except ActionValidationError as e:
-        raise HTTPException(status_code=400, detail={"code": "E_VALIDATION", "message": str(e)})
-    except ActionConflictError as e:
-        raise HTTPException(status_code=409, detail={"code": "E_CONFLICT", "message": str(e)})
-    return {
-        "version": API_VERSION,
-        "item": _action_to_dict(result["action"]),
-        "idempotent_replay": result["idempotent_replay"],
-    }
-
-
-def _list(
-    case_id: str, status: str | None, judgment_id: str | None, limit: int, offset: int,
-) -> dict[str, Any]:
-    svc = ActionService()
-    result = svc.list_by_case(
-        case_id, status=status, judgment_id=judgment_id, limit=limit, offset=offset,
-    )
-    return _list_response(result["items"], total=result["total"])
-
-
-def _get(action_id: str) -> dict[str, Any]:
-    svc = ActionService()
-    try:
-        a = svc.get(action_id)
-    except ActionNotFoundError as e:
-        raise HTTPException(status_code=404, detail={"code": "E_NOT_FOUND", "message": str(e)})
-    return {"version": API_VERSION, "item": _action_to_dict(a)}
 
 
 def _approve(action_id: str, req: StateChangeRequest) -> dict[str, Any]:
@@ -193,11 +130,6 @@ def _cancel(action_id: str, req: StateChangeRequest) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 路由
 # ---------------------------------------------------------------------------
-@router.post("/generate", response_model=None)
-async def generate_action(req: GenerateActionRequest) -> dict[str, Any]:
-    return await asyncio.to_thread(_generate, req)
-
-
 @router.get("", response_model=None)
 async def list_actions(
     case_id: str = Query(..., min_length=1, max_length=26),

@@ -67,6 +67,10 @@ def register_extensions(app: FastAPI) -> None:
     # v1.0 T12: Action / Run / Artifact 端到端 (SK-03 inspection-materials + 验收)
     from backend.api import action_api
     app.include_router(action_api.router, tags=["v1-actions"])
+    # v0.8.9 P1: generate/finish 端点拆分至 action_ops_api (FastAPI 0.139 嵌套惰性聚合
+    # 不可用 — 两层 _IncludedRouter 嵌套实测 404), 注册面直挂; routers 97→98
+    from backend.api import action_ops_api
+    app.include_router(action_ops_api.router, tags=["v1-actions"])
     from backend.api import artifact_api, run_api
     app.include_router(run_api.router, tags=["v1-runs"])
     app.include_router(artifact_api.router, tags=["v1-artifacts"])

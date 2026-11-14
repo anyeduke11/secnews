@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 产品定位
 
-hotspot 是面向 **AI + 安全从业者** 的单机 AI Native 证据工作台（v0.8.8）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 56 jobs / 19 collectors / 97 routers / 153 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
+hotspot 是面向 **AI + 安全从业者** 的单机 AI Native 证据工作台（v0.8.8）。知识域以 `llm-wiki-2.0/` md 文件为唯一真相源（wiki-first 哲学），SQLite 仅做投影索引；AI 调用经 `backend/services/ai_hub/` 包单出口；SecNews 壳为 **SentinelShell 四菜单**（`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置，唯一壳，工具页经 `PageLayout` 挂入）；dsh 认知大脑为受管子进程（前端 `/settings` 一键启停），pi 执行 agent 经 `/api/agents/*`。架构数字由 `scripts/generate_meta.py` AST 反推维护（当前 56 jobs / 19 collectors / 98 routers / 153 services）。唯一权威 PRD 见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`，详细机制见 `docs/ARCHITECTURE.md`，跑测试与生成迁移见 `backend/requirements*.txt` 与 `backend/repository/migrations/`。历史设计见 `docs/archived/`。
 
 ## Commands
 
@@ -50,7 +50,7 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ```
 backend/
-├── api/            # REST routers (97 include_router, core 白名单 + 扩展按 feature_gates 条件注册)
+├── api/            # REST routers (98 include_router, core 白名单 + 扩展按 feature_gates 条件注册)
 │   ├── __init__.py # register_routers() aggregates all (lazy imports)
 │   ├── codegarden.py, codegarden_ops.py  # 项目管理 + 运维层 (服务/资源/事件) endpoints
 │   ├── knowledge_chunks_api.py  # v0.3.0 Phase 17: 知识库 chunk 级 API + FTS5

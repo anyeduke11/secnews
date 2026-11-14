@@ -359,10 +359,25 @@ class ActionService:
         return a
 
     def finish(self, action_id: str, *, expected_revision: int, succeeded: bool) -> dict[str, Any]:
-        """Run 完成后被 RunService 调: action.status = succeeded / failed (CAS)."""
+        """Run 完成后收口: action.status = succeeded / failed (CAS) — v0.8.9 C1-2 起 HTTP 可达.
+
+        R-1 一致性守卫: 名下所有 run 必须已终态 (queued/claimed/running → 409),
+        防止 action 被收口而 run 仍是孤儿 (断点② 修复的一半, 另一半是 run 回执端点)。
+        """
         a = self._require(action_id)
         if a["status"] != "running":
             raise ActionConflictError(f"action {action_id} status={a['status']} (finish requires running)")
+        from backend.repository.run_repo import RunRepository
+        runs, _ = RunRepository().list_by_action(action_id, limit=200)
+        active = [r["id"] for r in runs if r["status"] in ("queued", "claimed", "running")]
+        if active:
+            raise ActionConflictError(
+                f"action {action_id} has active runs {active}; "
+                "finish requires all runs terminal (R-1: 先经 /api/v1/runs/{id}/finish 登记)")
+        if succeeded and not any(r["status"] == "succeeded" for r in runs):
+            raise ActionConflictError(
+                f"action {action_id} finish(succeeded) requires ≥1 succeeded run "
+                "(RA-9: 禁止成功但无产物; 走 failed + reason)")
         if a["revision"] != expected_revision:
             raise ActionConflictError(
                 f"action {action_id} revision mismatch: expected={expected_revision}, actual={a['revision']}"

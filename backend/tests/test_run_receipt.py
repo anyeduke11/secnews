@@ -219,7 +219,75 @@ def test_receipt_api_endpoints_via_http(temp_db: Path) -> None:
     r = client.post("/api/v1/runs/run-receipt/finish",
                     json={"outcome": "failed", "error": "again"})
     assert r.status_code == 409
+    # 全局 handler: RunConflictError.code='CONFLICT' (action_api 的 HTTPException 路径才是 E_CONFLICT)
     assert r.json()["error_code"] == "CONFLICT"
     # 未知 run → 404
     r = client.post("/api/v1/runs/run-nope/claim")
     assert r.status_code == 404
+
+
+# ── C1-2: Action finish 收口端点（run 终态一致性） ────────────────────
+
+
+def _seed_running_action(temp_db: Path, run_status: str) -> str:
+    """action(running) + 关联 run(指定状态)。返回 (action_id, run_id)。"""
+    _seed_chain(temp_db)
+    from backend.repository.db import get_connection
+
+    conn = get_connection()  # 共享线程连接 — 不可 close (close_db 由 fixture 收尾)
+    conn.execute(
+        "UPDATE v1_actions SET status='running', revision=revision+1 WHERE id='act-receipt'")
+    if run_status != "queued":
+        conn.execute(
+            "UPDATE v1_runs SET status=? WHERE id='run-receipt'", (run_status,))
+    conn.commit()
+    return "act-receipt"
+
+
+def test_action_finish_with_active_run_conflicts(temp_db: Path) -> None:
+    """C1-2 守卫: 名下 run 仍 active (running) → 409 (断点②修复)。"""
+    from backend.services.action_service import ActionConflictError, ActionService
+
+    _seed_running_action(temp_db, "running")
+    with pytest.raises(ActionConflictError, match="active runs"):
+        ActionService().finish("act-receipt", expected_revision=2, succeeded=True)
+
+
+def test_action_finish_succeeded_requires_succeeded_run(temp_db: Path) -> None:
+    """RA-9 一致性: run 全 failed 时 finish(succeeded) → 409。"""
+    from backend.services.action_service import ActionConflictError, ActionService
+
+    _seed_running_action(temp_db, "failed")
+    with pytest.raises(ActionConflictError, match=r"requires .*succeeded run"):
+        ActionService().finish("act-receipt", expected_revision=2, succeeded=True)
+
+
+def test_action_finish_succeeds_after_run_terminal(temp_db: Path) -> None:
+    """验收②: run 终态后 action 收口成功 (running → succeeded)。"""
+    from backend.services.action_service import ActionService
+
+    _seed_running_action(temp_db, "succeeded")
+    a = ActionService().finish("act-receipt", expected_revision=2, succeeded=True)
+    assert a["status"] == "succeeded"
+
+
+def test_action_finish_api_endpoint(temp_db: Path) -> None:
+    """POST /api/v1/actions/{id}/finish 经真实路由可达 + run 未终态 → 409。"""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.api import action_ops_api
+    from backend.api.action_api import router
+    from backend.exceptions import register_exception_handlers
+
+    _seed_running_action(temp_db, "running")
+    app = FastAPI()
+    app.include_router(router)
+    # C1-2: finish 端点拆分至 action_ops_api (注册面直挂), 测试 app 同步挂载
+    app.include_router(action_ops_api.router)
+    register_exception_handlers(app)
+    client = TestClient(app)
+    r = client.post("/api/v1/actions/act-receipt/finish",
+                    json={"expected_revision": 2, "succeeded": True})
+    assert r.status_code == 409
+    assert r.json()["error_code"] == "E_CONFLICT"

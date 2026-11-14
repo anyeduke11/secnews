@@ -70,7 +70,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 ## 架构
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (97 routers / 153 services / 56 jobs / 19 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (98 routers / 153 services / 56 jobs / 19 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
 </p>
 
 ## MCP Server — 19 个工具

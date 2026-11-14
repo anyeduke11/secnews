@@ -1,4 +1,18 @@
 
+## [DEV-0370] v0.8.9 P1 C1-1 — Run 人工回执 API（direct 执行体 = 人，断点①闭合）
+
+- **时间**: 2026-11-14
+- **类型**: 主干能力补全（R-1 核心重写为 7 态机 CAS 迁移；无 schema 变更）
+- **依据**: `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` §2 C1-1 / PRD §4.1 R-1（D4 裁决：direct = 人担保）
+- **关联文件**:
+  - `backend/repository/run_repo.py`（改）：增 `transition()`（CAS `WHERE id=? AND status IN (from)`，状态+outcome 同语句原子更新，单 revision bump；rowcount=0 = 竞争）
+  - `backend/services/run_service.py`（改）：增 `claim / start / finish / cancel` 四方法 + `_RUN_OUTCOME_TO_STATUS` 映射（done→succeeded / failed→failed / cancelled→cancelled / timeout→timed_out / needs_human→failed）+ `_publish_v1_run_event`（v1_outbox event_type=v1_run，R-6 前置）+ `_audit_receipt`（audit_log actor=web）
+  - `backend/repository/artifact_repo.py`（改）：增 `ids_by_run()`（finish(done) 的 RA-9 守卫依据，实表回填 artifact_ids）
+  - `backend/api/run_api.py`（改）：增 `POST /api/v1/runs/{id}/claim|start|finish|cancel` 四端点（RunFinishBody/RunCancelBody；service 异常走全局统一 envelope）
+- **契约**: finish 状态冲突优先于参数校验（queued 直接 finish = 状态机违例 409，非 400）；`outcome=done` 须已有 ≥1 artifact（RA-9，artifact_ids 由实表回填不信入参）；`failed/timeout/needs_human` error 必填（失败真实性）；duration_ms = finish − started_at 实测
+- **测试**: 新建 `backend/tests/test_run_receipt.py` 10 用例（全链 CAS / RA-9 + 实表回填 / error 必填 ×3 / 双 finish 409 / queued finish 409 / 重复 claim 409 / cancel + 二次冲突 / timeout→timed_out / 非法 outcome / outbox 三事件顺序 / HTTP 端点含统一 envelope）
+- **验证**: 本文件 10 passed；全量 pytest 后台门禁；`generate_meta --check` 零新增 router 文件（run_api 既有文件加端点）
+
 ## [DEV-0369] v0.8.9 P0 基线盘点 — 执行链勘察审计落档（C0-1）
 
 - **时间**: 2026-11-14

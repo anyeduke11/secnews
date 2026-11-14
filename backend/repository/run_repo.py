@@ -89,6 +89,58 @@ class RunRepository:
         ).fetchall()
         return [self._row_to_dict(r) for r in rows], total
 
+    def transition(
+        self, run_id: str, from_status: str | tuple[str, ...], to_status: str, *,
+        outcome: str | None = None, started_at: str | None = None,
+        finished_at: str | None = None, duration_ms: int | None = None,
+        result_excerpt: str | None = None, error: str | None = None,
+        artifact_ids: list[str] | None = None,
+        allowed_actions: list[str] | None = None,
+    ) -> int:
+        """R-1 人工回执: CAS 状态迁移 — WHERE id=? AND status IN (from)。
+
+        状态与 outcome 同语句原子更新（单 revision bump）；rowcount=0 = 状态竞争
+        或 run 不存在，调用方转 409/404。终端字段仅在不为 None 时写入。
+        """
+        if isinstance(from_status, str):
+            from_status = (from_status,)
+        guards = ",".join("?" for _ in from_status)
+        sets = ["status = ?", "revision = revision + 1",
+                "updated_at = datetime('now', 'localtime')"]
+        params: list[Any] = [to_status]
+        if outcome is not None:
+            sets.append("outcome = ?")
+            params.append(outcome)
+        if started_at is not None:
+            sets.append("started_at = ?")
+            params.append(started_at)
+        if finished_at is not None:
+            sets.append("finished_at = ?")
+            params.append(finished_at)
+        if duration_ms is not None:
+            sets.append("duration_ms = ?")
+            params.append(duration_ms)
+        if result_excerpt is not None:
+            sets.append("result_excerpt = ?")
+            params.append(result_excerpt)
+        if error is not None:
+            sets.append("error = ?")
+            params.append(error)
+        if artifact_ids is not None:
+            sets.append("artifact_ids_json = ?")
+            params.append(json.dumps(artifact_ids))
+        if allowed_actions is not None:
+            sets.append("allowed_actions_json = ?")
+            params.append(json.dumps(allowed_actions))
+        params.extend([run_id, *from_status])
+        cur = self._c().execute(
+            f"UPDATE v1_runs SET {', '.join(sets)} "
+            f"WHERE id = ? AND status IN ({guards})",
+            params,
+        )
+        self._c().commit()
+        return cur.rowcount
+
     def update_status(
         self, run_id: str, new_status: str, *,
         finished_at: str | None = None, duration_ms: int | None = None,

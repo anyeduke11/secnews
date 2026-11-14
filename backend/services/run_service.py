@@ -180,6 +180,160 @@ class RunService:
         return a["revision"] if a else 1
 
     # ------------------------------------------------------------------
+    # R-1 人工回执 (v0.8.9): direct 执行体 = 人 — claim/start/finish/cancel
+    # ------------------------------------------------------------------
+    _RUN_OUTCOME_TO_STATUS: dict[str, str] = {  # noqa: RUF012 — 常量映射, 不可变使用
+        "done": "succeeded",
+        "failed": "failed",
+        "cancelled": "cancelled",
+        "timeout": "timed_out",
+        "needs_human": "failed",
+    }
+
+    def _publish_v1_run_event(self, r: dict[str, Any], event_suffix: str) -> None:
+        """R-6 前置: run 生命周期事件写 v1_outbox (下行 SSE 管道既有, 失败吞错)."""
+        try:
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_run",
+                aggregate_type="run",
+                aggregate_id=r["id"],
+                revision=int(r.get("revision", 0) or 0),
+                payload={
+                    "id": r["id"], "action_id": r["action_id"],
+                    "status": r.get("status"), "outcome": r.get("outcome"),
+                    "event": event_suffix,
+                },
+                trace_id=get_trace_id() or "no-trace",
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger("hotspot.run_service").debug(
+                f"v1_run outbox enqueue skipped: {e}")
+
+    def _audit_receipt(self, action_name: str, run_id: str, detail: dict[str, Any]) -> None:
+        from backend.observability_records import record_audit
+        record_audit("web", f"run.{action_name}", target=f"run:{run_id}", detail=detail)
+
+    def claim(self, run_id: str) -> dict[str, Any]:
+        """queued → claimed (CAS)。人认领执行。"""
+        with stage_span("run", target=f"run:{run_id}"):
+            r = self.repo.get(run_id)
+            if r is None:
+                raise RunNotFoundError(f"run {run_id} not found")
+            rc = self.repo.transition(
+                run_id, "queued", "claimed",
+                allowed_actions=_RUN_ALLOWED_ACTIONS["claimed"])
+            if rc == 0:
+                raise RunConflictError(
+                    f"run {run_id} status={r['status']} (claim requires queued)")
+            updated = self.repo.get(run_id)
+            self._publish_v1_run_event(updated, "claimed")
+            self._audit_receipt("claim", run_id, {"from": "queued", "to": "claimed"})
+            return updated
+
+    def start(self, run_id: str) -> dict[str, Any]:
+        """claimed → running (CAS)，重置 started_at 为真实开工时刻。"""
+        with stage_span("run", target=f"run:{run_id}"):
+            r = self.repo.get(run_id)
+            if r is None:
+                raise RunNotFoundError(f"run {run_id} not found")
+            rc = self.repo.transition(
+                run_id, "claimed", "running", started_at=_utcnow_iso(),
+                allowed_actions=_RUN_ALLOWED_ACTIONS["running"])
+            if rc == 0:
+                raise RunConflictError(
+                    f"run {run_id} status={r['status']} (start requires claimed)")
+            updated = self.repo.get(run_id)
+            self._publish_v1_run_event(updated, "started")
+            self._audit_receipt("start", run_id, {"from": "claimed", "to": "running"})
+            return updated
+
+    def finish(
+        self, run_id: str, *, outcome: str,
+        result_excerpt: str | None = None, error: str | None = None,
+    ) -> dict[str, Any]:
+        """running → 终态 (CAS)，账本 outcome 终判 (R-1 核心)。
+
+        - outcome ∈ {done, failed, cancelled, timeout, needs_human}；
+          done → status=succeeded 且**必须已有 ≥1 artifact** (RA-9: 禁止成功但无产物)；
+          failed/timeout/needs_human → error 必填 (失败真实性)；
+        - artifact_ids 由 v1_artifacts 实表回填 (单一真相源，不信入参)。
+        """
+        with stage_span("run", target=f"run:{run_id}"):
+            r = self.repo.get(run_id)
+            if r is None:
+                raise RunNotFoundError(f"run {run_id} not found")
+            if r["status"] != "running":
+                # 状态冲突优先于参数校验 (queued 直接 finish = 状态机违例, 非参数问题)
+                raise RunConflictError(
+                    f"run {run_id} status={r['status']} (finish requires running)")
+            if outcome not in self._RUN_OUTCOME_TO_STATUS:
+                raise RunValidationError(
+                    f"invalid outcome: {outcome} "
+                    f"(allowed: {sorted(self._RUN_OUTCOME_TO_STATUS)})")
+            to_status = self._RUN_OUTCOME_TO_STATUS[outcome]
+            artifact_ids: list[str] | None = None
+            if outcome == "done":
+                from backend.repository.artifact_repo import ArtifactRepository
+                artifact_ids = ArtifactRepository().ids_by_run(run_id)
+                if not artifact_ids:
+                    raise RunValidationError(
+                        f"outcome='done' requires ≥1 registered artifact for run "
+                        f"{run_id} (RA-9: 禁止成功但无产物); register via POST /api/v1/artifacts first")
+            if outcome in ("failed", "timeout", "needs_human") and not (error or "").strip():
+                raise RunValidationError(
+                    f"outcome='{outcome}' requires error (失败真实性: 必填原因码)")
+            finished_at = _utcnow_iso()
+            duration_ms: int | None = None
+            try:
+                started = datetime.fromisoformat(r.get("started_at") or "")
+                if started.tzinfo is None:
+                    from datetime import timezone as _tz
+                    started = started.replace(tzinfo=_tz.utc)
+                duration_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+            except (ValueError, TypeError):
+                duration_ms = None
+            rc = self.repo.transition(
+                run_id, "running", to_status,
+                outcome=outcome, finished_at=finished_at, duration_ms=duration_ms,
+                result_excerpt=result_excerpt,
+                error=(str(error)[:500] if error else None),
+                artifact_ids=artifact_ids,
+                allowed_actions=_RUN_ALLOWED_ACTIONS[to_status],
+            )
+            if rc == 0:
+                raise RunConflictError(
+                    f"run {run_id} status={r['status']} (finish requires running)")
+            updated = self.repo.get(run_id)
+            self._publish_v1_run_event(updated, "finished")
+            self._audit_receipt(
+                "finish", run_id,
+                {"outcome": outcome, "status": to_status, "artifacts": len(artifact_ids or [])})
+            return updated
+
+    def cancel(self, run_id: str, *, reason: str | None = None) -> dict[str, Any]:
+        """queued/claimed/running → cancelled (CAS)，失败真实性: 保留 reason。"""
+        with stage_span("run", target=f"run:{run_id}"):
+            r = self.repo.get(run_id)
+            if r is None:
+                raise RunNotFoundError(f"run {run_id} not found")
+            rc = self.repo.transition(
+                run_id, ("queued", "claimed", "running"), "cancelled",
+                outcome="cancelled", finished_at=_utcnow_iso(),
+                result_excerpt=(str(reason)[:500] if reason else None),
+                allowed_actions=_RUN_ALLOWED_ACTIONS["cancelled"],
+            )
+            if rc == 0:
+                raise RunConflictError(
+                    f"run {run_id} status={r['status']} (cancel requires queued/claimed/running)")
+            updated = self.repo.get(run_id)
+            self._publish_v1_run_event(updated, "cancelled")
+            self._audit_receipt("cancel", run_id, {"from": r["status"], "to": "cancelled"})
+            return updated
+
+    # ------------------------------------------------------------------
     # list / get
     # ------------------------------------------------------------------
     def list_by_action(

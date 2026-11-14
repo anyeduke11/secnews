@@ -17,6 +17,14 @@ class ArtifactRepository:
     def _c(self) -> sqlite3.Connection:
         return self._conn or get_connection()
 
+    def ids_by_run(self, run_id: str) -> list[str]:
+        """R-1 人工回执: 某 run 名下已登记的 artifact id 列表 (finish(done) RA-9 守卫依据)。"""
+        rows = self._c().execute(
+            "SELECT id FROM v1_artifacts WHERE run_id = ? ORDER BY created_at ASC",
+            (run_id,),
+        ).fetchall()
+        return [r["id"] for r in rows]
+
     def find_by_run_and_hash(self, run_id: str, content_hash: str) -> dict[str, Any] | None:
         """R-11 幂等查询: (run_id, content_hash) 已登记的 artifact (无则 None)。
 

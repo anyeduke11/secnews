@@ -1,4 +1,17 @@
 
+## [DEV-0367] v0.8.9 立项 — 主干流量专项 PRD 草案 + 实施计划（待 owner 裁决 D1~D8）
+
+- **时间**: 2026-11-14
+- **类型**: 版本立项（PRD 草案 + 实施计划；零代码改动）
+- **依据**: owner 指令「开始 v0.8.9 立项（输出 PRD 方案和实施计划）」+ 2026-11-14 执行链全链勘察（file:line 证据内嵌 PRD §1.1）
+- **勘察关键发现（六断点）**: ① run 创建即孤儿（7 态机无推进器；worker_pump 与 v1_runs 无关且 TriggerGate 无生产者，53 条票据全遗物）；② Action.start 单程票（action 永远 running，finish_run 无生产调用方）；③ 三协议执行体全悬空（pi = `pi -p` 单轮文本补全；dsh vendor D3 死路；direct 仅账本标记）；④ Case 运营型被守卫 (c) 死锁；⑤ 知识回流断头（proposal 批准 = pending md artifact，无 v1_knowledge 写入）；⑥ `artifact_yield` 口径 bug（分母 `status='done'` 恒空 → 恒 None）
+- **关联文件**:
+  - `docs/v0.8.9/V0.8.9_PRD.md`（新建）：背景六断点 / G1~G5 目标（runs ≥10 / artifacts ≥5 / 首个 case 关闭 / 越界演练 / 观测可信）/ R-1~R-6 需求（每项现状+约束+二值验收+回滚）/ 四层防线×八底线映射 / D1~D8 裁决点 / 熔断红线
+  - `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`（新建）：P0~P7 七阶段约 20 commit；**P1 人工回执最小闭环先行**（不依赖 AI 执行体，direct=人是执行者）；C3-1 migration 只加 executor/boundary_hash/execution_plan_json 三列（plan_json 语义不动，D2）；六项试点演练（人工全链关闭 case / pi 边界执行 / 越界拦截×2 / 运营型关闭 / 知识回流召回）
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`（改）：变更记录增 v0.8.9 立项条目（单一权威 PRD 维护纪律）
+- **关键设计决策（推荐项，待 owner 定稿）**: D1 P10 设计继承（superseded 文档升格本版设计权威）；D2 ExecutionPlan 另加列不动 plan_json；D3 pi 走 agent_bridge jsonl（vendor TS 编译失败现实）；D4 direct=人担保；D5 只读类试点；D6 close 守卫 (d) 保留；D7 artifact_yield 口径修复=bug 修复；D8 SK-04 改 Case 关闭事件直连（TriggerGate 遗物不复活）
+- **验证**: 纯文档立项；勘察事实全部来自本日只读实测（sqlite + file:line grep）
+
 ## [DEV-0365] v0.8.8 实施计划 plan.9 — 全计划一致性收口（开发进展终态对账）
 
 - **时间**: 2026-11-14

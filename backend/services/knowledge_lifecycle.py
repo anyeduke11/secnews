@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.observability_records import stage_span
 from backend.services.knowledge_common import (
     _KNOWLEDGE_ALLOWED_ACTIONS,
     KnowledgeConflictError,
@@ -47,20 +48,22 @@ class KnowledgeLifecycleMixin:
         now = _utcnow_iso()
         # R10 fix: wiki 写失败必须 raise, 不吞. _write_wiki 内部已 RuntimeError.
         self._write_wiki(wiki_path, k, now)
-        rowcount = self.repo.update_status_cas(
-            knowledge_id, "published", expected_revision=expected_revision,
-            published_at=now, wiki_path=wiki_path,
-            allowed_actions=_KNOWLEDGE_ALLOWED_ACTIONS["published"], reason=None,
-        )
-        if rowcount == 0:
-            raise KnowledgeConflictError(f"knowledge {knowledge_id} CAS race")
-        # append revision
-        self.revision_repo.append({
-            "knowledge_id": knowledge_id, "revision": expected_revision + 1,
-            "status": "published", "reason": None, "wiki_path": wiki_path,
-            "content_hash": k.get("content_hash"),
-            "recorded_at": now, "recorded_by": "user",
-        })
+        # R-10: knowledge 段 span 覆盖 publish CAS + revision append 写窗
+        with stage_span("knowledge", target=f"knowledge:{knowledge_id}"):
+            rowcount = self.repo.update_status_cas(
+                knowledge_id, "published", expected_revision=expected_revision,
+                published_at=now, wiki_path=wiki_path,
+                allowed_actions=_KNOWLEDGE_ALLOWED_ACTIONS["published"], reason=None,
+            )
+            if rowcount == 0:
+                raise KnowledgeConflictError(f"knowledge {knowledge_id} CAS race")
+            # append revision
+            self.revision_repo.append({
+                "knowledge_id": knowledge_id, "revision": expected_revision + 1,
+                "status": "published", "reason": None, "wiki_path": wiki_path,
+                "content_hash": k.get("content_hash"),
+                "recorded_at": now, "recorded_by": "user",
+            })
         result = self._require(knowledge_id)
         self._publish_v1_knowledge_event(result, "published")
         return result

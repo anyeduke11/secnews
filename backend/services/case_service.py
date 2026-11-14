@@ -37,6 +37,7 @@ from backend.exceptions import (
     NotFoundException,
 )
 from backend.logging_config import logger
+from backend.observability_records import stage_span
 from backend.repository.case_repo import CaseRecord, CaseRepository
 from backend.services.v1_evidence_service import V1EvidenceService
 
@@ -219,37 +220,38 @@ class CaseService:
             raise CaseValidationError(f"case validation failed: {e}") from e
         del parsed  # 仅用作校验
 
-        # 单一提交入口 — evidence 协议
+        # 单一提交入口 — evidence 协议 (R-10: case 段 span 覆盖 intent→create→commit 写窗)
         sub_key = _submission_key(source, ulid)
-        intent = self._evidence.create_intent(
-            submission_key=sub_key,
-            entity_type="case",
-            body=body,
-            submitted_by=source,
-        )
-        try:
-            self._repo.create(body)
-            self._evidence.commit_intent(
-                intent["intent_id"], entity_id=ulid, projection=None
+        with stage_span("case", target=f"case:{ulid}"):
+            intent = self._evidence.create_intent(
+                submission_key=sub_key,
+                entity_type="case",
+                body=body,
+                submitted_by=source,
             )
-        except Exception:
-            # 回滚 — 清理已建 case 行 (如果存在)
             try:
-                existing = self._repo.get(ulid)
-                if existing is not None:
-                    from backend.repository.db import get_connection
+                self._repo.create(body)
+                self._evidence.commit_intent(
+                    intent["intent_id"], entity_id=ulid, projection=None
+                )
+            except Exception:
+                # 回滚 — 清理已建 case 行 (如果存在)
+                try:
+                    existing = self._repo.get(ulid)
+                    if existing is not None:
+                        from backend.repository.db import get_connection
 
-                    get_connection().execute(
-                        "DELETE FROM v1_cases WHERE id = ?", (ulid,)
-                    )
-                    get_connection().commit()
-            except Exception:  # pragma: no cover — best-effort cleanup
-                logger.warning(f"rollback cleanup failed for case_id={ulid}")
-            try:
-                self._evidence.rollback_intent(intent["intent_id"], reason="create failed")
-            except Exception:  # pragma: no cover — rollback best-effort
-                logger.warning(f"rollback_intent failed for {intent['intent_id']}")
-            raise
+                        get_connection().execute(
+                            "DELETE FROM v1_cases WHERE id = ?", (ulid,)
+                        )
+                        get_connection().commit()
+                except Exception:  # pragma: no cover — best-effort cleanup
+                    logger.warning(f"rollback cleanup failed for case_id={ulid}")
+                try:
+                    self._evidence.rollback_intent(intent["intent_id"], reason="create failed")
+                except Exception:  # pragma: no cover — rollback best-effort
+                    logger.warning(f"rollback_intent failed for {intent['intent_id']}")
+                raise
 
         rec = self._repo.get(ulid)
         if rec is None:

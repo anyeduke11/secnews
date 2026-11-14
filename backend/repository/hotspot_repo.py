@@ -36,6 +36,7 @@ from backend.domain.enums import Category, TimeRange
 from backend.domain.models import HotspotItem
 from backend.exceptions import InternalException
 from backend.logging_config import logger
+from backend.observability_records import stage_span
 from backend.repository.db import get_connection
 
 # ---------------------------------------------------------------------------
@@ -235,24 +236,27 @@ class HotspotRepository:
         """
 
         total_affected = 0
-        try:
-            conn.execute("BEGIN")
-            for item in items:
-                params = self._item_to_params(item)
-                cur = conn.execute(sql, params)
-                total_affected += cur.rowcount
-            conn.execute("COMMIT")
-        except Exception as e:
+        # R-10: item 段 span 覆盖 BEGIN→COMMIT 写事务 (target 含批量大小;
+        # 所有入库路径 — 采集/catchup/导入 — 汇聚于本方法, 单点覆盖)
+        with stage_span("item", target=f"item:batch:{len(items)}"):
             try:
-                conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                # Best-effort rollback; surface the original error regardless.
-                pass
-            logger.error(
-                "upsert_many failed",
-                extra={"trace_id": "", "count": len(items), "error": str(e)},
-            )
-            raise InternalException(f"upsert_many failed: {e}") from e
+                conn.execute("BEGIN")
+                for item in items:
+                    params = self._item_to_params(item)
+                    cur = conn.execute(sql, params)
+                    total_affected += cur.rowcount
+                conn.execute("COMMIT")
+            except Exception as e:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    # Best-effort rollback; surface the original error regardless.
+                    pass
+                logger.error(
+                    "upsert_many failed",
+                    extra={"trace_id": "", "count": len(items), "error": str(e)},
+                )
+                raise InternalException(f"upsert_many failed: {e}") from e
 
         logger.debug(  # P0-10: 例行成功 → DEBUG (失败路径 error 不变)
             "upsert_many ok",

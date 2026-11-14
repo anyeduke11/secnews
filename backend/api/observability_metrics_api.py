@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query
 
+from backend.observability_records import query_stage_spans
 from backend.services.observability_query_service import (
     ack_alert,
     query_active_alerts,
@@ -112,3 +113,15 @@ def post_alerts_ack(alert_id: int):
 def get_deliveries(limit: int = Query(50, ge=1, le=500)):
     """列最近 alert_deliveries (审计 "告警是否真的发出去了")."""
     return {"deliveries": query_recent_deliveries(limit)}
+
+
+@metrics_router.get("/trace/{trace_id}")
+def get_trunk_trace(trace_id: str):
+    """v0.8.8 P4 R-10: 按 trace_id 查七段主干链路 span (occurred_at 升序).
+
+    数据源 = audit_log 中 actor='trunk' 的 stage.<name> span 行 (写由
+    observability_records.stage_span 负责, 复用现表不新建). missing_stages
+    列出七段 (item/signal/case/claim/run/artifact/knowledge) 中本 trace
+    未触及的段 — 链路断点一眼可见.
+    """
+    return {**query_stage_spans(trace_id), "as_of": _now_iso()}

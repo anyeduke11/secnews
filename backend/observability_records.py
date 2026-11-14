@@ -22,6 +22,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
@@ -295,14 +298,150 @@ def record_api_call(*, trace_id: str, method: str, path_template: str,
         log.debug(f"record_api_call failed: {e}")
 
 
+# ── trunk stage spans (纯追加, v0.8.8 P4 R-10) ──────────────────
+# 七段主干链路 (Item→Signal→Case→Claim→Run→Artifact→Knowledge) 每段的
+# 写入口用 stage_span 包裹, span 行落 audit_log (R-10 "复用现表不新建表";
+# PRD §4.4 R-04 已裁决 observability_records 表不存在, 实表 = audit_log):
+#   actor='trunk' · action='stage.<stage>' · target='<域>:<id>' ·
+#   detail={status, started_at, duration_ms[, error_code]} · trace_id 走 contextvar。
+# 关闭开关: config.trunk_trace_enabled (env HOTSPOT_TRUNK_TRACE=0),
+# 关闭后主链行为不变 (本模块写路径全部吞错, RA-6 fail-open)。
+
+TRUNK_STAGES: tuple[str, ...] = (
+    "item", "signal", "case", "claim", "run", "artifact", "knowledge",
+)
+_STAGE_ACTION_PREFIX = "stage."
+
+
+def _error_code_of(exc: BaseException) -> str:
+    """从异常提取失败原因码: HotspotException.code > HTTP status > 类名兜底。"""
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and code:
+        return code
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return f"E_HTTP_{status}"
+    return f"E_INTERNAL.{type(exc).__name__}"
+
+
+class StageSpanHandle:
+    """stage_span 的会话句柄 — 允许在函数体中段补写 target (id 产生后)。"""
+
+    def __init__(self, target: str | None) -> None:
+        self._target = target
+
+    def set_target(self, target: str) -> None:
+        """中段补写 target (如 repo.insert 产出实体 id 之后)。"""
+        self._target = target
+
+
+@contextmanager
+def stage_span(stage: str, *, target: str | None = None) -> Iterator[StageSpanHandle]:
+    """七段主干链路 span — 包住一个 stage 的写入口, 出口写一行 span。
+
+    用法::
+
+        with stage_span("case", target=f"case:{case_id}"):
+            case = _create(req)
+
+        # id 在函数体中段才产生时:
+        with stage_span("case") as span:
+            case = repo.create(payload)
+            span.set_target(f"case:{case.id}")
+
+    - 正常退出: detail.status='ok'; 异常退出: status='failed' + error_code,
+      且异常原样重抛 (埋点只观测不拦截)。
+    - trace_id 取当前 contextvar (HTTP 请求 = TraceIDMiddleware 注入,
+      job = instrument_job 注入), 无上下文时 audit_log.trace_id 为 NULL。
+    - 阶段名拼错立即 ValueError (fail loud — stage 名是查询契约的一部分)。
+    - 写入失败吞掉 (record_audit 内层 + 本层 finally 双保险), 开销为一次
+      本地 INSERT, 不引入跨段阻塞 (R-10 技术约束 ①②)。
+    """
+    if stage not in TRUNK_STAGES:
+        raise ValueError(f"unknown trunk stage: {stage!r} (expected one of {TRUNK_STAGES})")
+    handle = StageSpanHandle(target)
+    started_mono = time.monotonic()
+    started_at = _now_iso()
+    error_code: str | None = None
+    try:
+        yield handle
+    except BaseException as exc:
+        error_code = _error_code_of(exc)
+        raise
+    finally:
+        try:
+            record_stage_span(
+                stage, ok=error_code is None, started_at=started_at,
+                duration_ms=int((time.monotonic() - started_mono) * 1000),
+                target=handle._target, error_code=error_code,
+            )
+        except Exception as e:  # pragma: no cover — 双保险, 理论不可达
+            log.debug(f"stage_span write failed: {e}")
+
+
+def record_stage_span(stage: str, *, ok: bool, started_at: str, duration_ms: int,
+                      target: str | None = None,
+                      error_code: str | None = None) -> None:
+    """写一行七段 span (stage_span 出口调用; 也可由 job 直接批量补记)。
+
+    config.trunk_trace_enabled=False 时不写 (R-10 验收④ 关闭开关)。
+    """
+    from backend.config import (
+        config,  # 函数内 import: 避免 config↔records 环 & 测试 monkeypatch 单例
+    )
+
+    if not config.trunk_trace_enabled:
+        return
+    detail: dict[str, Any] = {
+        "status": "ok" if ok else "failed",
+        "started_at": started_at,
+        "duration_ms": int(duration_ms),
+    }
+    if error_code:
+        detail["error_code"] = error_code
+    record_audit("trunk", f"{_STAGE_ACTION_PREFIX}{stage}",
+                 target=target, detail=detail)
+
+
+def query_stage_spans(trace_id: str, *, limit: int = 100) -> dict:
+    """按 trace_id 查七段 span, occurred_at 升序 (R-10 验收①② 的查询面)。
+
+    返回 {trace_id, stages: [...], missing_stages: [七段中未出现的]}。
+    与写面同文件 (DEV-0287 D4「查询面与写面同文件」先例)。
+    """
+    rows = get_connection().execute(
+        "SELECT action, target, detail, occurred_at FROM audit_log "
+        "WHERE trace_id = ? AND action LIKE ? "
+        "ORDER BY occurred_at ASC, rowid ASC LIMIT ?",
+        (trace_id, _STAGE_ACTION_PREFIX + "%", int(limit)),
+    ).fetchall()
+    stages: list[dict] = []
+    seen: set[str] = set()
+    for r in rows:
+        stage = r["action"][len(_STAGE_ACTION_PREFIX):]
+        try:
+            detail = json.loads(r["detail"]) if r["detail"] else {}
+        except Exception:
+            detail = {}
+        stages.append({"stage": stage, **detail,
+                       "target": r["target"], "occurred_at": r["occurred_at"]})
+        seen.add(stage)
+    missing = [s for s in TRUNK_STAGES if s not in seen]
+    return {"trace_id": trace_id, "stages": stages, "missing_stages": missing}
+
+
 __all__ = [
+    "TRUNK_STAGES",
     "finish_agent_run",
     "finish_job_run",
     "query_job_runs",
+    "query_stage_spans",
     "record_api_call",
     "record_audit",
     "record_missed_job_run",
     "record_process_event",
+    "record_stage_span",
+    "stage_span",
     "start_agent_run",
     "start_job_run",
     "summarize_job_runs",

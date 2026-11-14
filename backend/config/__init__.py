@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # 默认 20/60s = 1200/h 上限, env HOTSPOT_GATE_RATE_MAX 可调; ollama 不受限频。
     gate_rate_max: int = 20
     gate_rate_window_s: int = 60
+    # v0.8.8 P4 R-10: 七段主干链路埋点开关 (trunk stage span → audit_log)。
+    # 默认开; env HOTSPOT_TRUNK_TRACE=0 可关。关闭后主链行为不变 (span 写入
+    # 本身 fail-open, 双保险见 observability_records.stage_span)。
+    trunk_trace_enabled: bool = True
     # v1.8: 启动时自动追抓「本周一 → 现在」(真实全网抓取);
     # 测试环境必须关闭 (conftest autouse fixture), env HOTSPOT_CATCHUP_ON_STARTUP 可覆盖
     catchup_on_startup: bool = True

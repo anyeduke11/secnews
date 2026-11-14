@@ -22,10 +22,25 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.logging_config import logger
+from backend.observability_records import record_stage_span
+
+
+def _record_signal_span(summary: dict[str, Any], t0_mono: float, t0_iso: str) -> None:
+    """R-10 signal 段 span 收尾 (桥内吞错不抛 — span 如实记账 ok/failed)。"""
+    record_stage_span(
+        "signal",
+        ok=summary.get("error") is None,
+        started_at=t0_iso,
+        duration_ms=int((time.monotonic() - t0_mono) * 1000),
+        target=f"signal:batch({summary.get('signals_committed', 0)})",
+        error_code=(str(summary["error"]).split(":")[0]
+                    if summary.get("error") else None),
+    )
 
 _BRIDGE_NAME = "hotspot-bridge"
 _WINDOW_HOURS = 24
@@ -126,6 +141,8 @@ def run_hotspot_signal_bridge(
         "scored": 0, "score_skipped": 0, "denied_by_score": 0,
         "error": None,
     }
+    _t0_mono = time.monotonic()  # R-10: signal 段 span 计时起点
+    _t0_iso = datetime.now(timezone.utc).isoformat()
     try:
         from backend.domain.knowledge_models import KnowledgeItem
         from backend.repository.db import get_connection
@@ -271,6 +288,7 @@ def run_hotspot_signal_bridge(
     except Exception as e:  # 桥故障不反噬主采集流 (job 侧同款隔离)
         summary["error"] = f"{type(e).__name__}: {e}"
         logger.error(f"v1_signal_bridge crashed: {summary['error']}")
+        _record_signal_span(summary, _t0_mono, _t0_iso)
         return summary
 
     # P0-10 纪律: 空转 → 不在 INFO 噪声; 有产出 (含评分门槛拒) → INFO 可见
@@ -281,6 +299,7 @@ def run_hotspot_signal_bridge(
             f"denied={summary['denied']} denied_score={summary['denied_by_score']} "
             f"kl_stubs={summary['kl_stubs']}"
         )
+    _record_signal_span(summary, _t0_mono, _t0_iso)
     return summary
 
 

@@ -1,4 +1,22 @@
 
+## [DEV-0357] v0.8.8 P4 C4-1 — R-10 七段链路埋点（trunk stage spans）+ trace 查询端点
+
+- **时间**: 2026-11-14
+- **类型**: 可观测性能力补全（R-10 实现；主干链路语义零变更，埋点纯旁路写）
+- **依据**: [`docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md`](docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md) §4 C4-1 / PRD §4.10 R-10
+- **关联文件**:
+  - `backend/observability_records.py`（改）：新增 `TRUNK_STAGES` / `stage_span`（contextmanager，yield `StageSpanHandle` 支持中段补 target）/ `record_stage_span` / `query_stage_spans` — span 落 `audit_log`（复用现表，R-04 已裁决实表 = audit_log；`idx_audit_log_trace` 部分索引 migration 080 本就预留）
+  - `backend/config/__init__.py`（改）：`trunk_trace_enabled: bool = True`（env `HOTSPOT_TRUNK_TRACE=0` 关闭，验收④开关）
+  - `backend/api/observability_metrics_api.py`（改）：新增 `GET /api/observability/trace/{trace_id}`（occurred_at 升序 + missing_stages 七段缺口列表）
+  - 七段接线：`repository/hotspot_repo.py::upsert_many`（item，`item:batch:<n>`，采集/catchup/导入单点覆盖）· `services/v1_signal_bridge.py::run_hotspot_signal_bridge`（signal，双 return 点如实记账 ok/failed，桥内吞错不改）· `services/case_service.py::create_case`（case，覆盖 intent→create→commit 写窗）· `services/judgment_service.py::_insert_draft + publish`（claim，draft 落库 + publish CAS 两事件）· `services/run_service.py::create_or_replay`（run，v1_runs 落库）· `services/artifact_service.py::create`（artifact，登记写）· `services/knowledge_lifecycle.py::publish`（knowledge，CAS + revision append）
+  - `backend/tests/test_trunk_trace.py`（新建）：11 用例（七段串联 / 失败码 + 重抛 / 50ms 延迟可测 / 关闭开关零写 / 写库失败 fail-open / 非法 stage 名 fail loud / 未知 trace 全 missing / HTTP 端点 / case·run·item 三条真实接线回归）
+- **设计决策**:
+  1. **复用 audit_log 不新建表**（R-10「复用现表」约束）；action=`stage.<stage>`、actor=`trunk`、target=`<域>:<id>`、detail={status,started_at,duration_ms[,error_code]}
+  2. **trace_id 全走 contextvar**（TraceIDMiddleware / instrument_job / agent_bridge 三源既有；`asyncio.to_thread` 拷贝上下文 → 同步 service 线程内 span 自动连贯）
+  3. **已知限制（如实）**：跨请求的全链 trace 串联需 trace 传播（case 由 signal 立项时沿用 signal 的 trace），v1 版各段 span 按各自请求/job trace 记录，`missing_stages` 已给出断点可见性；trace 传播列为 R-10 v2 增量
+  4. **失败可见**：信号桥内吞错路径由 span 如实记 failed（detail.error_code 取 error 前缀），不改桥的隔离语义
+- **测试验证**: `pytest test_trunk_trace.py` 11 passed；定向回归 `test_api/test_feature_gates/test_hotspot_repo/test_service_cycle_guard` 136 passed；域回归 `-k "case or judgment or run_service or artifact or knowledge or signal or v1"` 562 passed；ruff 0；`generate_meta.py --check` 数字零漂移（56/19/97/157/65）
+
 ## [DEV-0356] v0.8.8 实施计划 plan.8 — 实况对齐修订（进展审查产出）
 
 - **时间**: 2026-11-14

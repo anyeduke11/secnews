@@ -19,6 +19,7 @@ from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
 from backend.logging_config import logger
+from backend.observability_records import stage_span
 from backend.repository.artifact_repo import ArtifactRepository
 
 
@@ -131,7 +132,9 @@ class ArtifactService:
             "allowed_actions": _ARTIFACT_ALLOWED_ACTIONS["pending"],
             "reason": None,
         }
-        self.repo.insert(body)
+        # R-10: artifact 段 span — v1_artifacts 登记写 (R08 守卫通过后的落库点)
+        with stage_span("artifact", target=f"artifact:{aid}"):
+            self.repo.insert(body)
         return body
 
     # ------------------------------------------------------------------

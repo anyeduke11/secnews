@@ -20,6 +20,7 @@ from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
 from backend.logging_config import logger
+from backend.observability_records import stage_span
 from backend.repository.db import get_connection
 from backend.repository.judgment_repo import JudgmentRepository
 from backend.services.ai_hub.prompts import (
@@ -316,21 +317,23 @@ class JudgmentService:
         }
         # 实体行先行落库 (P0-E: commit_intent 会校验 v1_judgments 行存在,
         # 与 action/knowledge_service 的 insert → intent 顺序对齐)
-        self.repo.insert(body)
-        # 走 V1EvidenceService.create_intent 拿 receipt (T05 单一提交入口契约)
-        idempotency_key = f"v1-judgment-{case_id}-{parsed['claim_type']}-{body['content_hash'][:16]}"
-        try:
-            from backend.services.v1_evidence_service import V1EvidenceService
-            evidence = V1EvidenceService()
-            intent = evidence.create_intent(
-                idempotency_key, "judgment", body, submitted_by=submitted_by,
-            )
-            evidence.commit_intent(intent["intent_id"], entity_id=jid, projection=None)
-        except Exception as e:
-            # V1EvidenceService 失败不阻断 (judgment 主体已落 v1_judgments 表)
-            logger.warning(f"V1EvidenceService trace failed (judgment still inserts): {e}")
-        # 关联 case
-        self.repo.link_to_case(case_id, jid)
+        # R-10: claim 段 span 覆盖 insert→receipt→link 写窗
+        with stage_span("claim", target=f"judgment:{jid}"):
+            self.repo.insert(body)
+            # 走 V1EvidenceService.create_intent 拿 receipt (T05 单一提交入口契约)
+            idempotency_key = f"v1-judgment-{case_id}-{parsed['claim_type']}-{body['content_hash'][:16]}"
+            try:
+                from backend.services.v1_evidence_service import V1EvidenceService
+                evidence = V1EvidenceService()
+                intent = evidence.create_intent(
+                    idempotency_key, "judgment", body, submitted_by=submitted_by,
+                )
+                evidence.commit_intent(intent["intent_id"], entity_id=jid, projection=None)
+            except Exception as e:
+                # V1EvidenceService 失败不阻断 (judgment 主体已落 v1_judgments 表)
+                logger.warning(f"V1EvidenceService trace failed (judgment still inserts): {e}")
+            # 关联 case
+            self.repo.link_to_case(case_id, jid)
         return {"judgment": body, "idempotent_replay": False}
 
     # ------------------------------------------------------------------
@@ -402,27 +405,29 @@ class JudgmentService:
                 f"judgment {judgment_id} wiki write failed (R10: must not silently publish): {e}"
             ) from e
         # wiki 已落盘后再 CAS 落库 (任意步骤失败 → 状态不一致保护)
-        try:
-            rowcount = self.repo.update_status_cas(
-                judgment_id, "published",
-                expected_revision=expected_revision,
-                old_status="draft",
-                published_at=now,
-                wiki_path=wiki_path,
-                allowed_actions=_JUDGMENT_ALLOWED_ACTIONS["published"],
-                reason=None,
-            )
-        except Exception as e:
-            # UNIQUE PARTIAL INDEX 撞库 → ConflictException
-            if "UNIQUE" in str(e).upper() or "unique" in str(e):
+        # R-10: claim 段 span 覆盖 publish CAS 状态翻转
+        with stage_span("claim", target=f"judgment:{judgment_id}"):
+            try:
+                rowcount = self.repo.update_status_cas(
+                    judgment_id, "published",
+                    expected_revision=expected_revision,
+                    old_status="draft",
+                    published_at=now,
+                    wiki_path=wiki_path,
+                    allowed_actions=_JUDGMENT_ALLOWED_ACTIONS["published"],
+                    reason=None,
+                )
+            except Exception as e:
+                # UNIQUE PARTIAL INDEX 撞库 → ConflictException
+                if "UNIQUE" in str(e).upper() or "unique" in str(e):
+                    raise JudgmentConflictError(
+                        f"judgment unique constraint hit: {e}"
+                    ) from e
+                raise
+            if rowcount == 0:
                 raise JudgmentConflictError(
-                    f"judgment unique constraint hit: {e}"
-                ) from e
-            raise
-        if rowcount == 0:
-            raise JudgmentConflictError(
-                f"judgment {judgment_id} CAS update failed (race or stale revision/status)"
-            )
+                    f"judgment {judgment_id} CAS update failed (race or stale revision/status)"
+                )
         # T17 SSE 5 事件源: judgment publish 推 v1_judgment 事件
         self._publish_v1_judgment_event(j)
         return self.repo.get(judgment_id)

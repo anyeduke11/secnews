@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.exceptions import ConflictException, InvalidParamException, NotFoundException
+from backend.observability_records import stage_span
 from backend.repository.run_repo import RunRepository
 
 
@@ -158,15 +159,18 @@ class RunService:
             "allowed_actions": _RUN_ALLOWED_ACTIONS["queued"],
             "reason": None,
         }
-        try:
-            self.repo.insert(body)
-        except Exception as e:
-            # UNIQUE INDEX 撞库 → race; 返已存在的 run
-            if "UNIQUE" in str(e).upper() or "unique" in str(e).lower():
-                existing = self.repo.find_by_action_attempt(action_id, attempt)
-                if existing is not None:
-                    return {"run": existing, "replayed": True}
-            raise
+        # R-10: run 段 span 覆盖 v1_runs 落库 (撞库 race-replay 分支亦在 span 内,
+        # 以 replayed=True 返回时 span 记 ok — run 记录存在性未变)
+        with stage_span("run", target=f"run:{rid}"):
+            try:
+                self.repo.insert(body)
+            except Exception as e:
+                # UNIQUE INDEX 撞库 → race; 返已存在的 run
+                if "UNIQUE" in str(e).upper() or "unique" in str(e).lower():
+                    existing = self.repo.find_by_action_attempt(action_id, attempt)
+                    if existing is not None:
+                        return {"run": existing, "replayed": True}
+                raise
         return {"run": body, "replayed": False}
 
     def _get_action_revision(self, action_id: str) -> int:

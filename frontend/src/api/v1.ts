@@ -689,3 +689,75 @@ export function getCaseAggregate(
     `/api/v1/cases/${encodeURIComponent(caseId)}/aggregate${qs ? "?" + qs : ""}`
   );
 }
+
+// ---------------------------------------------------------------------------
+// ExecutionPlan (v0.8.9 P3 C3-4, L1 计划层) — /api/v1/runs/{id}/plan
+// ---------------------------------------------------------------------------
+export type PlanStatus = "draft" | "approved" | "rejected";
+export type PlanSource = "manual" | "ai_draft";
+
+export interface ExecutionPlanOutput {
+  kind: string;
+  title: string;
+  acceptance_notes?: string;
+}
+
+/** 审批通过的执行边界 (approved 后 immutable — 改 plan = 新 run attempt)。 */
+export interface ExecutionPlan {
+  commands: string[][];
+  writable_paths: string[];
+  readable_paths: string[];
+  network: string[];
+  command_timeout_sec: number;
+  total_timeout_sec: number;
+  output_artifact: ExecutionPlanOutput;
+}
+
+export interface ExecutionPlanEnvelope {
+  plan: ExecutionPlan;
+  status: PlanStatus;
+  submitted_by: string;
+  submitted_at: string;
+  source: PlanSource;
+  executor?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  reject_reason?: string | null;
+  boundary_hash?: string | null;
+}
+
+/** 读 plan 信封; 无草稿时后端返回 404 (调用方按空态处理, 非错误)。 */
+export function getRunPlan(id: string): Promise<ApiVersioned<ExecutionPlanEnvelope>> {
+  return getJSON<ApiVersioned<ExecutionPlanEnvelope>>(
+    `/api/v1/runs/${encodeURIComponent(id)}/plan`
+  );
+}
+
+export function submitRunPlan(
+  id: string,
+  body: { plan: Record<string, unknown>; submitted_by?: string; source?: PlanSource }
+): Promise<ApiVersioned<ExecutionPlanEnvelope>> {
+  return postJSON(`/api/v1/runs/${encodeURIComponent(id)}/plan`, body);
+}
+
+/** ai_hub 起草 (失败 503 → 调用方改用人工手写兜底)。 */
+export function generateRunPlan(
+  id: string,
+  body: { action_id: string; submitted_by?: string }
+): Promise<ApiVersioned<ExecutionPlanEnvelope>> {
+  return postJSON(`/api/v1/runs/${encodeURIComponent(id)}/plan/generate`, body);
+}
+
+export function approveRunPlan(
+  id: string,
+  body: { reviewed_by?: string } = {}
+): Promise<ApiVersioned<ExecutionPlanEnvelope>> {
+  return postJSON(`/api/v1/runs/${encodeURIComponent(id)}/plan/approve`, body);
+}
+
+export function rejectRunPlan(
+  id: string,
+  body: { reason: string; reviewed_by?: string }
+): Promise<ApiVersioned<ExecutionPlanEnvelope>> {
+  return postJSON(`/api/v1/runs/${encodeURIComponent(id)}/plan/reject`, body);
+}

@@ -74,6 +74,9 @@ def register_extensions(app: FastAPI) -> None:
     from backend.api import artifact_api, run_api
     app.include_router(run_api.router, tags=["v1-runs"])
     app.include_router(artifact_api.router, tags=["v1-artifacts"])
+    # v0.8.9 P3 C3-4: ExecutionPlan 审批端点 (L1 计划层) — routers 98→99
+    from backend.api import run_plan_api
+    app.include_router(run_plan_api.router, tags=["v1-runs"])
     # v0.8.6 P1-1 / M1: 提案审批循环 + Run 账本 (无条件 core)
     from backend.api import run_ledger_api
     app.include_router(run_ledger_api.router, tags=["run-ledger"])

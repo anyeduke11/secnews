@@ -1,6 +1,6 @@
 # PROGRESS.md — 执行进度台账（仅活跃段）
 
-> **当前阶段 (2026-11-14)**: **v0.8.8 质量版全阶段交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**留白待 owner**: `v0.8.8` tag 打点（前置 T8 三主题人工走查 + M-4 裁决，见 `docs/audit/V088_RELEASE_GATE_2026-11-14.md`）。**下一版本**: v0.8.9 立项 = 主干流量专项（pi 执行体 + Case 关闭闭环；依据 v1_runs=0 / v1_artifacts=0），PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`。
+> **当前阶段 (2026-11-16)**: **v0.8.9 主干流量专项 P0~P3 已交付**（人工回执闭环 + 观测收口 + 边界协议；首个 closed case 达成，artifact_yield 活体 1.0），P4 pi 执行为下一段。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**留白待 owner**: `v0.8.8` tag 打点（前置 T8 三主题人工走查 + M-4 裁决，见 `docs/audit/V088_RELEASE_GATE_2026-11-14.md`）。**当前版本**: v0.8.9 立项 = 主干流量专项（pi 执行体 + Case 关闭闭环；依据 v1_runs=0 / v1_artifacts=0），PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`。
 > 接手顺序: 根 `AGENTS.md` → `PROJECT.md` → 本文件活跃段。历史完整段见 `docs/progress-archive/`，docs/ 全景见 `docs/README.md`。
 
 ## 历史索引
@@ -38,6 +38,14 @@
 | 1 | T8 三主题人工走查（light/dark/paper × 四菜单） | `docs/audit/P45_ACCEPTANCE_TAIL_2026-11-14.md` §2 走查入口 |
 | 2 | M-4 包体裁决（742,547 B, −1.8% 未达 −3%; 接受或改口径） | 同上 §1 |
 | 3 | `v0.8.8` tag 打点授权（前置 = 1+2 闭合; M-9/M-10 观测窗可发布后继续） | `docs/audit/V088_RELEASE_GATE_2026-11-14.md` owner 清单 |
+
+### 2026-11-16 v0.8.9 主干流量专项 — P0~P3 全交付（DEV-0368~0378）
+
+- **阶段账**: P0 基线盘点 ✅（`docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md` 六断点 file:line + D1~D8 裁决 DEV-0368）→ P1 人工回执 ✅（`5aa219a` run claim/start/finish/cancel · `7ba0747` action finish 收口 · `d2d72a5` 四段指挥台接线；**演练① 达成首个 closed case**，v1_runs/v1_artifacts 0→1）→ P2 观测收口 ✅（`9b4aa97` artifact_yield 分母 `status='done'`→`outcome='done'`；活体 yield_ratio=**1.0**，此前恒 None；M-9/M-10 观测窗 **t0=2026-11-14**）→ **P3 边界协议 ✅**（`3e5cc14` migration 136 三列 + claim 落 executor · `22501a3` ExecutionPlan schema/service 状态机 + boundary_hash · `17eecb3` ai_hub 起草生成器（红线不动）+ 人工兜底 · C3-4 审批 API+UI 工作区已实现待提交）。
+- **P3 不变式落地**: 默认拒绝（未 approved 不被执行体消费）· approve 即冻结（快照+boundary_hash+revision，改 plan = 新 attempt）· 仅 queued/claimed run 可做 plan 操作 · LLM 不可用 → 503 `fallback: manual_form`（不产半可信 plan）。
+- **偏差留痕**: C3-4 落点由 `run_ledger_api.py` 改为新建 `run_plan_api.py`（142 行；原文件达体量上限 + `backend/api/AGENTS.md` ≤150 行硬约束；routers 98→99），实施计划 §4 已同步回写，无静默漂移。
+- **门禁**: tsc 0 · vitest **713 passed**（98 文件）· pytest 全量 **5,388** / 相关域 130（test_execution_plan 22）· ruff clean · meta `--check` OK（56 jobs / 19 collectors / **99 routers** / 153 services / 66 core_routers）。
+- **待办**: ① C3-4 提交（未授权）；② `vite build` + `harness_analyze --check` 复跑；③ P4 pi 执行（4 commit）→ P5 加固 → P6 Case 闭环/知识回流 → P7 收口 + 30 天观测窗。
 
 ### 下一版本指针
 

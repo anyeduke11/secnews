@@ -206,6 +206,9 @@ export function ActionCommandConsole() {
         onFinishRun={handleFinishRun}
         onCancelRun={handleCancelRun}
         onFinishAction={handleFinishAction}
+        onRefresh={() => {
+          if (selectedCaseId) void loadAggregate(selectedCaseId);
+        }}
       />
       <ArtifactStage
         caseId={selectedCaseId}

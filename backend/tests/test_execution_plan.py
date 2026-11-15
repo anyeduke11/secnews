@@ -357,3 +357,117 @@ def test_generate_plan_llm_down_falls_back(temp_db: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr(llm_service, "generate", _boom)
     with pytest.raises(ExecutionPlanGenerationError, match="LLM 调用失败"):
         generate_plan_draft(run_id=run_id, action={"title": "t", "plan": "p"})
+
+
+# ── C3-4: plan API 端点（真实路由） ───────────────────────────────────
+
+
+def _plan_app():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.api import run_plan_api
+    from backend.exceptions import register_exception_handlers
+
+    app = FastAPI()
+    app.include_router(run_plan_api.router)
+    register_exception_handlers(app)
+    return TestClient(app)
+
+
+def test_plan_api_lifecycle(temp_db: Path) -> None:
+    """POST plan → GET → approve → GET approved；immutable 后再 submit → 409。"""
+    run_id = _seed_run(temp_db)
+    c = _plan_app()
+    # 无 plan → 404
+    r = c.get(f"/api/v1/runs/{run_id}/plan")
+    assert r.status_code == 404
+    # 提交草稿
+    r = c.post(f"/api/v1/runs/{run_id}/plan",
+               json={"plan": _plan_payload(), "submitted_by": "drill", "source": "manual"})
+    assert r.status_code == 200
+    assert r.json()["item"]["status"] == "draft"
+    # GET 读回
+    r = c.get(f"/api/v1/runs/{run_id}/plan")
+    assert r.status_code == 200
+    assert r.json()["item"]["boundary_hash"]
+    # approve
+    r = c.post(f"/api/v1/runs/{run_id}/plan/approve", json={"reviewed_by": "owner"})
+    assert r.status_code == 200
+    assert r.json()["item"]["status"] == "approved"
+    # immutable: 再 submit → 409
+    r = c.post(f"/api/v1/runs/{run_id}/plan",
+               json={"plan": _plan_payload(), "submitted_by": "drill"})
+    assert r.status_code == 409
+    # approve 已 approved → 409
+    r = c.post(f"/api/v1/runs/{run_id}/plan/approve", json={"reviewed_by": "owner"})
+    assert r.status_code == 409
+
+
+def test_plan_api_reject_lifecycle(temp_db: Path) -> None:
+    """reject (reason 必填) → rejected → 重新提交覆盖 → approved。"""
+    run_id = _seed_run(temp_db, "run-plan-api2")
+    c = _plan_app()
+    c.post(f"/api/v1/runs/{run_id}/plan",
+           json={"plan": _plan_payload(), "submitted_by": "drill"})
+    # 无 reason → 400
+    r = c.post(f"/api/v1/runs/{run_id}/plan/reject",
+               json={"reviewed_by": "owner", "reason": ""})
+    assert r.status_code == 400
+    r = c.post(f"/api/v1/runs/{run_id}/plan/reject",
+               json={"reviewed_by": "owner", "reason": "网络未收窄"})
+    assert r.status_code == 200
+    assert r.json()["item"]["status"] == "rejected"
+    # 重提 + approve
+    c.post(f"/api/v1/runs/{run_id}/plan",
+           json={"plan": _plan_payload(), "submitted_by": "drill"})
+    r = c.post(f"/api/v1/runs/{run_id}/plan/approve", json={"reviewed_by": "owner"})
+    assert r.status_code == 200
+
+
+def test_plan_api_schema_invalid_400(temp_db: Path) -> None:
+    """非法 plan → 400 E_VALIDATION (fail-loud)。"""
+    run_id = _seed_run(temp_db, "run-plan-api3")
+    c = _plan_app()
+    r = c.post(f"/api/v1/runs/{run_id}/plan",
+               json={"plan": {"commands": []}, "submitted_by": "drill"})
+    assert r.status_code == 400
+    assert r.json()["error_code"] == "E_VALIDATION"
+
+
+def test_plan_generate_endpoint_llm_down_503(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """generate 端点: LLM 不可用 → 503 + fallback=manual_form 提示。"""
+    from backend.services.ai_hub.gateway import llm_service
+
+    run_id = _seed_run(temp_db, "run-plan-api4")
+
+    async def _boom(prompt: str, task: str = "chat", **kw):
+        raise RuntimeError("provider down")
+    monkeypatch.setattr(llm_service, "generate", _boom)
+    c = _plan_app()
+    r = c.post(f"/api/v1/runs/{run_id}/plan/generate",
+               json={"action_id": "act-plan", "submitted_by": "drill"})
+    assert r.status_code == 503
+    body = r.json()
+    assert body["code"] == "E_SOURCE_UNAVAILABLE"
+    # HTTPException detail dict 被 handler 平铺到顶层 (exceptions.py extras 语义)
+    assert body["fallback"] == "manual_form"
+
+
+def test_plan_generate_endpoint_happy(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """generate 端点: 合法 LLM 输出 → draft (source=ai_draft)。"""
+    import json as _json
+
+    from backend.services.ai_hub.gateway import llm_service
+
+    run_id = _seed_run(temp_db, "run-plan-api5")
+
+    async def _ok(prompt: str, task: str = "chat", **kw):
+        return _json.dumps(_plan_payload(), ensure_ascii=False)
+    monkeypatch.setattr(llm_service, "generate", _ok)
+    c = _plan_app()
+    r = c.post(f"/api/v1/runs/{run_id}/plan/generate",
+               json={"action_id": "act-plan", "submitted_by": "drill"})
+    assert r.status_code == 200
+    item = r.json()["item"]
+    assert item["status"] == "draft" and item["source"] == "ai_draft"

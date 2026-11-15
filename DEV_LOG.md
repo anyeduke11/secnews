@@ -1,4 +1,47 @@
 
+## [DEV-0378] v0.8.9 P3 C3-4 — ExecutionPlan 审批 API + UI（默认拒绝 → 显式放行 → 冻结不可变）
+
+- **时间**: 2026-11-16
+- **类型**: 主干能力补全（L1 计划层闭环：plan 草稿/起草/审批/驳回 + 四段指挥台接入口）
+- **依据**: 实施计划 §4 C3-4 / PRD 不变式「plan = 建议非放行（未 approved 不被执行体消费）」
+- **关联文件**:
+  - 后端: `backend/api/run_plan_api.py`（新建 142 行 ≤150 硬约束；5 端点 GET/POST `/api/v1/runs/{id}/plan` + `POST /plan/generate|approve|reject`；`_PLAN_ERRORS` + `_call()` 统一 `{version,item}` 信封与 `E_*` 错误码）/ `backend/api/_registry_extensions.py`（注册 run_plan router，routers 98→99）/ `backend/tests/test_execution_plan.py`（补审批链验收用例）
+  - 前端: `frontend/src/components/sentinel/action/PlanPanel.tsx`（新建：commands/paths/network 逐条展示 + 起草/手写 JSON/放行/驳回）/ `PlanPanel.test.tsx`（新建 ×6）/ `RunStage.tsx`（queued·claimed run 挂载入口）/ `ActionCommandConsole.tsx`（`onRefresh` 透传）/ `frontend/src/api/v1.ts`（ExecutionPlan 客户端 5 函数 + 类型）
+  - 数字门禁: routers 98→99（`generate_meta.py --fix` 同步 6 份文档）
+- **核心不变量**: ① 默认拒绝——只有 `approved` 的 plan 可被执行体消费；② approve 即冻结（快照 + `boundary_hash` + revision 写 run 行），改 plan = 新 attempt（`rejected` 可重新起草，`approved` 拒绝再写）；③ 仅 `queued`/`claimed` 的 run 可做 plan 操作（一致性守卫）；④ fail-loud——LLM 不可用 → 503 + `fallback: manual_form`（人工手写 JSON 兜底，不静默降级为空 plan）。
+- **偏差注①（spec 漂移显式留痕）**: 计划原定改 `backend/api/run_ledger_api.py`；该文件已达体量上限且 `backend/api/AGENTS.md` 硬约束 ≤150 行 → 独立成 `run_plan_api.py`。实施计划 §4 C3-4 已同 commit 回写，不留静默漂移。
+- **踩坑修正**（工作区中途态清理）: 原内联版 plan 面板被判在 map 回调体外（引用未定义 `r`）+ 尾部 155 行重复残留；驳回输入框用 `'reject-open'` 哨兵值导致一输入即失真；404 判定用 `msg.includes('404')` 且两分支等价于吞错。收口为独立组件 + `e instanceof ApiError && e.status === 404` 才认合法空态，其余显式呈现。
+- **验证**:
+  - `npx tsc --noEmit`: 0 error
+  - `npx vitest run`: **98 files / 713 passed**（含 PlanPanel 6 / stages 15 / ActionCommandConsole 4）
+  - `pytest backend/tests/test_execution_plan.py`: **22 passed**（含 approve 冻结不可变 / 驳回必填原因 / 篡改 plan 审批被 hash 检出 / 无草稿 approve 404 / LLM down 503）
+  - `pytest -k "execution_plan or run_receipt or run_ledger or action"`: **130 passed / 5287 deselected**
+  - `ruff check backend/api/run_plan_api.py`: All checks passed
+  - `generate_meta.py --check`: OK（56 jobs / 19 collectors / **99 routers** / 153 services / 66 core_routers）
+- `npx vite build --logLevel error`: exit 0 · `harness_analyze.py --check`: errors 0（warnings 5 = 已豁免清单）
+- **未做（留白）**: C3-4 改动仍在工作区未提交（待 owner 授权）；审批链的浏览器端全链点击验证随 P4 一并复跑。
+
+## [DEV-0377] v0.8.9 P3 C3-3 — plan 起草生成器（ai_hub 公共入口，红线不动）
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（L1 建议层 AI 起草；产出 draft 非放行）
+- **关联文件**: `backend/services/execution_plan/generator.py`（新建 94 行）+ `backend/tests/test_execution_plan.py`（+102 行）
+- **核心**: 经 ai_hub **公共入口**起草（不碰 `gateway._try_order` / `service._resolve_provider` 红线）；dsh/LLM 不可达 → 抛 `ExecutionPlanGenerationError` → API 503 `fallback: manual_form`；模型输出非法 schema → fail-loud 降级人工，**不**产出半可信 plan。
+
+## [DEV-0376] v0.8.9 P3 C3-2 — ExecutionPlan schema + service（状态机 + boundary_hash）
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（L1 计划层领域服务）
+- **关联文件**: `backend/services/execution_plan/{__init__,schema,service}.py`（新建 208 行）+ `backend/repository/run_repo.py`（+17）+ `backend/tests/test_execution_plan.py`（+171）
+- **核心**: schema v1（commands[] / writable_paths[] / readable_paths[] / network[]（默认全禁）/ command·total timeout / output_artifact）；`submit` → `approve`（冻结 + `boundary_hash`）→ `reject`（reason 必填）状态机；`approved` 不可再写；仅 `queued`/`claimed` run 可操作；全部落 L4 审计。
+
+## [DEV-0375] v0.8.9 P3 C3-1 — migration 136（v1_runs 三列）+ claim 落 executor
+
+- **时间**: 2026-11-16
+- **类型**: 数据层（D2 裁决：另加列，`plan_json` 语义不动）
+- **关联文件**: `backend/repository/migrations/136_v089_execution_plan.sql`（新建）+ `backend/repository/run_repo.py`（+11）+ `backend/services/run_service.py`（+9）+ `backend/tests/test_execution_plan.py`（+86）
+- **核心**: `v1_runs` 增 `executor` / `boundary_hash` / `execution_plan_json` 三列；claim 时落 executor 标注执行体身份，供 L4 审计与越界追责。
+
 ## [DEV-0374] v0.8.9 P2 C2-1 — artifact_yield 口径修复（断点⑥/D7，活体出数验证）
 
 - **时间**: 2026-11-15

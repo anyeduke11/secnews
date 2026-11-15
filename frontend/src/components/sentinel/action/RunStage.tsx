@@ -21,6 +21,7 @@ import {
   TONE_IDLE,
   TONE_ACCENT,
 } from './stageStyles';
+import { PlanPanel } from './PlanPanel';
 
 const ACTION_STATUS: Record<string, string> = {
   planned: '待批准',
@@ -97,6 +98,8 @@ interface RunStageProps {
   onFinishRun?: (run: Run, body: { outcome: string; error?: string | null; result_excerpt?: string | null }) => void;
   onCancelRun?: (run: Run) => void;
   onFinishAction?: (action: Action) => void;
+  /** R-2: plan 变更后刷新聚合 (父层 loadAggregate) */
+  onRefresh?: () => void;
 }
 
 export function RunStage({
@@ -113,12 +116,15 @@ export function RunStage({
   onFinishRun,
   onCancelRun,
   onFinishAction,
+  onRefresh,
 }: RunStageProps) {
   // 登记结果表单: 仅 running 的 run 可展开 (runId 为 null = 收起)
   const [finishFormRun, setFinishFormRun] = useState<string | null>(null);
   const [finishOutcome, setFinishOutcome] = useState('done');
   const [finishError, setFinishError] = useState('');
   const needsError = finishOutcome === 'failed' || finishOutcome === 'timeout' || finishOutcome === 'needs_human';
+  // R-2 执行计划面板 (C3-4): 仅 queued/claimed 的 run 可开; 计划读写/审批归 PlanPanel
+  const [planPanelRun, setPlanPanelRun] = useState<string | null>(null);
 
   return (
     <section data-stage="run" style={STAGE} aria-label="Run 执行段">
@@ -236,6 +242,15 @@ export function RunStage({
                           取消
                         </button>
                       )}
+                      {(status === 'queued' || status === 'claimed') && (
+                        <button
+                          type="button" data-testid="run-plan-open"
+                          style={btnGhostStyle}
+                          onClick={() => setPlanPanelRun(planPanelRun === r.id ? null : r.id)}
+                        >
+                          {planPanelRun === r.id ? '收起计划' : '执行计划'}
+                        </button>
+                      )}
 
                       {status === 'running' && finishFormRun === r.id && onFinishRun && (
                         <div
@@ -291,10 +306,12 @@ export function RunStage({
                           </div>
                         </div>
                       )}
+                      {planPanelRun === r.id && (status === 'queued' || status === 'claimed') && (
+                        <PlanPanel runId={r.id} actionId={r.action_id} onRefresh={onRefresh} />
+                      )}
                     </div>
                   );
                 })}
-
                 {canCloseAction && (
                   <button
                     type="button"

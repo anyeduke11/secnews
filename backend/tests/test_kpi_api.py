@@ -144,23 +144,29 @@ def test_triage_latency_case_without_signal_skipped(temp_db) -> None:
 
 
 def test_artifact_yield_ratio(temp_db) -> None:
-    """3 runs done (2 有产物 1 无) → yield 0.6667; 非 done 不计入分母。"""
+    """3 runs outcome=done (2 有产物 1 无) → yield 0.6667; 非 done 不计入分母。
+
+    v0.8.9 D7 口径修复: 分母基准 = outcome='done' (status='succeeded' + outcome='done'
+    才是真实的 done); 旧种子 status='done' 无任何代码写入, 属口径 bug 的测试镜像,
+    随修复改为 outcome 语义 + 增补「succeeded 但 outcome 非 done 不计」反例。
+    """
     conn = get_connection()
     now = "datetime('now')"
+    # (id, artifact_ids_json 字面量, status, outcome)
     rows = [
-        ("RUNKPIYIELDA00000000000001", "'[\"ART1\"]'"),
-        ("RUNKPIYIELD B000000000000002".replace(" ", ""), "'[\"ART2\"]'"),
-        ("RUNKPIYIELDC0000000000000003", "'[]'"),
-        ("RUNKPIYIELDD0000000000000004", None),  # status=failed 不计入
+        ("RUNKPIYIELDA00000000000001", "'[\"ART1\"]'", "succeeded", "done"),
+        ("RUNKPIYIELD B000000000000002".replace(" ", ""), "'[\"ART2\"]'", "succeeded", "done"),
+        ("RUNKPIYIELDC0000000000000003", "'[]'", "succeeded", "done"),
+        ("RUNKPIYIELDD0000000000000004", None, "failed", "failed"),  # 非 done 不计入
+        ("RUNKPIYIEE00000000000000005", "'[\"ART5\"]'", "succeeded", "needs_human"),
     ]
-    for i, (rid, arts) in enumerate(rows):
-        status = "done" if i < 3 else "failed"
+    for i, (rid, arts, status, outcome) in enumerate(rows):
         conn.execute(
             f"INSERT OR IGNORE INTO v1_runs (id, action_id, attempt, protocol, "
-            f"trigger_source, idempotency_key, status, "
+            f"trigger_source, idempotency_key, status, outcome, "
             f"artifact_ids_json, revision, created_at, updated_at) "
             f"VALUES (?, 'ACTKPI0000000000000000001', ?, 'mcp', 'manual', ?, '{status}', "
-            f"{arts if arts else 'NULL'}, 1, {now}, {now})",
+            f"'{outcome}', {arts if arts else 'NULL'}, 1, {now}, {now})",
             (rid, i + 1, f"idem-{rid}"),  # attempt 递增避 UNIQUE(action_id, attempt)
         )
     conn.commit()

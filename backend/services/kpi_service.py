@@ -93,11 +93,14 @@ class KpiService:
         """run 产物产出率: done 且 artifact_ids_json 非空 / done 总数。
 
         「禁止成功但无产物」(run ledger 核心纪律) 的正面量纲 — 目标 = 1.0。
+        v0.8.9 D7 口径修复: 分母改 `outcome = 'done'` — 原实现写 `status = 'done'`,
+        而 7 态机终态是 `status='succeeded' + outcome='done'`, 全仓无代码写
+        status='done' → 分母恒 0 恒 None (勘察断点⑥)。
         """
         total, with_art = get_connection().execute(
             "SELECT COUNT(*), "
             "SUM(artifact_ids_json IS NOT NULL AND artifact_ids_json != '[]') "
-            "FROM v1_runs WHERE status = 'done' "
+            "FROM v1_runs WHERE outcome = 'done' "
             "AND created_at >= datetime('now', ?)",
             (f"-{int(days)} days",),
         ).fetchone()

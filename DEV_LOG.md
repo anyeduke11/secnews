@@ -1,4 +1,15 @@
 
+## [DEV-0374] v0.8.9 P2 C2-1 — artifact_yield 口径修复（断点⑥/D7，活体出数验证）
+
+- **时间**: 2026-11-15
+- **类型**: bug 修复（KPI 口径；D7 裁决定性，非新指标）
+- **依据**: 实施计划 §3 C2-1 / 勘察断点⑥（kpi_service.py:92-111 分母 `status='done'` 全仓无代码写入 → 恒 None）
+- **关联文件**: `backend/services/kpi_service.py`（分母 `status='done'` → `outcome='done'`，docstring 记修复史）+ `backend/tests/test_kpi_api.py`（Rule 9 种子随行：3×succeeded+done / 1×failed / 1×succeeded+needs_human 反例）
+- **run 事件**: C1-1 已交付（claim/start/finish 三事件入 outbox），演练①产线实证 3 条——本 commit 仅剩口径项
+- **活体验证（生产重启后 curl）**: `GET /api/ops/kpi` → artifact_yield = **{runs_done: 1, runs_with_artifact: 1, yield_ratio: 1.0}**（修复前恒 None）；triage_latency samples=0（演练 case 无关联信号，诚实缺省）
+- **观测窗锚定**: M-9（七段 p95）/ M-10（埋点开销）观测窗 **t0 = 2026-11-14（演练①）**，30 天窗后判定
+- **验证**: test_kpi_api 6 passed（含 needs_human 反例：succeeded 状态但 outcome 非 done 不计入分母）；全量 **5,388 passed / 0 failed**；产线活体出数
+
 ## [DEV-0373] v0.8.9 P1 试点演练① — 人工回执全链（首个 closed case，G2 达成）
 
 - **时间**: 2026-11-14

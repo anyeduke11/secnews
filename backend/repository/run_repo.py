@@ -96,6 +96,7 @@ class RunRepository:
         result_excerpt: str | None = None, error: str | None = None,
         artifact_ids: list[str] | None = None,
         allowed_actions: list[str] | None = None,
+        executor: str | None = None,
     ) -> int:
         """R-1 人工回执: CAS 状态迁移 — WHERE id=? AND status IN (from)。
 
@@ -132,6 +133,9 @@ class RunRepository:
         if allowed_actions is not None:
             sets.append("allowed_actions_json = ?")
             params.append(json.dumps(allowed_actions))
+        if executor is not None:
+            sets.append("executor = ?")
+            params.append(executor)
         params.extend([run_id, *from_status])
         cur = self._c().execute(
             f"UPDATE v1_runs SET {', '.join(sets)} "
@@ -229,13 +233,14 @@ class RunRepository:
 
     def _row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
-        for k in ("inputs", "steps", "artifact_ids", "allowed_actions", "plan"):
+        for k in ("inputs", "steps", "artifact_ids", "allowed_actions", "plan",
+                  "execution_plan"):
             json_key = f"{k}_json"
             if json_key in d and d[json_key] is not None:
                 try:
                     d[k] = json.loads(d[json_key])
                 except (json.JSONDecodeError, TypeError):
-                    d[k] = {} if k in ("inputs", "plan") else []
+                    d[k] = {} if k in ("inputs", "plan", "execution_plan") else []
             else:
-                d[k] = {} if k in ("inputs", "plan") else []
+                d[k] = {} if k in ("inputs", "plan", "execution_plan") else []
         return d

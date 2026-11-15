@@ -216,15 +216,18 @@ class RunService:
         from backend.observability_records import record_audit
         record_audit("web", f"run.{action_name}", target=f"run:{run_id}", detail=detail)
 
-    def claim(self, run_id: str) -> dict[str, Any]:
-        """queued → claimed (CAS)。人认领执行。"""
+    def claim(self, run_id: str, *, executor: str = "manual") -> dict[str, Any]:
+        """queued → claimed (CAS)。认领执行 (R-1 人工=manual; R-3 pi 派发传 'pi')。
+
+        D2 裁决: executor 列记录谁执行 ('manual' | 'pi'), claim 即落。
+        """
         with stage_span("run", target=f"run:{run_id}"):
             r = self.repo.get(run_id)
             if r is None:
                 raise RunNotFoundError(f"run {run_id} not found")
             rc = self.repo.transition(
                 run_id, "queued", "claimed",
-                allowed_actions=_RUN_ALLOWED_ACTIONS["claimed"])
+                allowed_actions=_RUN_ALLOWED_ACTIONS["claimed"], executor=executor)
             if rc == 0:
                 raise RunConflictError(
                     f"run {run_id} status={r['status']} (claim requires queued)")

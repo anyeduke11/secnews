@@ -255,3 +255,105 @@ def test_audit_trail_written(temp_db: Path) -> None:
         assert actions == ["plan.submit", "plan.approve"]
     finally:
         conn.close()
+
+
+# ── C3-3: ai_hub 草稿生成 + 人工兜底 ─────────────────────────────────
+
+
+def _fake_llm(payload: dict | str | None):
+    """llm_service.generate 的 async fake。"""
+    import json as _json
+
+    async def _fake(prompt: str, task: str = "chat", **kw):
+        if isinstance(payload, str):
+            return payload
+        return _json.dumps(payload, ensure_ascii=False)
+    return _fake
+
+
+def test_generate_plan_draft_happy_path(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """合法 LLM 输出 → source=ai_draft 的 draft 提交。"""
+    from backend.services.ai_hub.gateway import llm_service
+    from backend.services.execution_plan.generator import generate_plan_draft
+
+    run_id = _seed_run(temp_db)
+    good = _plan_payload()
+    monkeypatch.setattr(llm_service, "generate", _fake_llm(good))
+    env = generate_plan_draft(
+        run_id=run_id,
+        action={"title": "CVE brief", "plan": "汇总本地产物", "success_criteria": "含评分", "expected_artifacts": ["brief"]},
+        submitted_by="drill",
+    )
+    assert env["status"] == "draft"
+    assert env["source"] == "ai_draft"
+    assert env["submitted_by"] == "drill"
+    assert env["plan"]["commands"] == good["commands"]
+
+
+def test_generate_plan_prompt_contains_action_fields(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """prompt 必须携带 action 既有字段 (title/plan/success_criteria) — 起草依据。"""
+    from backend.services.ai_hub.gateway import llm_service
+    from backend.services.execution_plan.generator import build_plan_prompt, generate_plan_draft
+
+    captured: dict[str, str] = {}
+
+    async def _capture(prompt: str, task: str = "chat", **kw):
+        captured["prompt"] = prompt
+        captured["task"] = task
+        import json as _json
+        return _json.dumps(_plan_payload(), ensure_ascii=False)
+
+    run_id = _seed_run(temp_db)
+    monkeypatch.setattr(llm_service, "generate", _capture)
+    action = {"title": "CVE brief X", "plan": "读材料写简报", "success_criteria": "含 CVSS"}
+    generate_plan_draft(run_id=run_id, action=action)
+    assert "CVE brief X" in captured["prompt"]
+    assert "读材料写简报" in captured["prompt"]
+    assert "含 CVSS" in captured["prompt"]
+    assert captured["task"] == "execution_plan_draft"
+    assert "最小权限" in build_plan_prompt(action)  # 红线约束写进 prompt
+
+
+def test_generate_plan_invalid_json_falls_back(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM 输出不可解析 → ExecutionPlanGenerationError (前端落人工手写兜底)。"""
+    from backend.services.ai_hub.gateway import llm_service
+    from backend.services.execution_plan.generator import (
+        ExecutionPlanGenerationError,
+        generate_plan_draft,
+    )
+
+    run_id = _seed_run(temp_db)
+    monkeypatch.setattr(llm_service, "generate", _fake_llm("这不是 JSON"))
+    with pytest.raises(ExecutionPlanGenerationError, match="无 JSON 对象"):
+        generate_plan_draft(run_id=run_id, action={"title": "t", "plan": "p"})
+
+
+def test_generate_plan_schema_invalid_falls_back(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM 幻觉字段 (schema 不过) → GenerationError + 人工兜底提示。"""
+    from backend.services.ai_hub.gateway import llm_service
+    from backend.services.execution_plan.generator import (
+        ExecutionPlanGenerationError,
+        generate_plan_draft,
+    )
+
+    run_id = _seed_run(temp_db)
+    monkeypatch.setattr(llm_service, "generate", _fake_llm({"commands": []}))
+    with pytest.raises(ExecutionPlanGenerationError, match="人工手写兜底"):
+        generate_plan_draft(run_id=run_id, action={"title": "t", "plan": "p"})
+
+
+def test_generate_plan_llm_down_falls_back(temp_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM 不可用 → GenerationError (fail-loud, 不静默造空 plan)。"""
+    from backend.services.ai_hub.gateway import llm_service
+    from backend.services.execution_plan.generator import (
+        ExecutionPlanGenerationError,
+        generate_plan_draft,
+    )
+
+    run_id = _seed_run(temp_db)
+
+    async def _boom(prompt: str, task: str = "chat", **kw):
+        raise RuntimeError("provider down")
+    monkeypatch.setattr(llm_service, "generate", _boom)
+    with pytest.raises(ExecutionPlanGenerationError, match="LLM 调用失败"):
+        generate_plan_draft(run_id=run_id, action={"title": "t", "plan": "p"})

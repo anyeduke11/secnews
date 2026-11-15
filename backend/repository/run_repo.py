@@ -145,6 +145,23 @@ class RunRepository:
         self._c().commit()
         return cur.rowcount
 
+    def set_execution_plan(
+        self, run_id: str, envelope: dict[str, Any], boundary_hash: str | None,
+    ) -> int:
+        """R-2 (C3-2): ExecutionPlan 信封落列 (execution_plan_json + boundary_hash)。
+
+        envelope 为完整信封 (plan/status/submitted_by/...); 调用方 (service) 负责
+        状态机守卫 (draft/approved/rejected) 与 run 状态检查 (queued/claimed)。
+        """
+        cur = self._c().execute(
+            "UPDATE v1_runs SET execution_plan_json = ?, boundary_hash = ?, "
+            "revision = revision + 1, updated_at = datetime('now', 'localtime') "
+            "WHERE id = ?",
+            (json.dumps(envelope, ensure_ascii=False), boundary_hash, run_id),
+        )
+        self._c().commit()
+        return cur.rowcount
+
     def update_status(
         self, run_id: str, new_status: str, *,
         finished_at: str | None = None, duration_ms: int | None = None,

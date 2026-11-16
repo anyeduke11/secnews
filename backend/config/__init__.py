@@ -130,6 +130,9 @@ class Settings(BaseSettings):
     # v1.8: feature_kv_cache 已删除 (kv_cache_service 于 Phase 7 移除)
     # v1.7 Phase 7 Option A: MCP server 替代 Phase 5 内部 hotspot-agent
     feature_mcp: bool = True       # MCP Server (Phase 7, 替代 feature_agent)
+    # v0.8.9 P4 R-3: pi 执行体开关 (默认关, 唯一的逐条 revert 回滚点)。
+    # 开启前须先过 C4-4 越界演练; 关闭时 execute_plan 直接拒绝, run 不被推进。
+    pi_executor_enabled: bool = False
     # v0.6.3: feature_workbench_ui 已删除 — workbench 5 视图并入 SecNews 看板
 
     # v0.5 M3.5: llm-wiki-2.0 知识真源（md 文件优先, SQLite 退化为索引）

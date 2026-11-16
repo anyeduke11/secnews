@@ -55,6 +55,8 @@ export const SSE_EVENTS = {
   V1_JUDGMENT: 'v1_judgment',
   /** v1 行动变更 (action_id / case_id / revision) */
   V1_ACTION: 'v1_action',
+  /** v1 运行生命周期 (run_service claim/start/finish/cancel 入 outbox → SSE) */
+  V1_RUN: 'v1_run',
   /** v1 产物 verify/accept (artifact_id / run_id / case_id / revision) */
   V1_ARTIFACT: 'v1_artifact',
   /** v1 知识更新 (knowledge_id / case_id / revision) */

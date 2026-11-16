@@ -21,6 +21,7 @@ import {
   type CaseAggregate,
 } from '../../../api/v1';
 import type { Action, Case, CaseStatus, Run } from '../../../domain/v1_0';
+import { SSE_EVENTS, useRealtimeInvalidation } from '../../../hooks/realtime';
 import { CaseStage } from './CaseStage';
 import { ClaimStage } from './ClaimStage';
 import { RunStage } from './RunStage';
@@ -87,6 +88,18 @@ export function ActionCommandConsole() {
     }
     void loadAggregate(selectedCaseId);
   }, [selectedCaseId, loadAggregate]);
+
+  // C4-3 实时事件流: 执行体推进 run / 登记 artifact / action 收口均落 outbox → SSE,
+  // 这里只读重拉聚合 (800ms 节流, 兜底重连回放连发多条)。
+  useRealtimeInvalidation([
+    {
+      types: [SSE_EVENTS.V1_RUN, SSE_EVENTS.V1_ARTIFACT, SSE_EVENTS.V1_ACTION],
+      handler: () => {
+        if (selectedCaseId) void loadAggregate(selectedCaseId);
+      },
+      throttleMs: 800,
+    },
+  ]);
 
   const handleStart = useCallback(
     async (action: Action) => {

@@ -25,10 +25,12 @@ import {
   rejectRunPlan,
   submitRunPlan,
   generateRunPlan,
+  type ApiVersioned,
+  type ExecutionPlanEnvelope,
 } from '../../../api/v1';
 import { PlanPanel } from './PlanPanel';
 
-const mkEnv = (status: 'draft' | 'approved' | 'rejected') => ({
+const mkEnv = (status: 'draft' | 'approved' | 'rejected'): ApiVersioned<ExecutionPlanEnvelope> => ({
   version: 'v1',
   item: {
     status,

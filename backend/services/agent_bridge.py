@@ -65,8 +65,12 @@ def available_agents(config: AgentsConfig | None = None) -> dict[str, Any]:
     return {"agents": agents, "default_agent": cfg.default_agent}
 
 
-def _resolve_workspace(workspace: str | None) -> str | None:
-    """校验 workspace 模板展开目标: 仅允许 codegarden/<project>/ 子路径。"""
+def resolve_workspace(workspace: str | None) -> str | None:
+    """校验 workspace 模板展开目标: 仅允许 codegarden/<project>/ 子路径。
+
+    v0.8.9 P4: 执行体 (execution_plan.enforcer) 复用同一锁定语义, 故去掉
+    私有前缀 — 该规则已是跨模块契约 (L2 进程层 workspace 锁定根)。
+    """
     if not workspace or not workspace.strip():
         return None
     ws = Path(workspace.strip())
@@ -171,7 +175,7 @@ def run_agent_task(
             return builtin_result
 
         # 外部 CLI
-        cwd = _resolve_workspace(workspace)
+        cwd = resolve_workspace(workspace)
         stdin_payload = json.dumps(
             {"task_type": task_type, "input": input_text, "payload": payload or {}},
             ensure_ascii=False,

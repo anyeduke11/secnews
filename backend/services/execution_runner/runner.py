@@ -254,6 +254,13 @@ def execute_plan(
             detail=describe_limits(sandbox, sandbox="sandbox-exec"),
         )
         ensure_writable_dirs(sandbox)
+        if spec.network:
+            # 已知限制: Seatbelt 不支持 host 级出网白名单 → 声明值被忽略。
+            # 打 warning 是为了让「plan 声明了 net 却连不上」在日志里直接有答案。
+            logger.warning(
+                "run {} plan.network={} 声明被忽略: L3 恒 deny-all "
+                "(Seatbelt 不支持 host 级出网白名单)",
+                run_id, list(spec.network))
 
     env = spec.build_env()
     commands: list[CommandResult] = []

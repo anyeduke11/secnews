@@ -274,6 +274,10 @@ def describe_limits(spec: SandboxSpec, *, sandbox: str | None = None) -> dict[st
     ``sandbox`` 显式传入实际生效的形态 (调用方已判定过可用性), 避免此处
     二次探测与调用方判定不一致 (降级路径下会误报 "sandbox-exec")。
     """
+    # Seatbelt 无法表达 host 级出网白名单 (``(remote ip "host:port")`` 被内核拒),
+    # 故 plan.network 声明值不生效、实际恒为全禁。必须显式留痕: 只记 ``network``
+    # 会让运维把「plan 声明了 net 却被拒」误诊为 bug 而不是已知限制。
+    network = list(spec.network)
     return {
         "sandbox": sandbox if sandbox is not None else (
             "sandbox-exec" if sandbox_supported() else "unavailable"
@@ -282,7 +286,9 @@ def describe_limits(spec: SandboxSpec, *, sandbox: str | None = None) -> dict[st
         "workspace": spec.workspace,
         "writable_paths": list(spec.writable_paths),
         "readable_paths": list(spec.readable_paths),
-        "network": list(spec.network),
+        "network": network,
+        "network_enforced": "deny-all",
+        "network_declared_ignored": bool(network),
         "limits": {k: list(v) for k, v in spec.resource_limits().items()},
     }
 

@@ -188,6 +188,18 @@ def test_sandbox_degrades_gracefully_when_unsupported(monkeypatch):
     assert described["sandbox"] == "unavailable"
 
 
+def test_describe_limits_marks_declared_network_ignored():
+    """plan.network 非空时 L3 仍全禁 — audit 必须显式标记"声明被忽略"。"""
+    plain = sb.describe_limits(_spec("/tmp/ws"))
+    assert plain["network_enforced"] == "deny-all"
+    assert plain["network_declared_ignored"] is False
+
+    with_net = sb.describe_limits(_spec("/tmp/ws", network=("example.com:443",)))
+    assert with_net["network"] == ["example.com:443"]
+    assert with_net["network_enforced"] == "deny-all"
+    assert with_net["network_declared_ignored"] is True
+
+
 # ---------------------------------------------------------------------------
 # 系统层真拦 (macOS)
 # ---------------------------------------------------------------------------

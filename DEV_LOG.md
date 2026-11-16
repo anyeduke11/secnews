@@ -1,4 +1,16 @@
 
+## [DEV-0385] docs(v0.8.9): 修正 4 处文档漂移 — PRD 安全模型状态 / D3 改判回写 / 权威 PRD 同步 / 实施计划状态行
+
+- **时间**: 2026-11-16
+- **类型**: 文档修正（实现与 spec 漂移清偿，零代码改动）
+- **关联文件**: `docs/v0.8.9/V0.8.9_PRD.md` · `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` · `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`（唯一权威 PRD）· `PROGRESS.md`
+- **漂移 1（PRD §6 安全模型谎报已交付）**: 原表将 L3（ulimit + sandbox-exec）/ L4 整体标为「R-4 交付」，但 R-4/P5 **未启动**——全仓无 `ulimit`/`setrlimit`/`import resource`/`sandbox-exec` 调用，`observability_alerts` 无 `executor.boundary_violation` metric。修正：L3 标 **⬜ 未交付**；L4 拆两行 = 逐命令审计（✅ R-3 交付，`agent='pi-executor'`/`protocol='argv'`）+ 越界告警（⬜ 未交付）；八条底线逐条标注声明级 vs 系统级（出站阻断 / ulimit 均待 R-4）
+- **漂移 2（PRD §4.3 + §9 D3 未回写偏差注②）**: PRD 仍写「经 agent_bridge jsonl 协议派发 pi」，实际实现为**确定性 argv 执行**（偏差注② 仅落在实施计划 §5，PRD 未同步 = 违反 spec 漂移禁止）。修正：§4.3 需求② 改写为确定性 argv + 偏差注② 指引；§9 D3 裁决结果改为「✅ 确定性 argv 执行」，裁决理由栏保留原裁决并注明 2026-11-16 改判理由（plan 已冻结，再让 LLM 转述命令 = 重新引入自由度，与 R-3 冲突）
+- **漂移 3（权威 PRD 滞后）**: `HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` 2026-11-14 条目仍写「pi 走 agent_bridge jsonl」。修正：原文改为「原定 … 见 D3」+ **新增 2026-11-16 条目**（P0~P4 阶段账 17 commit + D3 改判 + 安全模型状态回写 + P5/P6/P7 待启动 + 观测窗 t0→2026-12-14）
+- **漂移 4（实施计划状态行过期）**: §4 C3-4 状态行写「工作区已实现待提交」（实为已提交 `5ef86b5`）；§11 步骤表 6 行全列为待办。修正：C3-4 行补 commit hash + core_routers 66→67（DEV-0383）；§11 加「状态」列逐行标注 ✅/🔶/⬜（含 P5/P6/P7 未启动、演练①~③ 已过 / ④~⑥ 待、观测窗 2026-11-14→2026-12-14 观测中）
+- **顺带同族修正（同一文档内自相矛盾即新漂移）**: PRD 内 3 处「待裁决 D1/D2/D8」措辞 vs §9 已裁决表矛盾 → 改为「✅ 已裁决」；PRD §8 发布计划加「状态（2026-11-16）」列 + R-1/R-6/R-2 commit 数按实况订正（四→三 / 二→一 / 五→四）；实施计划 §0 顶部基线行补「当前」数字（99 routers / 67 core_routers）+ §0 表 P5/P6/P7 状态标记 + **总 commit 数 20→18**（原数与逐阶段合计不符）；实施计划 §5 C4-2 改文件行加偏差注②对照标注；§6/§7 补「未启动」状态块 + 现状取证
+- **验证**: `generate_meta.py --check` 通过（56 jobs / 19 collectors / 99 routers / 153 services / 67 core_routers，零漂移）；本次纯文档改动，**未触发 pytest/前端门**（无代码变更）
+
 ## [DEV-0384] chore(scripts): P7 前补两笔债 — DEV_LOG 差集核对 + router 碎化体检
 
 - **时间**: 2026-11-16

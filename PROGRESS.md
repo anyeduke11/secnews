@@ -63,6 +63,16 @@
 - **定位**: 均为 `check_*` 只读、恒不写代码；**未接 CI**（合并/拆分决策归 owner），避免与 ≤150 行硬约束冲突产「假门禁」。入口已登记 `scripts/AGENTS.md`。
 - **提交切分**: P4 与两笔债共 4 commit —— ① `feat(exec)` C4-1~C4-3 ② `fix(api)` DEV-0383 ③ `docs(v0.8.9)` 演练留档 + 台账 ④ `chore(scripts)` 两笔债脚本（本段即台账落点）。
 
+### 2026-11-16 v0.8.9 进展检查 + 4 处文档漂移清偿（DEV-0385）
+
+- **检查结论**: P0~P4 全交付（17 commit），P5 加固 / P6 Case 闭环 + 知识回流 / P7 收口 **未启动**；活体 DB 实测 v1_runs 4（有效 1）/ v1_artifacts 3 / v1_cases 10（closed 1）/ agent_runs 3（`pi-executor`·argv）/ v1_knowledge 1。G2/G3 达成，G4 部分（拦截 ✅ 告警 ⬜），G1/G5 观测中（t0 = 2026-11-14 → 2026-12-14）。
+- **漂移 1**: PRD §6 安全模型把 L3/L4 标「R-4 交付」而 P5 未启动（全仓无 ulimit/sandbox-exec/boundary_violation）→ 改为 ⬜ 未交付，L4 拆「逐命令审计 ✅ / 越界告警 ⬜」两行。
+- **漂移 2**: PRD §4.3 + §9 D3 仍写「agent_bridge jsonl 派发」→ 回写为**确定性 argv 执行**（偏差注②），裁决理由栏保留原裁决 + 2026-11-16 改判理由。
+- **漂移 3**: 权威 PRD `HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` 滞后 → 原文改「原定 … 见 D3」+ 新增 2026-11-16 条目（P0~P4 阶段账 + 安全模型状态 + P5/P6/P7 待启动）。
+- **漂移 4**: 实施计划 §4 C3-4「工作区已实现待提交」→ 已提交 `5ef86b5`；§11 步骤表 6 行加状态列（✅/🔶/⬜）。
+- **同族顺带**: PRD 内 3 处「待裁决 D1/D2/D8」措辞与 §9 矛盾 → 改「✅ 已裁决」；PRD §8 发布计划加状态列 + commit 数订正；实施计划总 commit 数 **20→18**（与逐阶段合计不符）+ §6/§7 补未启动状态块与现状取证。
+- **验证**: `generate_meta.py --check` 通过（56/19/99/153/67 零漂移）；纯文档改动，未触发 pytest/前端门。
+
 ### 下一版本指针
 
 - **v0.8.9 立项（主干流量专项）**: PRD = `docs/v0.8.9/V0.8.9_PRD.md`，实施计划 = `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`。依据: 生产实测 v1_runs=0 / v1_artifacts=0 / v1_cases=6 全 open——「资讯→知识」供给充沛（signals 7,666 / receipts 15,513）而「行动→产物→复利」零流量。

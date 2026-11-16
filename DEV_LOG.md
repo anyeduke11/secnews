@@ -1,4 +1,22 @@
 
+## [DEV-0386] feat(exec): v0.8.9 P5 C5-1 — L3 系统层加固 (sandbox-exec per-plan profile + ulimit + 越界告警)
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（R-4 / P5 加固；PRD §6 L3 系统层 + L4 越界告警）
+- **关联文件**:
+  - 新建 `backend/services/execution_runner/sandbox.py`（Seatbelt profile 生成 + ulimit exec launcher）
+  - 新建 `backend/services/observability_alert_service.py`（告警基建下沉，scheduler `_fire_alert` 改委托）
+  - 改 `backend/services/execution_runner/runner.py`（L3 接线 + 越界告警 + CPU 信号宽限）
+  - 改 `backend/scheduler/jobs/maintenance.py`（`_fire_alert` 薄包装委托，去重复实现）
+  - 新建 `backend/tests/test_execution_sandbox.py`（21 用例）+ 改 `backend/tests/test_execution_runner.py`（+6 用例）
+  - 新建 `scripts/drill_v089_c5.py`（演练④ 可复跑脚手架）· 留档 `docs/audit/V089_PILOT_DRILL_2026-11-14.md`
+- **核心不变量**: ① 默认拒绝 —— profile 基线 `(deny default)`，写只放行 plan.writable_paths，读收窄到 plan.readable_paths，凭据载体（`.env`/`*.db`/`.key`/`.pem`）禁读，出网全禁；② ulimit 经 **exec launcher** 施加（子进程内 setrlimit → execvp 原 argv）—— 不用 `preexec_fn`（多线程父进程 fork 后跑 Python 回调有死锁风险）；③ 越界 → `executor.boundary_violation` 告警（level=critical）落 `observability_alerts` + SSE + dispatcher；④ 非 macOS 降级为「仅 ulimit」，audit_log 留痕 `sandbox=unavailable`（**不假装有沙箱**）
+- **Seatbelt 实测语义**（macOS 27.2，5 条踩坑写进模块 docstring）: ① **last-match-wins**（顺序即语义）② `subpath` 匹配 **realpath**（`/tmp/x` 实为 `/private/tmp/x`）③ `(deny default)` + `file-read*` 子路径白名单会让 CPython abort（exit 134，需读 stdlib/dylib/动态链接缓存）→ 改「系统读 blanket + 定向 deny 收窄」④ host 级出网白名单不可表达（`(remote ip "1.2.3.4:443")` 被内核拒）⑤ 仓库内 venv 解释器需 `subpath` 目录 + `literal` 各级祖先目录**双重**放行（解释器启动调 `realpath()` 解析自身路径）
+- **演练④ 证据**（隔离 DB，6 步全达成）: ① 基线合法执行 ok（stdout=`source material`）② 写 workspace 外 → 内核 `PermissionError` + **文件未产生** ③ 读仓库 `.env` → 内核 `PermissionError` ④ 出网 → `NET-BLOCKED gaierror` ⑤a 死循环 → **内核 SIGXCPU（rc=-24）** ⑤b `sleep(30)` → `E_COMMAND_TIMEOUT`；告警落 **2 条**（步骤 2/3 各一）
+- **演练④ 暴露并修复的 2 个真实缺陷**: ① **全局 cooldown 吞掉跨 run 越界** —— `observability_alerts` cooldown 语义是「同 (metric, level) 窗口内一条」，6 次真实越界只落 1 条告警（违反「失败必可见」）→ `fire_alert` 新增 `dedupe_key`（默认 None = v0.7 语义不变），执行体传 `dedupe_key=run_id`（同 run 合并防刷屏 / 跨 run 各自可见）；② **CPU 限额与 wall timeout 同值 → 内核限额永不触发**（wall 超时总是先到，SIGXCPU 形同虚设）→ wall timeout 改 `command_timeout_sec + 2s` 信号投递宽限（`_CPU_SIGNAL_GRACE_SECONDS`），总预算仍取严
+- **设计取舍**: ① `plan.network` 非空时**仍全禁**（host 白名单不可表达，放行全集=放行任意 host，违反更严不放松）② `RLIMIT_AS` 内存上限**未实现**（macOS 内核拒绝收紧 AS）③ 普通命令非零退出**不**告警（`_is_system_denial` 只认系统层拒绝特征）—— 否则噪声淹没真越界 ④ 沙箱约束落 `audit_log`（action=`executor.sandbox`）供复现边界
+- **验证**: `pytest backend/tests/` 全量 → **5,461 passed / 7 skipped / 0 failed**（33m35s）；相关域 75 passed；`ruff check backend/ + 演练脚本` clean；`generate_meta.py --check` OK（services **153→154**，新 service 已 `--fix` 同步 7 份文档）；消融验证（关掉 sandbox → L3 测试确实失效，证测试非空转）
+
 ## [DEV-0385] docs(v0.8.9): 修正 4 处文档漂移 — PRD 安全模型状态 / D3 改判回写 / 权威 PRD 同步 / 实施计划状态行
 
 - **时间**: 2026-11-16

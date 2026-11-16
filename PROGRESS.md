@@ -73,6 +73,16 @@
 - **同族顺带**: PRD 内 3 处「待裁决 D1/D2/D8」措辞与 §9 矛盾 → 改「✅ 已裁决」；PRD §8 发布计划加状态列 + commit 数订正；实施计划总 commit 数 **20→18**（与逐阶段合计不符）+ §6/§7 补未启动状态块与现状取证。
 - **验证**: `generate_meta.py --check` 通过（56/19/99/153/67 零漂移）；纯文档改动，未触发 pytest/前端门。
 
+### 2026-11-16 v0.8.9 P5 加固 — L3 系统层落地 + 红线演练④（DEV-0386）
+
+- **交付**: C5-1 一 commit —— 新建 `execution_runner/sandbox.py`（per-plan Seatbelt profile + ulimit exec launcher）+ `observability_alert_service.py`（告警基建下沉，scheduler `_fire_alert` 改委托去重复实现）+ runner 接线（L3 约束 + `executor.boundary_violation` 告警 + CPU 信号宽限）+ 27 测试用例（21 新 + 6 改）+ 可复跑演练脚手架 `scripts/drill_v089_c5.py`。
+- **红线演练④ 6 步全达成**（隔离 DB）：① 基线合法执行 ok（stdout=`source material`）② 写 workspace 外 → 内核 `PermissionError` + **文件未产生** ③ 读仓库 `.env` → 内核 `PermissionError` ④ 出网 → `NET-BLOCKED gaierror` ⑤a 死循环 → **内核 SIGXCPU（rc=-24）** ⑤b `sleep(30)` → `E_COMMAND_TIMEOUT`；告警落 **2 条** `executor.boundary_violation`。
+- **演练暴露并修复 2 个真实缺陷**: ① 全局 cooldown 吞掉跨 run 越界（6 次越界只落 1 条告警，违反「失败必可见」）→ `fire_alert` 新增 `dedupe_key`，执行体传 `run_id`；② CPU 限额与 wall timeout 同值 → 内核限额永不触发 → wall timeout 加 2s 信号投递宽限。
+- **Seatbelt 实测语义 5 条**（macOS 27.2，已写进模块 docstring）: last-match-wins · subpath 匹配 realpath · `deny default`+读白名单会让 CPython abort（改定向 deny 收窄）· host 级出网白名单不可表达 · 仓库内 venv 解释器需 subpath + literal 祖先目录双重放行。
+- **已知边界（如实）**: 仅 macOS 生效（非 macOS 降级为仅 ulimit，audit_log 留痕 `sandbox=unavailable`）· `plan.network` 非空仍全禁（更严不放松）· `RLIMIT_AS` 内存上限 macOS 不可收紧（未实现）· 仓库外系统文件仍可读（边界目标是「计划外项目数据与凭据」）。
+- **门禁**: pytest 全量 **5,461 passed / 7 skipped / 0 failed**（33m35s，较上轮 11m18s 慢 — 采样定位卡点在 SQLite prepare/parse 而非 sandbox 测试）· 相关域 75 · ruff clean（`backend/` + 演练脚本）· `generate_meta.py --check` OK（services **153→154**，新 service 已 `--fix` 同步 7 份文档）· 消融验证通过（关掉 sandbox → L3 测试确实失效）。
+- **文档联动**: PRD §6 安全模型表（L3/L4 越界告警 → ✅）· PRD §8 发布计划 P5 行 · 实施计划 §0/§6/§11 · 权威 PRD 2026-11-16 条目 · 演练留档。
+
 ### 下一版本指针
 
 - **v0.8.9 立项（主干流量专项）**: PRD = `docs/v0.8.9/V0.8.9_PRD.md`，实施计划 = `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`。依据: 生产实测 v1_runs=0 / v1_artifacts=0 / v1_cases=6 全 open——「资讯→知识」供给充沛（signals 7,666 / receipts 15,513）而「行动→产物→复利」零流量。

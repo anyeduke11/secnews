@@ -53,7 +53,7 @@
 - **演练②③ 证据**（隔离 DB，`docs/audit/V089_PILOT_DRILL_2026-11-14.md`）: ② run succeeded/done + artifact report 63 B（落盘 sha256 == content_hash）+ `v1_run` outbox 3 条；③ run failed 带原因码，step1 已执行留 marker（合法步骤跑完、越界步骤未 spawn）。
 - **偏差留痕**: 偏差注② —— 派发形态由 agent_bridge jsonl 改为**确定性 argv 执行**（owner 裁决；理由：plan 已冻结，LLM 转述命令 = 重新引入自由度），实施计划 §5 C4-2 已同 commit 回写。
 - **如实披露**: L4 仅 500 字（全量 stdout 由 artifact `content_ref` 承接）· 路径约束是声明校验非沙箱（真隔离属 P5/L3）· `pi_executor_enabled` 生产仍默认关，开启须 owner 授权 · 首跑调试在 live DB 留 2 组演练②形态行（未删，不计观测窗）。
-- **门禁**: pytest 相关域 60（enforcer + runner + core_routers + action_service + execution_plan）· tsc 0 · vitest **713 passed**（98 文件）· ruff clean · meta `--check` OK（core_routers **66→67**）。
+- **门禁**: pytest **全量 5,432 passed / 7 skipped / 0 failed**（11m18s，P4 提交后复跑）· 相关域 60 · tsc 0 · vitest **713 passed**（98 文件）· ruff clean · meta `--check` OK（core_routers **66→67**）。
 - **顺手修复（DEV-0383，非 P4 新增）**: ① `action_api.py` 在 C1-2 拆分时误删 `_action_to_dict`/`_list_response` → `/api/v1/actions` 列表/详情/finish 运行时 NameError（已复原）；② `run_plan_api` 未登记 `CORE_ROUTERS` → `test_core_routers_completeness` 失败（已补登记）。
 
 ### 2026-11-16 P7 前置两笔债 —— 台账差集 + router 碎化体检（DEV-0384）

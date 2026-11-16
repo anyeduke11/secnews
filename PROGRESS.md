@@ -41,11 +41,27 @@
 
 ### 2026-11-16 v0.8.9 主干流量专项 — P0~P3 全交付（DEV-0368~0378）
 
-- **阶段账**: P0 基线盘点 ✅（`docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md` 六断点 file:line + D1~D8 裁决 DEV-0368）→ P1 人工回执 ✅（`5aa219a` run claim/start/finish/cancel · `7ba0747` action finish 收口 · `d2d72a5` 四段指挥台接线；**演练① 达成首个 closed case**，v1_runs/v1_artifacts 0→1）→ P2 观测收口 ✅（`9b4aa97` artifact_yield 分母 `status='done'`→`outcome='done'`；活体 yield_ratio=**1.0**，此前恒 None；M-9/M-10 观测窗 **t0=2026-11-14**）→ **P3 边界协议 ✅**（`3e5cc14` migration 136 三列 + claim 落 executor · `22501a3` ExecutionPlan schema/service 状态机 + boundary_hash · `17eecb3` ai_hub 起草生成器（红线不动）+ 人工兜底 · C3-4 审批 API+UI 工作区已实现待提交）。
+- **阶段账**: P0 基线盘点 ✅（`docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md` 六断点 file:line + D1~D8 裁决 DEV-0368）→ P1 人工回执 ✅（`5aa219a` run claim/start/finish/cancel · `7ba0747` action finish 收口 · `d2d72a5` 四段指挥台接线；**演练① 达成首个 closed case**，v1_runs/v1_artifacts 0→1）→ P2 观测收口 ✅（`9b4aa97` artifact_yield 分母 `status='done'`→`outcome='done'`；活体 yield_ratio=**1.0**，此前恒 None；M-9/M-10 观测窗 **t0=2026-11-14**）→ **P3 边界协议 ✅**（`3e5cc14` migration 136 三列 + claim 落 executor · `22501a3` ExecutionPlan schema/service 状态机 + boundary_hash · `17eecb3` ai_hub 起草生成器（红线不动）+ 人工兜底 · C3-4 审批 API+UI `5ef86b5`）。
 - **P3 不变式落地**: 默认拒绝（未 approved 不被执行体消费）· approve 即冻结（快照+boundary_hash+revision，改 plan = 新 attempt）· 仅 queued/claimed run 可做 plan 操作 · LLM 不可用 → 503 `fallback: manual_form`（不产半可信 plan）。
 - **偏差留痕**: C3-4 落点由 `run_ledger_api.py` 改为新建 `run_plan_api.py`（142 行；原文件达体量上限 + `backend/api/AGENTS.md` ≤150 行硬约束；routers 98→99），实施计划 §4 已同步回写，无静默漂移。
 - **门禁**: tsc 0 · vitest **713 passed**（98 文件）· pytest 全量 **5,388** / 相关域 130（test_execution_plan 22）· ruff clean · meta `--check` OK（56 jobs / 19 collectors / **99 routers** / 153 services / 66 core_routers）。
-- **待办**: ① C3-4 提交（未授权）；② `vite build` + `harness_analyze --check` 复跑；③ P4 pi 执行（4 commit）→ P5 加固 → P6 Case 闭环/知识回流 → P7 收口 + 30 天观测窗。
+- **待办**: ① ~~C3-4 提交~~ ✅ `5ef86b5`；② `vite build` + `harness_analyze --check` 复跑 ✅；③ P4 pi 执行 ✅（见下段）→ P5 加固 → P6 Case 闭环/知识回流 → P7 收口 + 30 天观测窗。
+
+### 2026-11-16 v0.8.9 P4 pi 执行 — 4 commit 全交付（DEV-0379~0382）
+
+- **阶段账**: C4-1 enforce 编译器 ✅（`execution_plan/enforcer.py` 165 行：审批快照 → 进程约束；argv = 静态白名单 ∩ plan 子集；`boundary_hash` 不一致拒绝）→ C4-2 执行体 ✅（`execution_runner/` 267 行：逐条 subprocess 确定性 argv · `pi_executor_enabled` **默认关** · 每条落 `agent_runs`）→ C4-3 终态回写 ✅（`execute_and_settle` = 执行 + artifact 落盘登记（R08 hash 对账）+ `RunService.finish`；空 stdout → `E_ARTIFACT_EMPTY`；前端补 `v1_run` SSE 订阅 800 ms 节流重拉）→ C4-4 越界演练 ✅（`curl` → `E_ARGV_NOT_ALLOWED` **spawn 前**拦截，无 artifact、`agent_runs` 无 curl 行；熔断未触发）。
+- **演练②③ 证据**（隔离 DB，`docs/audit/V089_PILOT_DRILL_2026-11-14.md`）: ② run succeeded/done + artifact report 63 B（落盘 sha256 == content_hash）+ `v1_run` outbox 3 条；③ run failed 带原因码，step1 已执行留 marker（合法步骤跑完、越界步骤未 spawn）。
+- **偏差留痕**: 偏差注② —— 派发形态由 agent_bridge jsonl 改为**确定性 argv 执行**（owner 裁决；理由：plan 已冻结，LLM 转述命令 = 重新引入自由度），实施计划 §5 C4-2 已同 commit 回写。
+- **如实披露**: L4 仅 500 字（全量 stdout 由 artifact `content_ref` 承接）· 路径约束是声明校验非沙箱（真隔离属 P5/L3）· `pi_executor_enabled` 生产仍默认关，开启须 owner 授权 · 首跑调试在 live DB 留 2 组演练②形态行（未删，不计观测窗）。
+- **门禁**: pytest 相关域 60（enforcer + runner + core_routers + action_service + execution_plan）· tsc 0 · vitest **713 passed**（98 文件）· ruff clean · meta `--check` OK（core_routers **66→67**）。
+- **顺手修复（DEV-0383，非 P4 新增）**: ① `action_api.py` 在 C1-2 拆分时误删 `_action_to_dict`/`_list_response` → `/api/v1/actions` 列表/详情/finish 运行时 NameError（已复原）；② `run_plan_api` 未登记 `CORE_ROUTERS` → `test_core_routers_completeness` 失败（已补登记）。
+
+### 2026-11-16 P7 前置两笔债 —— 台账差集 + router 碎化体检（DEV-0384）
+
+- **债一 `scripts/check_devlog_coverage.py`**（只读）: DEV_LOG ↔ git 三向差集（已对账 / 仅台账未提交 / **提交未落台账 = exit 1**）+ 重复编号检出。首跑: 248 条条目 / 1022 提交 → 已对账 171 · 仅台账 77 · **未落台账 13**（历史漂移，暴露不追溯） · 重复编号 19 组。
+- **债二 `scripts/check_router_fragmentation.py`**（只读）: AST 端点密度体检。首跑: 136 模块 / 122 路由模块 / 521 端点 / 中位 112 行 → 超 150 行 **29**（存量 advisory）· 碎化候选 **6**（`kl_rollback_api` 等 1 端点 ≤40 行）· 同域前缀簇 **12**（`knowledge` 11 模块 / `v1` 8 / `secrets`·`source` 各 6 / `quality` 5 …）。
+- **定位**: 均为 `check_*` 只读、恒不写代码；**未接 CI**（合并/拆分决策归 owner），避免与 ≤150 行硬约束冲突产「假门禁」。入口已登记 `scripts/AGENTS.md`。
+- **提交切分**: P4 与两笔债共 4 commit —— ① `feat(exec)` C4-1~C4-3 ② `fix(api)` DEV-0383 ③ `docs(v0.8.9)` 演练留档 + 台账 ④ `chore(scripts)` 两笔债脚本（本段即台账落点）。
 
 ### 下一版本指针
 

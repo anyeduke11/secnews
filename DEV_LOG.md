@@ -1,4 +1,60 @@
 
+## [DEV-0384] chore(scripts): P7 前补两笔债 — DEV_LOG 差集核对 + router 碎化体检
+
+- **时间**: 2026-11-16
+- **类型**: 只读体检脚本（零业务代码改动，不新增 CI 门禁）
+- **关联文件**: `scripts/check_devlog_coverage.py`（新建 120 行）· `scripts/check_router_fragmentation.py`（新建 ~190 行）· `scripts/AGENTS.md`（审计脚本入口补两行）
+- **债一 `check_devlog_coverage.py`** — DEV_LOG ↔ git 三向差集（`DEV-xxxx` 为唯一键）：`reconciled` 已对账 / `documented_only` 仅台账未提交（会话中台账先行属正常，**不计失败**）/ `unlogged_commit` 提交引用编号但台账无条目（真实漂移，**exit 1**）；顺带检出 DEV_LOG 重复编号。退出码 0/1/2（2 = DEV_LOG 或 git 不可用）
+- **实跑结论（首跑）**: DEV_LOG 248 条（0074~0383）· git 1022 提交命中 168 编号 → 已对账 171 / 仅台账 77 / **提交未落台账 13**（DEV-0142/0143/0152/0153/0157/0158/0159/0160/0162/0217 等历史漂移，本次只为暴露不追溯补记）/ **重复编号 19 组**（DEV-0179~0188 起）
+- **债二 `check_router_fragmentation.py`** — AST 扫 `backend/api/*.py`（跳过 `_` 前缀与 `__init__`），按 `APIRouter()` 变量名匹配 HTTP 装饰器数端点，四段输出：① 总量（136 模块 / 122 路由模块 / 521 端点 / 行数中位数 112）② 超 150 行 advisory 29 个（存量超标，拆分决策归 owner，不设失败）③ 碎化候选（端点≤2 且≤40 行）6 个 ④ 同域前缀簇（去 `_api`/`_ops_api` 取首段，≥3 模块）12 簇。另区分「聚合壳（只 include_router）」与「无路由（helper/命名误置）」
+- **设计取舍**: 两脚本均为 `check_*` 只读语义，**不写 DB 不改代码**；碎化候选只作合并参考，避免与 ≤150 行硬约束冲突产「假门禁」；均未接入 CI（体检结论交 owner 决策）
+
+## [DEV-0383] fix: C1-2 拆分误删 action_api 视图适配函数 + CORE_ROUTERS 漏登记 run_plan_api
+
+- **时间**: 2026-11-16
+- **类型**: Bug 修复（P4 全量门禁暴露的两处历史遗留，非 P4 新增）
+- **问题 1（严重）**: `backend/api/action_api.py` 在 C1-2（`7ba0747`）拆 `action_finish_api` 时把 `_action_to_dict` / `_list_response` 一并删掉，但同文件 5 处调用 + `action_ops_api` 惰性 import 仍依赖 → `GET /api/v1/actions`、`GET /{id}`、`finish` 全部 **运行时 NameError（500）**；ruff F821 已报 5 条。修复：按拆分前实现原样复原两个函数
+- **问题 2（门禁）**: `run_plan_api`（C3-4）在 `_registry.py` 无条件注册但未登记 `CORE_ROUTERS` → `test_core_routers_completeness` 失败（白名单漏登记即失败）。修复：补登记 + `generate_meta.py --fix`（core_routers **66→67**）
+- **顺带**: `action_ops_api.py` 拆分后残留未用 `import asyncio`（ruff F401）删除
+- **验证**: `pytest test_core_routers_completeness + execution_runner + enforcer + action_service + execution_plan` → **60 passed**；`ruff check backend/` clean；`generate_meta.py --check` OK
+
+## [DEV-0382] v0.8.9 P4 C4-4 — 越界演练（G4 红线：plan 外 argv 在 spawn 前被拦）
+
+- **时间**: 2026-11-16
+- **类型**: 安全验收 + 文档留档（零代码改动，仅 1 处日志插值修正）
+- **关联文件**: `docs/audit/V089_PILOT_DRILL_2026-11-14.md`（追加演练②③ + 四条已知限制）/ `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md` §5（C4-1~C4-4 状态 + **偏差注②** + §0 阶段账）
+- **演练③证据**（隔离 DB）: plan = `python3 -c "open('touched','w').write('x')…"` → `curl -sS https://example.com`；run `run_PT5DEYZXAH44DY4R22B4WYQ66J` **failed**，`error` 前缀 **`E_ARGV_NOT_ALLOWED`**；`agent_runs` 仅 1 行（**curl 从未 spawn**）、`artifact_ids=[]`、step1 已执行留 `touched` marker → **拦截点在派发之前**，非执行后回滚
+- **熔断判定**: 未触发（§5 熔断条件 = 越界未被拦截 → 停 R-3 + revert `pi_executor_enabled`）；P4 可继续，`pi_executor_enabled` 保持**默认关**（生产仍不开启，开启须 owner 授权）
+- **如实披露**: ① L4 只落 500 字（`agent_runs` 无全量 stdout 列，完整 stdout 由 artifact `content_ref` 承接）；② 路径约束是**声明校验非沙箱**（真隔离属 L3/P5）；③ 脚手架 judgment 无 `evidence_refs`（非 SK-02 真实样例）；④ 首跑调试在 live DB 留下 2 组演练②形态行（未删，不计入 G1 观测窗）
+
+## [DEV-0381] v0.8.9 P4 C4-3 — 终态回写 + Artifact 自动登记 + Run 段实时事件流
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（执行体收口；复用既有状态机，不自建）
+- **关联文件**:
+  - 后端: `backend/services/execution_runner/runner.py`（`CommandResult.stdout` 由「只存尾」改「全量 + `stdout_tail` 属性」；新增 `_materialize_artifact` = 末条命令完整 stdout 落 `data_dir/run_artifacts/<run_id>.<fmt>` → `ArtifactService.create`（走 R08 落盘 hash 对账）；新增 `execute_and_settle` = `execute_plan` + 登记 + `RunService.finish`）/ `backend/services/execution_runner/__init__.py`（导出）/ `backend/tests/test_execution_runner.py`（+5 用例）
+  - 前端: `frontend/src/hooks/realtime.ts`（`SSE_EVENTS.V1_RUN`）/ `ActionCommandConsole.tsx`（订阅 `v1_run`/`v1_artifact`/`v1_action` → 800 ms 节流重拉聚合）/ `PlanPanel.test.tsx`（`mkEnv` 返回标注 `ApiVersioned<ExecutionPlanEnvelope>`，修 tsc）
+- **核心**: outcome 映射 `ok→done` · `E_COMMAND_TIMEOUT/E_TOTAL_TIMEOUT→timeout` · 其余 `→failed`；ok 但 stdout 空白 → **`E_ARTIFACT_EMPTY` 收口 failed**（不造空产物蒙混）；终态/RA-9（done 必须 ≥1 artifact）/artifact_ids 实表回填/v1_run 事件/audit receipt 全部走 `RunService.finish` 既有出口
+- **演练②证据**（隔离 DB）: run `run_7ZBE3IZOZG6UECYL7OWAOV35N5` succeeded/done（34 ms）· artifact `MMFHXG3JS4MUVE55DDRC37AGEJ`（report, 63 B, `content_hash=f87dff7a…`）· 落盘 sha256 **==** content_hash · outbox `v1_run` 3 条
+- **验证**: `pytest backend/tests/test_execution_runner.py backend/tests/test_enforcer.py` → **22 passed**
+
+## [DEV-0380] v0.8.9 P4 C4-2 — pi 派发执行体（确定性 argv，默认关）
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（L2 进程层执行体）
+- **关联文件**: `backend/services/execution_runner/{__init__,runner}.py`（新建）· `backend/config/__init__.py`（`pi_executor_enabled` 默认 False）· `backend/services/agent_bridge.py`（workspace 锁定根复用，+10/−5）· `backend/tests/test_agent_bridge.py` · `backend/tests/test_execution_runner.py`（新建 7 用例：disabled/顺序+agent_runs 行数/越界前置拦截/未 approved/nonzero 停止/命令超时/workspace 越界）
+- **核心不变量**: ① 开关默认关，未开 → `ExecutorDisabledError`（fail loud 不静默跳过）；② 执行前比对 `boundary_hash`（不一致 `E_BOUNDARY_HASH_MISMATCH`）；③ 逐条 argv 前置校验（静态白名单 ∩ plan 子集）→ 每条落 `agent_runs`（`agent='pi-executor'`, `protocol='argv'`）→ 非零退出即停（不继续后续步骤）；④ 子进程 `list argv` 无 shell · `stdin=DEVNULL` · `cwd`=锁定根 · 不带 llm_secrets
+- **偏差注②（owner 裁决，显式留痕）**: 派发形态由「agent_bridge jsonl 协议」改为**确定性 argv 执行**——plan 已审批冻结，再经 LLM 转述命令 = 重新引入自由度（违 R-3）；argv 级执行可机械比对、可复现（确定性变换交 code 不交模型）。后果：L4 `agent_runs` 语义从「agent 会话」变为「逐命令 argv 记录」。实施计划 §5 C4-2 已同 commit 回写
+- **踩坑修正**: enforcer 的 `frozenset argv_set` 丢序 → `EnforcementSpec.commands` 改为**有序** `tuple[tuple[str,...],...]`，执行体按原始步骤顺序跑
+
+## [DEV-0379] v0.8.9 P4 C4-1 — enforce 编译器（审批快照 → 进程约束）
+
+- **时间**: 2026-11-16
+- **类型**: 功能开发（L1→L2 边界编译）
+- **关联文件**: `backend/services/execution_plan/enforcer.py`（新建 165 行）+ `backend/tests/test_enforcer.py`（新建 137 行）
+- **核心**: `compile_enforcement(envelope)` 把已 approved 的 plan 快照编译为可执行约束（workspace 锁定根复用 `agent_bridge.resolve_workspace`；argv = 静态白名单 ∩ plan 子集——**更严不放松**；网络默认全禁；command/total timeout 兜底）；`check_command(argv)` 逐条前置校验（`validate_command_argv`，`curl`/`rm` 等派外命令 → `E_ARGV_NOT_ALLOWED`）；`boundary_hash` 变更 → `E_BOUNDARY_HASH_MISMATCH`。路径约束仅校验声明合法性，真沙箱属 L3（P5）
+- **测试**: 越界 argv 拒绝 / plan 外可执行拒绝 / 网络默认禁 / hash 不一致拒绝 / 超时兜底
+
 ## [DEV-0378] v0.8.9 P3 C3-4 — ExecutionPlan 审批 API + UI（默认拒绝 → 显式放行 → 冻结不可变）
 
 - **时间**: 2026-11-16

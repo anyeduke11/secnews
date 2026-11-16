@@ -6,7 +6,9 @@
 """
 from __future__ import annotations
 
+import json
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -226,3 +228,125 @@ def test_settle_empty_stdout_fails_without_fake_artifact(temp_db):
     run = _get_run(run_id)
     assert (run["status"], run["outcome"]) == ("failed", "failed")
     assert ArtifactRepository().ids_by_run(run_id) == []
+
+
+# ---------------------------------------------------------------------------
+# C5-1 L3 系统层接线 + 越界告警
+#
+# 「为什么」: P4 只做了声明级拦截 (L2), 越界事实只落在 run.error — 运维侧
+# 无主动可见性。本组锁死: ① L3 sandbox 生效时命令真的在系统层受限;
+# ② 越界事实进 observability_alerts (告警可见 = PRD R-4 ③ 验收);
+# ③ 普通命令失败**不**告警 (否则噪声淹没真越界)。
+# ---------------------------------------------------------------------------
+def _alerts(metric: str) -> list:
+    from backend.repository import db
+
+    return db.get_connection().execute(
+        "SELECT level, detail FROM observability_alerts WHERE metric = ?",
+        (metric,),
+    ).fetchall()
+
+
+def test_l2_violation_emits_boundary_alert(temp_db):
+    """L2 越界 (argv 不在 plan) → boundary_violation 告警落表 + 可见。"""
+    result = execute_plan("run-1", _plan([["curl", "https://example.com"]]), workspace=_WS)
+
+    assert result.reason_code == "E_ARGV_NOT_ALLOWED"
+    rows = _alerts("executor.boundary_violation")
+    assert len(rows) == 1 and rows[0]["level"] == "critical"
+    assert "E_ARGV_NOT_ALLOWED" in rows[0]["detail"]
+
+
+def test_boundary_alerts_from_different_runs_are_not_suppressed(temp_db):
+    """跨 run 的真实越界各自可见 — 演练④ 实测: 全局 cooldown 会吞掉跨 run 越界。
+
+    同 (metric, level) 的 cooldown 若不加去重维度, 一个窗口内只有第一条
+    越界可见 → 违反「失败必可见」。dedupe_key=run_id 后: 不同 run 各自落一条。
+    """
+    execute_plan("run-a", _plan([["curl", "https://example.com"]]), workspace=_WS)
+    execute_plan("run-b", _plan([["curl", "https://example.com"]]), workspace=_WS)
+
+    rows = _alerts("executor.boundary_violation")
+    assert len(rows) == 2
+    run_ids = {json.loads(r["detail"])["run_id"] for r in rows}
+    assert len(run_ids) == 2   # 两条告警指向不同 run
+
+
+def test_boundary_alert_dedupes_within_same_run(temp_db):
+    """同一 run 内重复越界合并 — 不刷屏。"""
+    for _ in range(3):
+        execute_plan("run-same", _plan([["curl", "https://example.com"]]), workspace=_WS)
+
+    assert len(_alerts("executor.boundary_violation")) == 1
+
+
+def test_plain_command_failure_does_not_emit_boundary_alert(temp_db):
+    """普通非零退出不是越界 — 不告警 (避免噪声淹没真越界)。"""
+    result = execute_plan("run-1", _plan([_py("import sys; sys.exit(3)")]), workspace=_WS)
+
+    assert result.reason_code == "E_COMMAND_FAILED"
+    assert _alerts("executor.boundary_violation") == []
+
+
+def test_successful_run_emits_no_boundary_alert(temp_db):
+    result = execute_plan("run-1", _plan([_py("print('ok')")]), workspace=_WS)
+
+    assert result.ok is True
+    assert _alerts("executor.boundary_violation") == []
+
+
+def test_sandbox_constraints_recorded_in_audit_log(temp_db):
+    """L4 留痕: 本 run 生效的系统层约束落 audit_log (可复现边界)。"""
+    execute_plan("run-1", _plan([_py("print('ok')")]), workspace=_WS)
+
+    from backend.repository import db
+
+    rows = db.get_connection().execute(
+        "SELECT detail FROM audit_log WHERE action = 'executor.sandbox'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert "sandbox" in rows[0]["detail"]
+
+
+@pytest.mark.skipif(
+    not runner_mod.sandbox_supported(), reason="sandbox-exec 仅 macOS 可用"
+)
+def test_l3_sandbox_blocks_write_outside_declared_paths(temp_db):
+    """L3 系统层: 命令在 plan 内 (argv 合法) 但写 workspace 外 → 内核拒绝。
+
+    这是 L2 拦不住的情形 (argv 合法, 只是副作用越界) — 正是 P5 的价值。
+    """
+    marker = Path(_enabled_workspace_root()) / "escaped.txt"
+    result = execute_plan(
+        "run-1",
+        _plan([_py("open('escaped.txt','w').write('x')")]),
+        workspace=_WS,
+    )
+
+    assert result.ok is False
+    assert not marker.exists()
+
+
+def _enabled_workspace_root() -> str:
+    import os
+
+    return os.path.join(os.getcwd(), _WS)
+
+
+def test_degrades_when_sandbox_unavailable(monkeypatch, temp_db):
+    """非 macOS (无 sandbox-exec) → 降级为「仅 ulimit」, 不崩不留白。
+
+    降级必须是**显式**的: 记 warning + 不假装有沙箱 (审计 detail 记
+    sandbox=unavailable), 而不是静默按无约束执行。
+    """
+    monkeypatch.setattr(runner_mod, "sandbox_supported", lambda: False)
+    result = execute_plan("run-1", _plan([_py("print('ok')")]), workspace=_WS)
+
+    assert result.ok is True
+    from backend.repository import db
+
+    rows = db.get_connection().execute(
+        "SELECT detail FROM audit_log WHERE action = 'executor.sandbox'"
+    ).fetchall()
+    # 降级时仍留痕 — 但明确标记 sandbox 不可用
+    assert len(rows) == 1 and '"sandbox": "unavailable"' in rows[0]["detail"]

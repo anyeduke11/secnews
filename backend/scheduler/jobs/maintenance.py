@@ -127,75 +127,25 @@ async def _fire_alert(
 ) -> None:
     """清理 job 告警统一发射 (DEV-0321 自 DEV-0319 _alert_telemetry_skips 抽出)。
 
+    实现已下沉到 ``backend/services/observability_alert_service.fire_alert``
+    (v0.8.9 P5: 执行体 runner 需从 services 层发越界告警, 单一实现避免漂移);
+    本函数保留薄包装以维持 scheduler 侧既有调用契约 (cooldown 用 timedelta)。
     observability_alerts (cooldown 同 (metric, level) 防刷屏) + SSE breach
-    (前端横幅/StatusBar) + alert_dispatcher 外部投递。本函数任何失败只
-    log — 告警自身绝不拖垮被告警的清理链。
+    (前端横幅/StatusBar) + alert_dispatcher 外部投递。告警自身失败只 log —
+    绝不拖垮被告警的清理链。
     """
-    from datetime import datetime
+    from backend.services.observability_alert_service import fire_alert
 
-    from backend.repository.db import get_connection
-
-    now = datetime.now(timezone.utc)
-    alert_id = None
-    try:
-        conn = get_connection()
-        existing = conn.execute(
-            "SELECT cooldown_until FROM observability_alerts "
-            "WHERE metric = ? AND level = ? AND acked = 0 "
-            "ORDER BY fired_at DESC LIMIT 1",
-            (metric, level),
-        ).fetchone()
-        if not (existing and existing["cooldown_until"] > now.isoformat()):
-            conn.execute(
-                "INSERT INTO observability_alerts "
-                "(level, metric, value, threshold, window_minutes, detail, "
-                "fired_at, cooldown_until, acked) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
-                (
-                    level, metric, value, threshold,
-                    window_minutes, json.dumps(detail, ensure_ascii=False),
-                    now.isoformat(),
-                    (now + cooldown).isoformat(),
-                ),
-            )
-            alert_id = conn.execute(
-                "SELECT last_insert_rowid() AS id"
-            ).fetchone()["id"]
-    except Exception as e:
-        _logger.error(f"{metric} alert write failed: {e}")
-
-    if alert_id is not None:
-        try:
-            from backend.core.events import publish_event
-
-            await publish_event("observability.breach", {
-                "alert_id": alert_id,
-                "level": level,
-                "metric": metric,
-                "value": value,
-                "threshold": threshold,
-            })
-        except Exception as e:
-            _logger.debug(f"publish_event {metric} failed: {e}")
-        try:
-            from backend.services.alert_channels import AlertPayload
-            from backend.services.alert_dispatcher import dispatch
-
-            await dispatch(
-                AlertPayload(
-                    metric=metric,
-                    level=level,
-                    value=value,
-                    threshold=threshold,
-                    window_minutes=window_minutes,
-                    detail=detail,
-                    fired_at=now.isoformat(),
-                    source=source,
-                ),
-                alert_id=alert_id,
-            )
-        except Exception as e:
-            _logger.debug(f"dispatch {metric} failed: {e}")
+    await fire_alert(
+        metric=metric,
+        level=level,
+        value=value,
+        detail=detail,
+        source=source,
+        threshold=threshold,
+        window_minutes=window_minutes,
+        cooldown_minutes=int(cooldown.total_seconds() // 60),
+    )
 
 
 async def _alert_telemetry_skips(

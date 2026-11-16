@@ -1,4 +1,17 @@
 
+## [DEV-0387] v0.8.9 P6 C6-1 — 运营型 case 关闭演练⑤（四守卫正向+反向全取证）+ L3 声明被忽略留痕
+- **时间**: 2026-11-16
+- **类型**: 试点演练 + 观测留痕补丁（零新业务能力）
+- **关联模块**: `scripts:drill`, `backend:case-service`, `backend:execution-runner`
+- **关联文件**:
+  - `scripts/drill_v089_c6.py`（新建，可复跑脚手架）
+  - `docs/audit/V089_PILOT_DRILL_2026-11-14.md`（追加演练⑤ + 限制 2 留痕注）
+  - `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`（P6 状态行 + C6-1 状态行）
+  - `backend/services/execution_runner/sandbox.py` · `runner.py` · `backend/tests/test_execution_sandbox.py`（上一 commit 已单独提交：`network_enforced` / `network_declared_ignored` + warning + 断言）
+- **演练设计与结果**: 运营型全链 case→judgment→action→run→artifact→close 全部经服务层合法通道；主链结果为 `closed` / run `succeeded(done)` / artifact `accepted`，`content_hash` 与落盘 sha256 一致。四守卫用反向用例各自取证而非「结构性通过」：(a) N1 action running 拦截 · (b) N4 action cancelled 而 run 仍 queued 拦截（`cancel` 不级联 run 是唯一可行组合）· (c) N2 artifact 仍 pending 拦截 · (d) N3 无 judgment 的 case 拦截。`RESULT: PASS`。
+- **暴露的下一处缺口**: 演练实测 close 无 outbox 事件（`v1_action=1/v1_artifact=2/v1_run=3`，case 无）→ C6-2 需先给 `close_case` 加 `v1_case_closed` 生产者。
+- **测试验证**: 演练脚本 `RESULT: PASS`（隔离 DB/数据/wiki 目录）；`test_execution_sandbox.py` 22 passed；`test_execution_runner.py` 全绿；ruff clean；`generate_meta --check` exit 0（无 services/routers 增减）。
+
 ## [DEV-0386] feat(exec): v0.8.9 P5 C5-1 — L3 系统层加固 (sandbox-exec per-plan profile + ulimit + 越界告警)
 
 - **时间**: 2026-11-16

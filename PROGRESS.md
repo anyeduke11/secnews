@@ -83,6 +83,13 @@
 - **门禁**: pytest 全量 **5,461 passed / 7 skipped / 0 failed**（33m35s，较上轮 11m18s 慢 — 采样定位卡点在 SQLite prepare/parse 而非 sandbox 测试）· 相关域 75 · ruff clean（`backend/` + 演练脚本）· `generate_meta.py --check` OK（services **153→154**，新 service 已 `--fix` 同步 7 份文档）· 消融验证通过（关掉 sandbox → L3 测试确实失效）。
 - **文档联动**: PRD §6 安全模型表（L3/L4 越界告警 → ✅）· PRD §8 发布计划 P5 行 · 实施计划 §0/§6/§11 · 权威 PRD 2026-11-16 条目 · 演练留档。
 
+### 2026-11-16 v0.8.9 P6 C6-1 试点演练⑤ — 运营型 case 全链关闭（DEV-0387）
+
+- **补齐 P5 尾巴**: `plan.network` 非空时 L3 仍恒 deny-all，但 `describe_limits` 只记声明值不记「声明被忽略」→ 增 `network_enforced="deny-all"` + `network_declared_ignored` 两字段 + runner warning + 断言（sandbox 测试 21→22），运维不再把「plan 声明了 net 却被拒」误诊为 bug。
+- **演练⑤ PASS**: 运营型全链（case→judgment→published→action→run→artifact）经服务层合法通道关闭；`content_hash` 与落盘 sha256 一致（`8389dbca…beb9`）。
+- **四守卫反向各自取证**（不是「结构性通过」）: (a) N1 action running 拦 · (b) N4 action cancelled × run queued 拦（`cancel` 不级联 run 是唯一可行组合）· (c) N2 artifact 仍 pending 拦 · (d) N3 无 judgment 的 case 拦。脚手架 `scripts/drill_v089_c6.py` 可复跑，留档 `docs/audit/V089_PILOT_DRILL_2026-11-14.md#演练⑤`。
+- **C6-2 输入**: 演练实测 close **无 outbox 事件**（action/artifact/run 均有，case 无）→ `close_case` 需补 `v1_case_closed` 生产者，复盘提案才可能有触发源。
+
 ### 下一版本指针
 
 - **v0.8.9 立项（主干流量专项）**: PRD = `docs/v0.8.9/V0.8.9_PRD.md`，实施计划 = `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`。依据: 生产实测 v1_runs=0 / v1_artifacts=0 / v1_cases=6 全 open——「资讯→知识」供给充沛（signals 7,666 / receipts 15,513）而「行动→产物→复利」零流量。

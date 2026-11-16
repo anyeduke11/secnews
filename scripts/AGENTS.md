@@ -44,6 +44,8 @@
   python scripts/check_endpoints.py            # 端点可达性
   python scripts/check_graph_schema.py         # 图谱 schema 漂移
   python scripts/check_retention_decay.py      # 留存衰减
+  python scripts/check_devlog_coverage.py      # DEV_LOG ↔ git 提交差集 (退出 1 = 提交未落台账)
+  python scripts/check_router_fragmentation.py # backend/api 碎化体检 (只报告, 恒 exit 0)
   ```
 - **数据修复脚本**(cleanup / fix / backfill):
   ```bash

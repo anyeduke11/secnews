@@ -43,6 +43,42 @@ router = APIRouter(prefix="/api/v1/actions", tags=["v1-actions"])
 # ---------------------------------------------------------------------------
 # 端点
 # ---------------------------------------------------------------------------
+def _action_to_dict(a: dict[str, Any]) -> dict[str, Any]:
+    """C1-2 拆分时被误删（action_ops_api 惰性 import 依赖本函数）— 复原。"""
+    return {
+        "id": a["id"],
+        "case_id": a["case_id"],
+        "judgment_id": a["judgment_id"],
+        "title": a["title"],
+        "scope": a.get("scope"),
+        "plan": a["plan"],
+        "plan_hash": a["plan_hash"],
+        "tool_versions": a.get("tool_versions", {}),
+        "expected_artifacts": a.get("expected_artifacts", []),
+        "success_criteria": a.get("success_criteria"),
+        "expires_at": a.get("expires_at"),
+        "status": a["status"],
+        "approved_by": a.get("approved_by"),
+        "approved_at": a.get("approved_at"),
+        "rejection_reason": a.get("rejection_reason"),
+        "revision": a["revision"],
+        "allowed_actions": a.get("allowed_actions", []),
+        "reason": a.get("reason"),
+        "created_at": a["created_at"],
+        "updated_at": a["updated_at"],
+    }
+
+
+def _list_response(
+    items: list[dict[str, Any]], total: int | None = None,
+) -> dict[str, Any]:
+    return {
+        "version": API_VERSION,
+        "items": [_action_to_dict(a) for a in items],
+        "total": total if total is not None else len(items),
+    }
+
+
 def _list(
     case_id: str, status: str | None, judgment_id: str | None, limit: int, offset: int,
 ) -> dict[str, Any]:

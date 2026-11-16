@@ -58,6 +58,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # v1.0 端到端 API (T08-T18/C13/MP-2 等, 无 gate 限制; P0-8 补登记)
     "case_api", "judgment_api", "action_api", "action_ops_api", "run_api", "artifact_api",
     "run_ledger_api",  # v0.8.6 P1-1: proposal 审批 + Run 账本
+    "run_plan_api",  # v0.8.9 C3-4: ExecutionPlan 审批 (默认拒绝, 无 gate 限制)
     "command_bar_api",  # v0.8.6 P1-4: M4 命令栏
     "quality_api",  # v0.8.6 P1-5: 拒收回放
     "quality_rules_api",  # v0.8.6 P2: 两层质量规则管理面

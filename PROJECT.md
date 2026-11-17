@@ -1,14 +1,10 @@
 # PROJECT.md — 项目心智模型
 
-> **2026-09-13 NAV4 + v1.0.1 融合方案**：用户裁决以 v0.8 作为产品与 UI/UX 基底，将 v1.0.0 的领域对象、可靠执行与六项能力补入其中。当前执行入口为 [v1.0.1 融合方案](docs/v1.0/V1.0.1_V0.8_UI_CONVERGENCE_PLAN.md)：主导航升级为 Sentinel **四菜单**（资讯 / 知识 / 行动 / 设置；2026-09-13 NAV4，由原资料/判断/行动三层扩展）；Case 是判断工作容器，Knowledge 是行动沉淀与次级目录，不再维护四入口平行体验。v1.0.0 的 B0-B7 业务闭环整改顺序、数据契约和迁移要求继续有效；本裁决不回退或宣称其已验收。NAV4 后壳顶层仍唯一（禁止新一级入口/新壳），工具页"我在哪"由 `menuOf(pathname)` 自动归属四菜单；`SentinelMoreMenu`+`UTILITY_GROUPS`（17 项）已物理删除；`SecNewsShell` 6 视图改挂 `PageLayout`；主题扩 3 态（light/dark/paper）。**2026-09-14 P3 收口 (DEV-0178)**：临时页 `/maint` (复用 maintenance API) `/knowledge/canvas` (ECharts demo) 全量落账；ROUTE_REGISTRY 终稿；§6 补修订注④（新增 0 端点）；17 孤儿路由已登记。
+> **壳规则 (现行)**: v0.8 Sentinel 四菜单是唯一壳; v1.0 九领域对象以能力区块嵌入; 新能力只能以四菜单区块进入, 禁止新一级入口/新壳; 工具页经 `PageLayout` + `menuOf(pathname)` 自动归属四菜单; 主题 3 态 (light/dark/paper)。裁决与历史见 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` + git log。
 
-> **2026-09-05 v1.0 开发迁移入口**：用户最新要求将待实施的 v0.8.3 重构规格迁至软件 v1.0.0。当前开发输入为 [PRD](docs/archived/2026-09-09-sweep/HOTSPOT_WORKSTATION_PRD_V1.0.md) → [开发方案](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md) → [T00-T19 任务书](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_EXECUTION_GUIDE.md)，附 [第一性原理/批判性/六顶思考帽审查](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_DESIGN_REVIEW.md)（2026-09-09 已归档, 本入口被上方 v1.0.1 融合裁决取代）。本次只完成文档，代码 APP_VERSION 仍 0.8.2，所有任务待实施。关键裁决：Case 中心四入口、六岗位能力；单一事务 owner，现有三库不强制合并；Run/产物验证/业务验收分离；先隔离与恢复，再源码 SDK 和逐步迁移。下文旧阶段的“唯一规格”“SQLite 全为缓存”和完工状态不能覆盖这些新目标，实际能力以验证为准。
 
-> **2026-09-05 从零产品 PRD**：用户进一步要求重新设计整个体系，先出 PRD。新产品方案为 [HOTSPOT_WORKSTATION_PRD_V1.0](docs/archived/2026-09-09-sweep/HOTSPOT_WORKSTATION_PRD_V1.0.md)（2026-09-09 已归档）：以工作事项连接情报、判断、行动与经验，四主入口、首期六岗位能力；旧页面/20 Skill 不作为新产品范围前提。现有代码仍为 v0.8.2，本次未开发实现。后续任务分解以新 PRD 为产品输入，旧 v0.8.3 方案保留作技术/迁移参考。
 
-> **2026-09-05 v0.8.3 审查入口**：当前软件为 v0.8.2，下一重构规格见 [V0.8.3_REFACTOR_PLAN](docs/archived/2026-09-09-sweep/V0.8.3_REFACTOR_PLAN.md)，真实代码/数据结论见 [V0.8.3_CRITICAL_REVIEW](docs/archived/2026-09-09-sweep/V0.8.3_CRITICAL_REVIEW.md)（2026-09-09 已归档）。下文早期“gate 全 false”“Skill 全部完成”等状态描述不能作为生产闭环证据；本次发现 ticket 消费未接线、源码 dsh/pi 未完整集成及测试隔离问题。新方案已设计、尚待实施，优先稳定抓取与高价值收录。
 
-> **2026-09-05 全面刷新** (project-brain 中途接入): 本文件曾冻结在 2026-08-07 "架构阶段", 描述的前端三层 (资料/判断/行动, /data/judge/action) 已于 v0.7.0 **物理删除** (历史见 git log + ~~docs/superpowers/specs/2026-08-06-second-brain-three-layer-architecture-prd.md~~ 废止)。现按 v0.8.1 现实重写; 决策日志历史行保留。
 
 ## 项目概述
 
@@ -50,15 +46,15 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | — v0.8 Skills | `backend/services/{trigger_gate,skill_registry,agent_loop,agent_memory,skill_runner,playbook_engine,skill_builder,skill_eval}/` | 触发门(限流+队列) / 20 内置 skill / 五阶段状态机 / 记忆 / 分流 / YAML 编排 / 自建 / 评测 | 已完成, gate 已通电 |
 | 采集器 | `backend/collectors/` | 19 collector, SSRF 防护走 url_safety | 已完成 |
 | 调度器 | `backend/scheduler/` | 56 job 集中注册 + `_is_job_enabled()` gate 门控 | 已完成 |
-| 存储层 | `backend/repository/` | 57 *_repo.py + migrations 130 .sql (编号至 133) | 已完成 |
-| 前端 | `frontend/src/` | 347 ts(x), 20 组件域, I18nContext ~300 key×2; 无数据层库 (fetch+interval) | 已完成 |
+| 存储层 | `backend/repository/` | 56 *_repo.py + migrations 132 个生效 .sql (编号至 136, 含历史空洞) | 已完成 |
+| 前端 | `frontend/src/` | 266 ts/tsx (不含测试), 20 组件域, I18nContext ~300 key×2; 无数据层库 (fetch+interval) | 已完成 |
 | wiki | `llm-wiki-2.0/` | md+YAML 真源, 路径只走 `backend/wiki_fs/paths.py` 单一源 | 已完成 |
 
 ## 编码约定
 
 - **后端**: snake_case; router ≤150 行 + lazy import 协议; service 禁 `import backend.api`; ai_hub 是 LLM 唯一出口; wiki 路径改动只走 `wiki_fs/paths.py` (+`HOTSPOT_WIKI_ROOT`); 新服务 ≥30% docstring (CI `check_docstrings.py` 强制); monkeypatch 用全限定子模块路径; SQLite 连接线程亲和 × asyncio.to_thread 必须线程内构造
 - **前端**: PascalCase 组件 / camelCase 变量; Tailwind 优先 + 测试 colocated; 路由 lazy 走 `routes/lazy-imports.ts`; i18n 走 I18nContext `t(key, fallback)` (无 react-i18next); Tailwind 配置改动需重启 dev server
-- **测试**: pytest 4666 / vitest 620 / tsc 0 错 / **零失败是硬要求** (skip 须环境性且留痕, 现存 9 环境性 skip 见 DEV-0225); conftest autouse 全开 gates; 日历周窗口 + now 相对种子必须钳制进周窗口 (周一炸弹)
+- **测试**: pytest 5,463 / vitest 717 / tsc 0 错 (2026-11-17) / **零失败是硬要求** (skip 须环境性且留痕, 现存 9 环境性 skip 见 DEV-0225); conftest autouse 全开 gates; 日历周窗口 + now 相对种子必须钳制进周窗口 (周一炸弹)
 - **提交纪律**: **必须 `git commit <显式 pathspec>`**, 禁 `git add -A` (2026-08-30 3840 文件事故); 远端推送/tag push 须用户授权 (V2-C11)
 
 ## 质量红线
@@ -113,7 +109,8 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 
 ## 生命周期
 
-当前阶段：**v0.8.2 治理合批完成 + 收尾对账 (2026-09-05)** — 子批 1 快赢包 X (B1 per-provider 断路器阈值 / B2 ruff 全仓 167→0 / B3 死 gate 键+mcp 契约 / B4 PROGRESS 归档+CHANGELOG 时序 / C2 GZip+Cache-Control) + 子批 2 通电治理 Y (A1 utils/concurrency.py 全局限流单一真相源 / A2 配置 5s TTL 热重载 / A4 backup_verify 周一 job) + 收尾 (README/code-wiki 计数对账)。**待办**: ① ~~远端推送~~ **用户明令禁止推送 (2026-09-05)** — 本地领先 origin/main 11+ commits + tag v0.8.1/v0.8.2, 推送须用户明确解禁 ② 留独立窗口: react-query (C1) / pi 流式 UI (D1) / error_classifier。规格 = PROGRESS.md v0.8.2 段 (本版无独立 PRD, 推荐原文见上会话收尾)。
+当前阶段：**v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 系统层加固 + Case 闭环/知识回流；试点演练①~⑥ 全 PASS，artifact_yield 活体 1.0）。P7 收口 **C7-1 已交付**（版本 0.8.9 置位 + 全链版本对齐 + 权威 PRD 回写）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-11-14 → 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + T8 三主题人工走查归档）。M-4 包体遗留项已修（echarts tree-shaking，577,813 B / −23.6%）。
+**远端推送/tag 须用户授权**（长期约束）。完整交付流水见 `docs/CHANGELOG.md` 与 `PROGRESS.md` 活跃段。
 
 ### 阶段检查记录
 

@@ -27,7 +27,7 @@
 | `DESIGN_SYSTEM.md` / `DESIGN_GUIDE.md` / `DIAGRAMS.md` | 设计契约 / 设计规范 / 图表集 |
 | `v1.0/contracts.md` | v1.0 九领域对象契约（§5 状态机 / §6.4 幂等 / receipt，v0.8.5 能力区块的底层契约） |
 | `quality_gates.md` / `llm_config.md` / `mcp_integration.md` / `mcp_tools_schema.json` | 质量门禁 / LLM 配置 / MCP 集成参考 |
-| `code-wiki/` | 代码 Wiki（5 分章 + V0.8.1 版） |
+| ~~`code-wiki/`~~ | **⛔ 历史快照（冻结于 v0.7.4 / 2026-09-01，非现行架构）** — 见下方「归档」区说明 |
 
 ## 版本目录（快照，不再更新）
 
@@ -39,6 +39,7 @@
 `archived/` = 已交付版本的计划/PRD/审计 + 被后续裁决取代的方案。**只读参考，不再维护**；引用它们的活跃文档均已改指本目录。
 
 - `2026-09-09-sweep/` — 全仓整理批归档（49 项）：v0.4/v0.5/v1.7/爬虫 v2/CodeGarden v1.0 等已交付版本族、Phase 8 验收等一次性审计、被 v0.8.5 裁决取代的 v1.0 四入口 PRD 族、v1.4 时代 `superpowers/`、过期 HTML 产物
+- `code-wiki/` — **历史快照**：冻结于 v0.7.4-cleanup (2026-09-01)，6 个分章文件（含 V0.8.1 版）。架构数字与路由清单均已过时，**勿用于理解现行系统**；现行以 `ARCHITECTURE.md` + `generate_meta.py --check` 为准
 - 其余更早归档（v0.5/v0.6 计划分片、旧 ACCEPTANCE/AGENTS 等）
 
 ## 台账（root，不在 docs/）

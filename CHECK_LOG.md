@@ -6,7 +6,7 @@
 - **关联模块**: `architecture:v0.8.3`, `quality:review`
 - **对话轮次**: 用户明确要求检查，立即触发；无既有 CHECK_LOG，不推测此前累计轮次，未声称达到 40 轮。
 - **检查范围**: DEV-0074 ~ DEV-0133（现存日志编号不连续且 DEV-0132 在文件顶部）；重点复核当前 v0.8.2 代码与 DEV-0130/0131/0132 设计方向。
-- **关联报告**: [真实架构审查](docs/V0.8.3_CRITICAL_REVIEW.md)、[v0.8.3 方案](docs/V0.8.3_REFACTOR_PLAN.md)。
+- **关联报告**: [真实架构审查](docs/archived/2026-09-09-sweep/V0.8.3_CRITICAL_REVIEW.md)、[v0.8.3 方案](docs/archived/2026-09-09-sweep/V0.8.3_REFACTOR_PLAN.md)。
 
 ### 检查结果
 
@@ -48,7 +48,7 @@
 - **关联模块**: `product:v1.0`, `migration:workstation`, `quality:design-review`
 - **对话轮次**: 用户明确要求第一性原理、批判性与六顶思考帽审查，立即触发；不声称累计达到 40 轮。
 - **检查范围**: DEV-0133 ~ DEV-0135；四份附件及新开发方案/任务书/设计审查，当前版本与提交变化只读核对。
-- **关联报告**: [开发方案](docs/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md)、[执行指南](docs/HOTSPOT_V1.0_EXECUTION_GUIDE.md)、[深度审查](docs/HOTSPOT_V1.0_DESIGN_REVIEW.md)。
+- **关联报告**: [开发方案](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_DEVELOPMENT_PLAN.md)、[执行指南](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_EXECUTION_GUIDE.md)、[深度审查](docs/archived/2026-09-09-sweep/HOTSPOT_V1.0_DESIGN_REVIEW.md)。
 
 ### 检查结果
 

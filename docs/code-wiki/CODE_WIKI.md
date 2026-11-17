@@ -1,5 +1,13 @@
 # SecNews Hotspot — Code Wiki
 
+> **⛔ 历史快照 — 非现行架构 (2026-11-17 标注)**
+>
+> 本目录冻结于 **v0.7.4-cleanup (2026-09-01)**，当前代码已是 **v0.8.9**。
+> 文中架构数字（routers/jobs/services 等）与路由清单**均已过时**，且含已删除路由
+> (`/judge` `/garden` `/workbench` 等)。**请勿据此理解或修改现行系统。**
+> 现行架构以 `docs/ARCHITECTURE.md` + `scripts/generate_meta.py --check` 为准；
+> 产品口径以 `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` 为准。
+
 > 版本: **v4.0** | 基准代码: **v0.7.4-cleanup (Batch ⑨, 2026-09-01)** | 生成日期: 2026-09-01 | 目标读者: 开发者 / AI Agent
 >
 > 本版对齐 v0.7.0 → v0.7.4 全部批次后的代码现状。相对 v3.0 (v0.7.0) 的重大变化:

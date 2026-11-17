@@ -1,6 +1,6 @@
 # PROGRESS.md — 执行进度台账（仅活跃段）
 
-> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），**P7 收口 C7-1 已交付**（版本 **0.8.9** 置位 + 全链版本对齐 + CHANGELOG + 权威 PRD 回写 G1~G5 分档）+ **M-4 包体已修**（745,356 → 577,813 B，−23.6%，关闭 v0.8.8 门 13）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + T8 三主题人工走查归档，预审见 `docs/audit/V089_RELEASE_GATE_2026-11-17.md`）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**当前版本**: v0.8.9（主干流量专项；PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`）。
+> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0）；**P7 C7-1 已交付**（版本 0.8.9 置位 + 全链对齐 + 权威 PRD 回写）+ **M-4 包体已修**（echarts tree-shaking，577,813 B / −23.6%）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-11-14 → 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + T8 三主题走查归档，预审 `docs/audit/V089_RELEASE_GATE_2026-11-17.md`）。版本交付流水见 `docs/CHANGELOG.md`；更早日志见 git log 与 `docs/progress-archive/`。
 > 接手顺序: 根 `AGENTS.md` → `PROJECT.md` → 本文件活跃段。历史完整段见 `docs/progress-archive/`，docs/ 全景见 `docs/README.md`。
 
 ## 历史索引
@@ -16,14 +16,12 @@
 
 > 原 v0.5 时代的「规格与文档 / 5 文件用法」小节随 v0.5 spec 一并归档（`docs/archived/2026-09-09-sweep/v0.5_refactor_plan/`），不再维护。
 
-## 当前活跃段 (2026-09-03 起)
-## 当前活跃段 (v0.8.8 时代, 2026-11-10 起)
+## 当前活跃段 (2026-11-10 起)
 
 ### 2026-11-14 v0.8.8 全阶段收口 + 计划 plan.9 终态对账 — DEV-0330~0365
 
-- **阶段账**: P0 基线 ✅（四份盘点 520 端点）→ P1 裁决 18/18 ✅ → P2 消融 20 对象 ✅ → P3 移除 ✅（零消费 router 整链下线 + 待办域 410 垫片 + 泳道退役; routers 101→97）→ P2.5 数据热冷分层 ✅（备份链退役 449MB 回收 + 沉降管道生产实跑 37,255+37,317 行 + 重建容差 0 + 日志环截 −75% + 台账两层化 + C2.6 优化批; **主库 794→113MB, R-17-A2 ≤120MB 达标**）→ P4 强化 ✅（R-10 七段埋点 stage_span→audit_log + trace 端点; R-11 envelope error_code/retryable + Case client_request_id + Artifact 幂等去重）→ P4.5 ✅（R-15 四段指挥台 + R-16 孤儿清理 4 service/20 死导出/13 组件; services 161→153 + C5-6 知识→行动转Case 接线）→ P5 ✅（版本 0.8.8 全链对齐 + 发布门 10/13 勾）。
-- **计划**: `docs/v0.8.8/V0.8.8_IMPLEMENTATION_PLAN.md` plan.9 = 终态对账（17 处一致性修正），与实况零漂移。
-- **收尾动作**: PROGRESS 活跃段归档 v0.8.6~v0.8.7 时代（本文件重组）。
+- 阶段账：P0~P5 全交付（P3 移除 routers 101→97 / P2.5 数据热冷分层 主库 794→113MB / P4 七段埋点+幂等语义 / P4.5 四段指挥台+孤儿清理 services 161→153 / P5 版本 0.8.8 对齐）；发布门 10/13 勾，tag 待 owner。
+- 详见 `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md` + `V0.8.8_IMPLEMENTATION_PLAN.md` plan.9；更早时代见下方「历史索引」。
 - **门禁终态**: pytest **5,374 passed / 0 failed** · tsc 0 · vitest 703 · build OK · meta/harness 双 check exit 0 · 回滚演练过（抽 C5-5③ revert→tsc→abort）。
 
 ### 2026-11-14 P2.5 尾巴 + P3 验收复核 — DEV-0363/0364

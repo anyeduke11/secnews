@@ -396,7 +396,7 @@ v1.0 收口批次. 治理三个对象: (a) ruff 全仓 246 错 → 0 错; (b) do
 ## v0.8.1 (2026-09-05) — 运行时弹性层 + Skills 通电 (方案 A, Day 0-5)
 
 > **来源**: D1=方案 A 用户裁决 (断路器 + provider_health 联动) + CRITICAL_REVIEW §1.2/§2.1 (2026-09-05 复核 ❌ 仍开放) + prd-iterative 三维审查。
-> **规格**: [docs/V0.8.1_PRD.md](V0.8.1_PRD.md) v1.0 + [docs/V0.8.1_PLAN.md](V0.8.1_PLAN.md) v1.2; Day 0-5 逐日实施 (commit 链 `3bfce93`..HEAD)。
+> **规格**: [docs/V0.8.1_PRD.md](archived/2026-09-09-sweep/V0.8.1_PRD.md) v1.0 + [docs/V0.8.1_PLAN.md](archived/2026-09-09-sweep/V0.8.1_PLAN.md) v1.2; Day 0-5 逐日实施 (commit 链 `3bfce93`..HEAD)。
 
 ### 关键变更
 
@@ -995,7 +995,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 
 > **范围**: v0.7 Step 2 — 物理删除 16 个三层目录 .tsx + 4 个 cognitive mode .tsx + 22 个老路由 + 8 个 redirect + workbench_legacy gate; 正式发版 0.7.0.
 > **commit 链**: 见批次 ⑫ (D.1-D.16 全 ✅, 4 commits).
-> **迁移指南**: [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md) (199 行, 22 路由功能对照 + 16 实施检查 D.1-D.16).
+> **迁移指南**: [docs/v0.7_migration_checklist.md](archived/2026-09-09-sweep/v0.7_migration_checklist.md) (199 行, 22 路由功能对照 + 16 实施检查 D.1-D.16).
 > **workbench 5 视图**: Briefing / Pipeline / Knowledge / Analyze / Settings (`/workbench` 唯一入口, 路由 `features.workbenchUi` 守卫, 灰度)
 
 ### 批次 ⑬：v0.7.0 Step 2 — 物理删除 + 正式发版
@@ -1051,7 +1051,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 > **范围**: v0.7 Step 1 灰度 — workbench 5 视图全量接管老三层目录 + 4 cognitive mode 功能
 > 承接, 物理删除待 Step 2 (checklist D.1-D.5 全 ✅ 后执行). 用户决策 (2026-08-28): 保守灰度
 > 分两步 + 根路径 / → /workbench + 物理删除前 100% checklist. 完整迁移指南
-> 见 [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md).
+> 见 [docs/v0.7_migration_checklist.md](archived/2026-09-09-sweep/v0.7_migration_checklist.md).
 > **commit 链**: 2 个 (`370a970b` / `82ed0189`).
 
 ### 批次 ⑫：v0.7 Step 1 — 灰度准备
@@ -1061,7 +1061,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
    - `backend/version.py`: `APP_VERSION = "0.6.0" → "0.7.0-step1"` (灰度标识, 非正式版).
    - `frontend/src/routes/index.tsx`: 根路径 `/` 与 404 fallback `*` 默认跳转 `/data → /workbench` (D.2 + D.3).
    - `frontend/src/App.test.tsx`: 移出 3 个依赖异步 Navigate 的路由 (/、/workbench、/codegarden/phase2b), MemoryRouter 渲染不稳定改端到端 e2e 验证.
-   - 新建 [docs/v0.7_migration_checklist.md](v0.7_migration_checklist.md) (199 行): 22 个老路由 → workbench 5 视图功能对照 (A/B 两节), 5 视图完整度评估 (C 节), 16 项实施检查 D.1-D.16 (D 节), 5 维度测试验收 (E 节), 5 项风险与缓解 (F 节), 3 项不在 v0.7 范围 (G 节), 3 阶段时间线 (H 节).
+   - 新建 [docs/v0.7_migration_checklist.md](archived/2026-09-09-sweep/v0.7_migration_checklist.md) (199 行): 22 个老路由 → workbench 5 视图功能对照 (A/B 两节), 5 视图完整度评估 (C 节), 16 项实施检查 D.1-D.16 (D 节), 5 维度测试验收 (E 节), 5 项风险与缓解 (F 节), 3 项不在 v0.7 范围 (G 节), 3 阶段时间线 (H 节).
 
 2. **`refactor(v0.7-C): ai_hub 拆 service.py 独立 AIService (412→126+317+130 三文件)`** (`82ed0189`)
    - 新 `backend/services/ai_hub/service.py` (317 行): `AIService` 整个类 (评价/门禁/限频/缓存/用量) + `_DETECT_SYSTEM` prompt 常量. 主类入口文件, 超 200 软限但接受.
@@ -1307,7 +1307,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - `backend/ARCHITECTURE.md` 服务/路由/job 数无需刷新 (Phase 5 未增减 services, 仅 mcp_router 注册一处, 由 `is_extension_enabled('mcp')` 守卫)。
 
 > **范围**: 死代码扫描 + jobs 下线 + M1/M2 终验门禁 + TS6133 清零 + HOT 瘦身 + llm_secrets 主密钥重置 + dsh 桥接层 + Phase 4 工作台 5 视图。
-> **方案**: [`.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md`](.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md) (8 commit 计划 + 追加修复 + dsh 桥接层)。
+> **方案**: `.zcode/plans/plan-sess_0f53de16-da20-4e2d-825e-92b00b84bb2a.md` (8 commit 计划 + 追加修复 + dsh 桥接层)。
 > **批次 commit**: `e89fbb0b` → `f8858cfb` + 追加 3 个修复 commit + dsh 桥接层 commit。本节仅做 CHANGELOG 落账。
 
 ### 批次 ①：死代码扫描 (3 commits)
@@ -1409,7 +1409,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 - ✅ **dsh 桥接层**: 已落地 (commit `ffe2df60`, 9 files, 393 insertions)
 - ⏳ **SecNEWS Phase 4-6 未开始**: S4-1..S4-4 (AI 研判/DeepRead/CVE 热力图/ATT&CK/合规矩阵) + S6-1..S6-4 (存量迁移)
 
-> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
+> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](archived/2026-09-09-sweep/P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](archived/2026-09-09-sweep/COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
 > **开发过程审计痕迹**: 详见下方 `## v0.6.0-dev (2026-08-25)` 段 (T1 PRD → T5 E2E 五个 commit 全过程)。
 > **本批次**: 仅做版本号 bump (0.5.1 → 0.6.0) + 本段正式条目 + PROGRESS 落账; CRM 5 commit 已随 v0.5.1 推送批次入仓 (`b2131446` / `4b8b4c66` / `920587c8` / `405d98ca` / `abfc7761`)。
 
@@ -1443,7 +1443,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 
 ## v0.5.1 (2026-08-25) — v0.6 P0 清场第一批 (⑥③⑤)
 
-> 方案: [`docs/v0.6_ai_workstation_plan.md`](v0.6_ai_workstation_plan.md) §P0 清场与统一。
+> 方案: [`docs/v0.6_ai_workstation_plan.md`](archived/v0.6_ai_workstation_plan.md) §P0 清场与统一。
 > 本批次为用户裁决顺序: 先 ⑥ ai_hub 双引擎收敛 → ③ jobs.py 拆分 → ⑤ 凭据单一来源。
 
 ### ⑥ ai_hub 双引擎收敛 (`6556cd83`; 归因说明见下)
@@ -1497,7 +1497,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 ## v0.6.0-dev (2026-08-25) — CRM 业绩座舱 (开发过程审计痕迹) (security-cockpit 方案 C)
 
 > **状态**: ⏸️ **开发过程审计段** — 本段由 v0.6.0 正式发布前的 5 个 T 任务 commit (T1 PRD → T5 E2E) 留痕构成; 正式发版段见顶部 `## v0.6.0 (2026-08-27)`。保留本段作为开发过程可追溯审计痕迹, 不抹除历史。
-> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
+> **决策**: 用户拍板 [`docs/P2_6_COCKPIT_EVAL.md`](archived/2026-09-09-sweep/P2_6_COCKPIT_EVAL.md) 方案 C (完整移植), PRD 先行 ([`COCKPIT_PRD.md`](archived/2026-09-09-sweep/COCKPIT_PRD.md))。CRM-like 业务 (客户/商机/业绩) 与 hotspot 资讯聚合正交, 以 `crm` feature gate 扩展域接入。
 
 ### T1-T5 一任务一提交
 
@@ -1510,8 +1510,8 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 ## v0.5.0-retired (2026-08-24, Phase 7b 待 dsh 端验收后正式生效)
 
 > **状态 (2026-08-25)**: ⏸️ **冻结** — Phase 7 破坏性步骤 (D+2 停 :8000 / D+3 git mv 归档) 按用户裁决 (见 `PROGRESS.md` §2026-08-24 产品三层架构裁决 §连锁裁决) **冻结不执行**; hotspot 仍活跃开发 (`docs/SECNEWS_INTEGRATION_TASKS.md` Phase 0-6)。7a-7d 工具保留为参考资产。
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](HOTSPOT_RETIREMENT.md) (含冻结横幅)
-> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md)
+> **退役文档**: [`HOTSPOT_RETIREMENT.md`](archived/2026-09-09-sweep/HOTSPOT_RETIREMENT.md) (含冻结横幅)
+> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](archived/2026-09-09-sweep/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md)
 
 ### Phase 7a — hotspot.db → JSON 旁路导出器 (commit b1cd80de)
 
@@ -1666,7 +1666,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
 
 > 闭环 P0 audit §六 P1+ 剩余 + P1 落地的 48 F841 / 1 mutation 盲点 / 后端 `__all__` 全量补齐 /
 > security cockpit SPA 评估。原则: 锁行为不锁实现, 留档可追溯, 区分 mock patch 设计意图 vs 真 dead variable。
-> 完整报告: [`docs/P2_5_ALL_AUDIT.md`](P2_5_ALL_AUDIT.md) + [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md)
+> 完整报告: [`docs/P2_5_ALL_AUDIT.md`](archived/2026-09-09-sweep/P2_5_ALL_AUDIT.md) + [`docs/P2_6_COCKPIT_EVAL.md`](archived/2026-09-09-sweep/P2_6_COCKPIT_EVAL.md)
 
 - **P2-1 F841 批 2 production rename** (commit `5fe965a7`, 12 files, +50/-23):
   - 删除 17 个中等风险 production dead vars (P0 audit §2.2 标 "改 `_` 前缀 + del")
@@ -1676,7 +1676,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
   - 改名模式: `var = expr()` → `_var = expr(); del _var; # noqa: F841` 留调用痕迹
   - ruff F841 production: **44 → 27** (-17)
 - **P2-2 pk_map dead variable PR 评审留档** (commit `eae608e1`, 1 doc, NEW):
-  - [`docs/P2_DEAD_VARS_PR_REVIEW.md`](P2_DEAD_VARS_PR_REVIEW.md) (NEW, 6.3KB)
+  - [`docs/P2_DEAD_VARS_PR_REVIEW.md`](archived/2026-09-09-sweep/P2_DEAD_VARS_PR_REVIEW.md) (NEW, 6.3KB)
   - 1 个 high-risk dead var: `backend/services/codegarden_scanner.py` pk_map
     (8 个 hot-path 调用方, 删前需 PR 评审确认切接口)
   - 决议: 留档不删, 等下一次 PR 评审由 reviewer 拍板
@@ -1695,7 +1695,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
   - 修 2 个 typo (`__mock_log` 双下划线) + 2 个漏改 (L304 report, L305 latest)
   - 验证: 237 tests passed, ruff tests/ F841 → 0
 - **P2-5 后端模块入口 `__all__` 全量 audit** (commit `4d76b2c2`, 23 files, +113/-20):
-  - [`docs/P2_5_ALL_AUDIT.md`](P2_5_ALL_AUDIT.md) (NEW, 71 行, audit 表 23 init.py)
+  - [`docs/P2_5_ALL_AUDIT.md`](archived/2026-09-09-sweep/P2_5_ALL_AUDIT.md) (NEW, 71 行, audit 表 23 init.py)
   - 10 个补齐 `__all__: list[str] = []` 零契约 (parsers/bid/core/tools/services/
     repository/repository/migrations/security/domain/scheduler/tests)
   - 10 个已有 re-export + 3 个本就有空契约
@@ -1706,7 +1706,7 @@ Mimosa: ZCode 启用 `mimosa` MCP server → 开新任务 → `/mimosa-deep-audi
      scheduler_concurrency/snapshot_for_retirement/sync_config_service/
      sync_service_split/wiki_archiver_retention)
 - **P2-6 security cockpit SPA 完整评估** (commit `d2200a5c`, 1 file, +211):
-  - [`docs/P2_6_COCKPIT_EVAL.md`](P2_6_COCKPIT_EVAL.md) (NEW, 211 行, 6 节)
+  - [`docs/P2_6_COCKPIT_EVAL.md`](archived/2026-09-09-sweep/P2_6_COCKPIT_EVAL.md) (NEW, 211 行, 6 节)
   - 现状: `security-cockpit/` 3 静态 HTML + 1 CSS = **2363 行**
     (cockpit 683 + customer-form 928 + opportunity-form 663)
   - **业务正交**: CRM-like (客户/业绩/商机) vs hotspot 资讯聚合, 零集成点

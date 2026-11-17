@@ -36,7 +36,7 @@
 以下内容在 scope 内：
 - 后端 FastAPI 路由层（[backend/api/](./backend/api)）
 - 采集器（[backend/collectors/](./backend/collectors)）— 涉及 SSRF / 代理逃逸
-- MCP Server（[backend/mcp_server/](./backend/mcp_server)）— 涉及外部 AI Agent 接入的信任边界
+- MCP Server（[backend/mcp_server/](./backend/mcp_stdio_main.py)）— 涉及外部 AI Agent 接入的信任边界
 - 加密层（[backend/crypto.py](./backend/crypto.py)）— Fernet / 主密钥派生
 - 同步系统（[backend/services/sync_*.py](./backend/services)）— 涉及跨设备 bundle 加解密
 

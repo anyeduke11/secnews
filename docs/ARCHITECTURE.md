@@ -1,14 +1,14 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 📜 **状态标注 (2026-08-28)**: hotspot 活跃开发中 — 当前代码 v0.6.2，对应 `docs/archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
+> 📜 **状态标注 (2026-11-17)**: hotspot 活跃开发中 — 当前代码 **v0.8.9**，对应 `docs/archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
 >
 > **退役文档**: [`HOTSPOT_RETIREMENT.md`](archived/2026-09-09-sweep/HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案, 2026-09-09 归档)
 > **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](archived/2026-09-09-sweep/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md) (2026-09-09 归档)
 > **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md) (架构深度分析, 2026-09-09 归档)
 
-> 本文档描述 **2026-09-04 当前代码 (v0.8 Skills Phase A)** 的真实架构，供新开发者快速理解系统。
-> **定位**：现状导览 (≤ 200 行)；详细专题见 [docs/code-wiki/](code-wiki/CODE_WIKI.md) 5 个分章节文件。
-> 所有数字均从代码/文件核对（迁移 127、router 90、jobs 58、collectors 14、services 153、测试 5008+/664+、备份每族 3 份·全量 7 天轮转·manifest 14、同步上限 100k）。括号内 router/jobs/collectors/services 受 `scripts/generate_meta.py --check` 门禁管辖，本行其余散文数字不在门禁内、随批次手改（2026-10-01 DEV-0242 复核）。
+> 本文档描述 **当前代码 (v0.8.9)** 的真实架构，供新开发者快速理解系统。
+> **定位**：现状导览 (≤ 200 行)；下方「模块地图」指向 `docs/code-wiki/`（**注意：该目录为 v0.7.4 基线快照，非现行架构**）。
+> 数字口径：迁移 132 / routers 99 / jobs 56 / collectors 19 / services 155 / core_routers 67 / pytest 5,463 / vitest 717（2026-11-17 实测）。routers/jobs/collectors/services/core_routers 受 `scripts/generate_meta.py --check` 门禁管辖。
 > v0.8 Skills Phase A (2026-09-04): Skill/Playbook 双轨看板 — `trigger_gate/` (限流+持久化队列+三档优先级+worker 泵, migration 091) + `skill_registry/` (20 内置 skill, 反模式 linter) + `/api/skill-registry/*` 5 端点 + 前端 `/skill-store` + gates skill_registry/trigger_gate 默认 false。设计见 [docs/V0.8_SKILLS.md](V0.8_SKILLS.md), 进度见 PROGRESS.md。
 > v0.8 P1 (2026-09-03): 独立资讯筛选门禁 — `info_filter_service` (CRUD/校验/evaluate) + `info_filter_gate` (5s TTL cache + Layer 1 源级 + Layer 2 item 级 hooks) + `/api/info-filter/{rules,preview,gate}` 6 端点 + 前端 InfoFilterCard (SettingsHub 17 cat) + feature_gates.toml `info_filter=false` 默认关闭。详见 PROGRESS.md。
 > v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — 七 gate 开闸演练通过后保持 true (mcp 回关); `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples) + gateway/image 集中记账; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 场景权重重排。见 [docs/archived/2026-09-09-sweep/V0.8.1_PLAN.md](archived/2026-09-09-sweep/V0.8.1_PLAN.md)。
@@ -73,6 +73,7 @@
 
 | 主题 | 详见 |
 |---|---|
+| ⚠️ **以下为 v0.7.4 历史快照**（`docs/code-wiki/`，非现行架构；仅作演进参考） | ↓ |
 | 后端分层与数据流 | [docs/code-wiki/02-backend.md](code-wiki/02-backend.md) (397 行) |
 | 前端架构 | [docs/code-wiki/03-frontend.md](code-wiki/03-frontend.md) (179 行) |
 | 子系统详解 | [docs/code-wiki/04-subsystems.md](code-wiki/04-subsystems.md) (141 行) |
@@ -81,8 +82,8 @@
 | 运维与部署 | [docs/code-wiki/05-running.md](code-wiki/05-running.md) (158 行) |
 | 仓库整体布局 | [docs/code-wiki/01-architecture.md](code-wiki/01-architecture.md) (225 行) |
 | Wiki 索引 | [docs/code-wiki/CODE_WIKI.md](code-wiki/CODE_WIKI.md) |
-| 历史决策 | [docs/v0.5_refactor_plan/README.md](v0.5_refactor_plan/README.md) |
-| 代码审计 | [docs/CODE_AUDIT_2026-08-28.md](docs/CODE_AUDIT_2026-08-28.md) |
+| 历史决策 | [docs/v0.5_refactor_plan/README.md](archived/2026-09-09-sweep/v0.5_refactor_plan/README.md) |
+| 代码审计 | [docs/CODE_AUDIT_2026-08-28.md](archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md) |
 
 ---
 
@@ -136,6 +137,6 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 
 | 文档 | 状态 | 说明 |
 |---|---|---|
-| [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](HOTSPOT_SECNEWS_INTEGRATION.md) | draft | SecNews 集成总览 (Phase 0-6 映射) |
-| [`docs/SECNEWS_INTEGRATION_TASKS.md`](SECNEWS_INTEGRATION_TASKS.md) | draft | SecNews 集成任务清单 |
+| [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](archived/2026-09-09-sweep/HOTSPOT_SECNEWS_INTEGRATION.md) | draft | SecNews 集成总览 (Phase 0-6 映射) |
+| [`docs/SECNEWS_INTEGRATION_TASKS.md`](archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md) | draft | SecNews 集成任务清单 |
 | [`docs/archived/v0.6_workstation_plan.md`](archived/v0.6_workstation_plan.md) | archived | Workstation 5 视图重构方案 (v0.7.0 起归档; workbench v0.6.3 起并入 /secnews) |

@@ -1,6 +1,6 @@
 # 已废止（superseded）
 
-> **本文档已被取代**：权威产品文档 = [`docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`](../HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md)；0.8.6 版本族详细文档 = [`docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`](../HOTSPOT_V0.8.6_AI_NATIVE_PRD.md)。本文仅作历史设计留痕，**不作为当前事实源**（取代依据见权威 PRD 头部「取代」名单 + `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md`）。
+> **本文档已被取代**：权威产品文档 = [`docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`](HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md)；0.8.6 版本族详细文档 = [`docs/HOTSPOT_V0.8.6_AI_NATIVE_PRD.md`](HOTSPOT_V0.8.6_AI_NATIVE_PRD.md)。本文仅作历史设计留痕，**不作为当前事实源**（取代依据见权威 PRD 头部「取代」名单 + `docs/audit/PRD_ALIGNMENT_AUDIT_2026-10-02.md`）。
 > **2026-11-14 v0.8.9 裁决 D1**：本文的**执行器设计部分（§1 角色分工 / §2 执行链 / §3 四层防线 / §4 数据模型 / §5 分期 / §6 开放问题）由 [`docs/v0.8.9/V0.8.9_PRD.md`](v0.8.9/V0.8.9_PRD.md) §1.3 显式继承并升格为 v0.8.9 设计权威**（§5 分期工作量与 §4 数据模型按实测修正：plan_json 已存在、boundary_hash/executor 未加）。产品文档权威仍属上级两文档。
 
 ---

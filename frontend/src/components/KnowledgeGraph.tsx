@@ -5,7 +5,7 @@
  *          通过 useThemeColors 读取 ECharts 所需的字面色值。
  */
 import { useState, useEffect, useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import { EChart } from './shared/EChart';
 import type { GraphData } from '../types';
 import { getKnowledgeGraph } from '../api/knowledge';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';
@@ -153,7 +153,7 @@ export function KnowledgeGraph({ domain, onSelectConcept }: KnowledgeGraphProps)
   }
 
   return (
-    <ReactECharts
+    <EChart
       option={option}
       style={{ height: '300px', width: '100%' }}
       onEvents={{

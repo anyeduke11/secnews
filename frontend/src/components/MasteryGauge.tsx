@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import ReactECharts from 'echarts-for-react';
+import { EChart } from './shared/EChart';
 import type { ConceptProgress } from '../types';
 import { getJSON } from '../lib/api';
 import { useAbortGuard } from '../hooks/useAbortGuard';
@@ -80,7 +80,7 @@ export function MasteryGauge() {
 
   return (
     <div>
-      <ReactECharts option={option} style={{ height: '140px', width: '100%' }} />
+      <EChart option={option} style={{ height: '140px', width: '100%' }} />
       <div className="space-y-1 mt-2 max-h-40 overflow-auto">
         {progress.map(p => (
           <div key={p.concept_slug} className="flex items-center gap-2 text-[10px]">

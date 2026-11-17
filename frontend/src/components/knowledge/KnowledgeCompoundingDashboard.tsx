@@ -8,7 +8,7 @@
  *  4. 生命周期阶段分布柱状图
  */
 import { useState, useEffect, useCallback } from 'react';
-import ReactECharts from 'echarts-for-react';
+import { EChart } from '../shared/EChart';
 import { Icon } from '../Icon';
 import { getJSON } from '../../lib/api';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
@@ -345,7 +345,7 @@ export function KnowledgeCompoundingDashboard() {
             每日摄入趋势
           </h3>
           <div className="h-44">
-            <ReactECharts option={trendOption} style={{ height: '100%', width: '100%' }} />
+            <EChart option={trendOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </section>
 
@@ -524,7 +524,7 @@ export function KnowledgeCompoundingDashboard() {
             <p className="text-xs" style={{ color: textMuted }}>暂无阶段分布数据</p>
           ) : (
             <div className="h-36">
-              <ReactECharts option={stageOption} style={{ height: '100%', width: '100%' }} />
+              <EChart option={stageOption} style={{ height: '100%', width: '100%' }} />
             </div>
           )}
         </section>

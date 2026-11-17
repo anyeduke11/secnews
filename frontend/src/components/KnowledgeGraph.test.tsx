@@ -6,8 +6,9 @@ import type { GraphData } from '../types';
 
 // ECharts force layout 在 jsdom 中触发未捕获的异步矩阵错误;
 // 仅验证容器与数据流,故 mock 图表渲染。
-vi.mock('echarts-for-react', () => ({
-  default: function ReactEChartsMock({ style }: { style?: React.CSSProperties }) {
+// mock 目标 = 统一入口 shared/EChart (v0.8.9 M-4: echarts 改 tree-shaking 入口)
+vi.mock('./shared/EChart', () => ({
+  EChart: function EChartMock({ style }: { style?: React.CSSProperties }) {
     return <div style={style} data-testid="echarts-mock" />;
   },
 }));

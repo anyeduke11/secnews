@@ -34,15 +34,27 @@ export default defineConfig({
   },
   // v0.5 M1-Task3: manualChunks 拆 vendor
   // 验收: 主 chunk <300KB (基线 1.14MB)
-  // - vendor-react: react + react-dom + react-router-dom (~140KB)
-  // - vendor-echarts: echarts + echarts-for-react (~700KB)
+  // - vendor-react: react + react-dom + react-router-dom (~54KB gzip)
+  // - vendor-echarts: echarts tree-shaken 子集 (~214KB gzip, v0.8.9 M-4 后)
   // - vendor-misc: 其他第三方
+  //
+  // v0.8.9 M-4: echarts 改 tree-shaking 入口 (components/shared/EChart.tsx),
+  // 实际 import 变为 'echarts/core' + 'echarts/charts' + 'echarts/components'
+  // + 'echarts/features' + 'echarts/renderers', 不再是整包 'echarts'。
+  // manualChunks 按模块 id 前缀匹配, 故 pin 必须跟着改, 否则 echarts 会被
+  // 拆散进多个 async chunk (按需加载的图表页反而多发请求)。
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-echarts': ['echarts', 'echarts-for-react'],
+          'vendor-echarts': [
+            'echarts/core',
+            'echarts/charts',
+            'echarts/components',
+            'echarts/features',
+            'echarts/renderers',
+          ],
         },
       },
     },

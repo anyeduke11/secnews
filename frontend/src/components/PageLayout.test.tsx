@@ -73,8 +73,9 @@ describe('PageLayout', () => {
     expect(container.querySelector('#main-content')).toBeInTheDocument();
   });
 
-  it('supports Toast by mounting ToastProvider (Toast API surface)', () => {
-    // 内部 mount ToastProvider 后, document 应该包含 toast root
+  it('B2: Toast 提到 App 根后, PageLayout 不依赖 Provider 祖先也能独立渲染', () => {
+    // 2026-11-17: ToastProvider 上移到 App.tsx 根 (提示跨路由切换不丢);
+    // 此处不再断言"内部挂载 Provider", 只锁布局骨架 — Provider 归属由 nav4_shell 守卫。
     const { container } = render(
       <MemoryRouter initialEntries={['/']}>
         <Routes>
@@ -84,7 +85,6 @@ describe('PageLayout', () => {
         </Routes>
       </MemoryRouter>
     );
-    // 渲染成功即代表 ToastProvider 已挂载 (无异常)
     expect(container.querySelector('div.sentinel')).toBeInTheDocument();
   });
 });

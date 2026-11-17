@@ -10,10 +10,22 @@
  *    type 按 search 来源映射 hotspot→hotspot, knowledge→knowledge_item)。
  *
  * 视觉: 沿用 sentinel 设计语言, ac-rv-* 命名空间 (sentinel-action.css);
- * 网络调用: 组件内 lib/api (getJSON/postJSON/apiFetch), 与 SentinelActionPage 同款。
+ * 网络调用: 全部经 api/action.ts 强类型函数, 与 SentinelActionPage 同款。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiFetch, getJSON, postJSON } from '../../../lib/api';
+import {
+  createReviewItem,
+  deleteReview,
+  getReviewForecast,
+  getReviewStats,
+  listDueReviews,
+  listReviewCards,
+  listReviewHistory,
+  searchAll,
+  submitReviewGrade,
+  undoReviewGrade,
+  updateReview,
+} from '../../../api/action';
 import '../sentinel-action.css';
 
 export type RvView = 'session' | 'data' | 'manage';
@@ -131,7 +143,7 @@ function SessionView({ onDataChanged }: { onDataChanged: () => void }) {
 
   useEffect(() => {
     let dead = false;
-    getJSON<{ items?: RvRow[] }>('/api/reviews/due?limit=50&enrich=1')
+    listDueReviews<RvRow>(50, { enrich: true })
       .then(d => { if (!dead) setRows(Array.isArray(d.items) ? d.items : []); })
       .catch(() => { if (!dead) setRows([]); });
     return () => { dead = true; };
@@ -143,9 +155,10 @@ function SessionView({ onDataChanged }: { onDataChanged: () => void }) {
   const grade = useCallback((g: number) => {
     if (!cur || saving) return;
     setSaving(true);
-    postJSON<{ item?: RvRow }>(
-      `/api/reviews/${encodeURIComponent(cur.entity_type)}/${encodeURIComponent(cur.entity_id)}/grade`,
-      { grade: g },
+    submitReviewGrade<{ item?: RvRow }>(
+      cur.entity_type,
+      cur.entity_id,
+      g,
     )
       .then(data => {
         if (!alive.current) return;
@@ -163,7 +176,7 @@ function SessionView({ onDataChanged }: { onDataChanged: () => void }) {
 
   const undo = useCallback((r: SessionResult) => {
     if (undone[r.key]) return;
-    postJSON(`/api/reviews/${encodeURIComponent(r.row.entity_type)}/${encodeURIComponent(r.row.entity_id)}/undo`, {})
+    undoReviewGrade(r.row.entity_type, r.row.entity_id)
       .then(() => {
         if (!alive.current) return;
         setUndone(u => ({ ...u, [r.key]: true }));
@@ -286,9 +299,9 @@ function DataView() {
   useEffect(() => {
     let dead = false;
     Promise.all([
-      getJSON<{ items?: ForecastItem[] }>('/api/reviews/forecast?days=7').catch(() => null),
-      getJSON<{ items?: HistoryItem[] }>('/api/reviews/history?limit=50').catch(() => null),
-      getJSON<{ stats?: RvStats }>('/api/reviews/stats').catch(() => null),
+      getReviewForecast<{ items?: ForecastItem[] }>(7).catch(() => null),
+      listReviewHistory<{ items?: HistoryItem[] }>(50).catch(() => null),
+      getReviewStats<RvStats>().catch(() => null),
     ]).then(([fc, hs, st]) => {
       if (dead) return;
       setForecast(fc?.items ?? null);
@@ -375,7 +388,7 @@ function ManageView({ onDataChanged }: { onDataChanged: () => void }) {
 
   useEffect(() => {
     let dead = false;
-    getJSON<{ items?: RvRow[] }>('/api/reviews/cards?limit=200')
+    listReviewCards<{ items?: RvRow[] }>(200)
       .then(d => { if (!dead) setCards(Array.isArray(d.items) ? d.items : []); })
       .catch(() => { if (!dead) setCards([]); });
     return () => { dead = true; };
@@ -385,9 +398,10 @@ function ManageView({ onDataChanged }: { onDataChanged: () => void }) {
     const query = q.trim();
     if (!query) { setHits(null); return; }
     setSearching(true);
-    getJSON<{ result?: { items?: SearchItem[] } }>(
-      `/api/search?q=${encodeURIComponent(query)}&sources=hotspot,knowledge&limit=10`,
-    )
+    searchAll<{ result?: { items?: SearchItem[] } }>(query, {
+      sources: 'hotspot,knowledge',
+      limit: 10,
+    })
       .then(d => { if (alive.current) setHits(d.result?.items ?? []); })
       .catch(() => { if (alive.current) setHits([]); })
       .finally(() => { if (alive.current) setSearching(false); });
@@ -398,7 +412,7 @@ function ManageView({ onDataChanged }: { onDataChanged: () => void }) {
     const key = `${reviewType}-${item.entity_id}`;
     if (added[key]) return;
     setAdded(a => ({ ...a, [key]: true }));
-    postJSON(`/api/reviews/${encodeURIComponent(reviewType)}/${encodeURIComponent(item.entity_id)}`, {})
+    createReviewItem(reviewType, item.entity_id)
       .then(() => { if (alive.current) onDataChanged(); })
       .catch(() => {
         // 失败回滚按钮态 (409/网络等), 允许重试
@@ -408,10 +422,7 @@ function ManageView({ onDataChanged }: { onDataChanged: () => void }) {
 
   const patchCard = useCallback((row: RvRow, suspended: boolean) => {
     setCards(cs => (cs ?? []).map(c => (c.id === row.id ? { ...c, suspended: suspended ? 1 : 0 } : c)));
-    apiFetch(`/api/reviews/${encodeURIComponent(row.entity_type)}/${encodeURIComponent(row.entity_id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ suspended }),
-    })
+    updateReview(row.entity_type, row.entity_id, { suspended })
       .then(() => { if (alive.current) onDataChanged(); })
       .catch(() => {
         if (alive.current) {
@@ -423,7 +434,7 @@ function ManageView({ onDataChanged }: { onDataChanged: () => void }) {
   const removeCard = useCallback((row: RvRow) => {
     const prev = cards;
     setCards(cs => (cs ?? []).filter(c => c.id !== row.id));
-    apiFetch(`/api/reviews/${encodeURIComponent(row.entity_type)}/${encodeURIComponent(row.entity_id)}`, { method: 'DELETE' })
+    deleteReview(row.entity_type, row.entity_id)
       .then(() => { if (alive.current) onDataChanged(); })
       .catch(() => { if (alive.current) setCards(prev); });
   }, [cards, onDataChanged]);

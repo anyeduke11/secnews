@@ -1,21 +1,17 @@
 import { useCallback } from 'react';
-import { getJSON } from '../lib/api';
+import { getCveHeatmap } from '../api/security';
+import type { HeatmapData } from '../api/security';
 
 /**
- * CVE 热力图 Hook — 端点为单一 hook 专用 → 常量化于此。
+ * CVE 热力图 Hook — 端点函数见 api/security.ts。
  */
 
-const CVE_HEATMAP_URL = '/api/cve/heatmap';
-
-export interface HeatmapData {
-  weeks: string[];
-  severities: string[];
-  matrix: number[][];
-}
+// 类型对外兼容: 既有消费方仍从本模块 import
+export type { HeatmapData };
 
 export function useCveHeatmap() {
   const fetchHeatmap = useCallback(async (weeks = 12): Promise<HeatmapData> => {
-    return getJSON<HeatmapData>(`${CVE_HEATMAP_URL}?weeks=${weeks}`);
+    return getCveHeatmap(weeks);
   }, []);
 
   return { fetchHeatmap };

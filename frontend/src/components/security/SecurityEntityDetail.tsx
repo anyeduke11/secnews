@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getJSON } from '../../lib/api';
+import { getSecurityEntityRelated } from '../../api/security';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { SecurityEntity } from '../../hooks/useSecurityGraph';
 
@@ -16,9 +16,7 @@ export function SecurityEntityDetail({ entity, onClose }: DetailProps) {
   useEffect(() => {
     setLoading(true);
     // 本组件专用端点 (常量化); 非 2xx / 网络失败均与原 catch 同效: 仅复位 loading
-    getJSON<{ nodes?: any[] }>(
-      `/api/security/entities/${encodeURIComponent(entity.id)}/related?depth=1`,
-    )
+    getSecurityEntityRelated<{ nodes?: any[] }>(entity.id, 1)
       .then(d => {
         if (dead.current) return;
         setRelated(d.nodes || []);

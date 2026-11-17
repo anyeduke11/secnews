@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { ApiError, getJSON, postJSON } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { searchGlobal, searchWikiChunks } from '../../api/knowledge';
 
 interface SearchItem {
   entity_type: string;
@@ -75,10 +76,10 @@ export function UnifiedSearchPage({ onBack }: { onBack?: () => void }) {
 
       const [mainRes, chunkRes] = await Promise.all([
         wantMain
-          ? getJSON<{ result?: { items?: SearchItem[]; grouped?: Record<string, SearchItem[]> } }>(`/api/search?q=${encodeURIComponent(trimmed)}${apiSrcs.length > 0 ? `&sources=${apiSrcs.join(',')}` : ''}&limit=50`)
+          ? searchGlobal<{ result?: { items?: SearchItem[]; grouped?: Record<string, SearchItem[]> } }>(trimmed, apiSrcs.length > 0 ? apiSrcs : undefined, 50)
           : Promise.resolve(null),
         wantChunks
-          ? postJSON<{ results: ChunkResult[] }>('/api/wiki/search', { q: trimmed, limit: 20 })
+          ? searchWikiChunks<{ results: ChunkResult[] }>(trimmed, 20)
           : Promise.resolve(null),
       ]);
 

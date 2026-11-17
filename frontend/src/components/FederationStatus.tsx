@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { FederationStatus as FederationStatusData } from '../types';
-import { getJSON } from '../lib/api';
+import { getFederationStatus } from '../api/settings';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 
 export function FederationStatus() {
@@ -10,7 +10,7 @@ export function FederationStatus() {
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
-    getJSON<FederationStatusData>('/api/knowledge/federation')
+    getFederationStatus<FederationStatusData>()
       .then(data => {
         if (dead.current) return;
         setStatus(data);

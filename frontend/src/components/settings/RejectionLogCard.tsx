@@ -7,19 +7,9 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { LayerTable, type LayerTableColumn } from '../layout/LayerTable';
-import { getJSON } from '../../lib/api';
+import { getRejectionLog } from '../../api/settingsQuality';
+import type { RejectionLogItem } from '../../api/settingsQuality';
 import { parseRejectionFlags, flagLabel } from '../../lib/rejectionReasons';
-
-interface RejectionLogItem {
-  id: number;
-  source_id: string;
-  item_title: string;
-  item_url: string;
-  rejected_by: string;
-  reason: string;
-  explain: string | null;
-  created_at: string;
-}
 
 const PAGE_SIZE = 20;
 
@@ -30,9 +20,7 @@ export function RejectionLogCard() {
 
   const reload = useCallback(async (p: number) => {
     try {
-      const d = await getJSON<{ total: number; items: RejectionLogItem[] }>(
-        `/api/quality/rejection-log?page=${p}&page_size=${PAGE_SIZE}`,
-      );
+      const d = await getRejectionLog(p, PAGE_SIZE);
       setItems(d.items ?? []);
       setTotal(d.total ?? 0);
     } catch {

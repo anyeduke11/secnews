@@ -6,7 +6,8 @@
  * 改为引用 utils, 文章行改为共享 HighlightArticleCard。
  */
 import { useState, useEffect } from 'react';
-import { ApiError, getJSON } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { getDailyOverview } from '../../api/report';
 import { catColors, renderFormatted } from './utils';
 import { HighlightArticleCard } from './shared';
 import type { DailyOverview } from './types';
@@ -23,7 +24,7 @@ export function DailyReport() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getJSON<DailyOverview>('/api/reports/daily/overview');
+        const data = await getDailyOverview<DailyOverview>();
         if (!cancelled) setOverview(data);
       } catch (e: any) {
         if (!cancelled) {

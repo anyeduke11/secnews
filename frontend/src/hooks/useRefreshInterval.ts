@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
-import { postJSON } from '../lib/api';
+import { saveRefreshInterval } from '../api/shared';
 import { getHealth } from '../api/sources';
 
 /**
  * 刷新间隔偏好 Hook — localStorage 持久化 + 后端采集频率同步。
  *
- * 端点为单一 hook 专用 → 常量化于此, 走 lib/api / api/sources 统一封装。
+ * 端点为单一 hook 专用 → 收敛到 api/shared.ts (getHealth 走 api/sources)。
  */
 
 export const REFRESH_INTERVAL_OPTIONS = [
@@ -19,7 +19,6 @@ export const REFRESH_INTERVAL_OPTIONS = [
 
 const STORAGE_KEY = 'hotspot-refresh-interval';
 const DEFAULT_MINUTES = 30;
-const REFRESH_INTERVAL_SETTINGS_URL = '/api/settings/refresh-interval';
 
 function getInitialMinutes(): number {
   try {
@@ -44,7 +43,7 @@ export function useRefreshInterval() {
     }
     // 同步后端采集频率
     try {
-      await postJSON(REFRESH_INTERVAL_SETTINGS_URL, { minutes });
+      await saveRefreshInterval(minutes);
     } catch {
       // 静默失败 — 不影响本地设置
     }

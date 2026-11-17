@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { apiFetch, getJSON, postJSON } from '../../lib/api';
+import { createTag, deleteTag, listTags, suggestTags } from '../../api/shared';
 
 interface TagItem {
   id: string;
@@ -41,9 +41,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (typeFilter) params.set('type', typeFilter);
-      const d = await getJSON<{ items?: TagItem[] }>(`/api/tags?${params}`);
+      const d = await listTags<TagItem>(typeFilter || undefined);
       setTags(d.items ?? []);
     } catch {
       setError('标签加载失败: 网络或后端不可达');
@@ -59,7 +57,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     setCreating(true);
     setMsg(null);
     try {
-      await postJSON('/api/tags', { id: newId.trim(), label: newLabel.trim(), type: newType });
+      await createTag({ id: newId.trim(), label: newLabel.trim(), type: newType });
       setMsg({ kind: 'ok', text: `已创建 ${newLabel.trim()}` });
       setNewId('');
       setNewLabel('');
@@ -77,7 +75,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     if (!window.confirm(`删除标签「${tag.label}」(${tag.id})?`)) return;
     setMsg(null);
     try {
-      await apiFetch(`/api/tags/${encodeURIComponent(tag.id)}`, { method: 'DELETE' });
+      await deleteTag(tag.id);
       setMsg({ kind: 'ok', text: `已删除 ${tag.label}` });
       await load();
     } catch {
@@ -91,7 +89,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
     const q = suggest.trim();
     if (!q) { setSuggestions([]); return; }
     let cancelled = false;
-    getJSON<{ items?: TagItem[] }>(`/api/tags/suggest?q=${encodeURIComponent(q)}`)
+    suggestTags<{ items?: TagItem[] }>(q)
       .catch(() => ({ items: [] as TagItem[] }))
       .then(d => { if (!cancelled) setSuggestions(d?.items ?? []); });
     return () => { cancelled = true; };

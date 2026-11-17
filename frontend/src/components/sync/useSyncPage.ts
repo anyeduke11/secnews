@@ -11,7 +11,7 @@
  *   - meta:  derived (configured, statusForPanel, effective, ...)
  */
 import { useEffect, useRef, useState } from 'react';
-import { getJSON, postJSON } from '../../lib/api';
+import { getSyncConflicts, resolveSyncConflict } from '../../api/settings';
 import { useSync } from '../../hooks/useSync';
 import type { SyncStatus } from './SyncStatusPanel';
 import type { BundleConfigForm, ConflictInfo, SyncDirection, SyncFrequency } from './types';
@@ -96,7 +96,7 @@ export function useSyncPage() {
   const fetchConflicts = async () => {
     try {
       // apiFetch 非 ok 抛错 → catch 静默 (对应原 if (r.ok) 分支检查)
-      const data = await getJSON<ConflictInfo>('/api/sync/conflicts');
+      const data = await getSyncConflicts<ConflictInfo>();
       setConflicts(data);
     } catch {}
   };
@@ -212,7 +212,7 @@ export function useSyncPage() {
   // 冲突裁决
   const handleResolveConflict = async (table: string, choice: 'local' | 'remote') => {
     try {
-      await postJSON('/api/sync/conflicts/auto-resolve', { record_type: table, choice });
+      await resolveSyncConflict(table, choice);
     } catch {}
     fetchConflicts();
   };

@@ -24,8 +24,13 @@ describe('v0.7.4-image scenario=deep 注入契约', () => {
       resolve(REPO, 'src/components/secnews/analyze/SecNewsAnalyze.tsx'),
       'utf-8',
     );
-    // Batch 5 裸 fetch 清扫: 该调用改走 postJSON (内部仍 JSON.stringify),
-    // 契约不变 — 断言 scenario: 'deep' 字面量仍在 evaluate 调用 body 对象里
-    expect(src).toMatch(/JSON\.stringify\(\s*\{[^}]*scenario:\s*'deep'[^}]*\}\s*\)|postJSON\(\s*'\/api\/llm\/evaluate'\s*,\s*\{[^}]*scenario:\s*'deep'[^}]*\}/);
+    // B3 收敛后 evaluate 走 api/secnews.ts 的 evaluateContent(content, scenario):
+    // 组件侧必须显式传 'deep', 域客户端必须把 scenario 透传进 postJSON body。
+    // 契约不变 — 任一环节删掉 scenario 字面量/透传即挂。
+    const apiSrc = readFileSync(resolve(REPO, 'src/api/secnews.ts'), 'utf-8');
+    expect(src).toMatch(/evaluateContent\([^)]*'deep'\s*\)/);
+    expect(apiSrc).toMatch(
+      /postJSON\(\s*'\/api\/llm\/evaluate'\s*,\s*\{[^}]*scenario[^}]*\}/,
+    );
   });
 });

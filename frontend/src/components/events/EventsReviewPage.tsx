@@ -12,7 +12,13 @@
  *       故先选类型再拉候选; 类型清单为空/接口失败时显式降级空态。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getJSON, postJSON } from '../../lib/api';
+import {
+  approveEventCandidate,
+  batchApproveEventTypes,
+  listEventCandidates,
+  listEventTypes,
+  rejectEventCandidate,
+} from '../../api/shared';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
@@ -70,7 +76,7 @@ export function EventsReviewPage() {
   const loadTypes = useCallback(async () => {
     setTypesError(null);
     try {
-      const data = await getJSON<{ items?: EventTypeRow[] }>('/api/event-technique/event-types');
+      const data = await listEventTypes<EventTypeRow>();
       if (dead.current) return;
       setTypes(data.items ?? []);
     } catch (e) {
@@ -86,9 +92,7 @@ export function EventsReviewPage() {
     setCandsLoading(true);
     setCandsError(null);
     try {
-      const data = await getJSON<{ items?: CandidateRow[] }>(
-        `/api/event-technique/candidates?event_type_id=${encodeURIComponent(eventTypeId)}&owner_status=pending`,
-      );
+      const data = await listEventCandidates<CandidateRow>(eventTypeId, 'pending');
       if (dead.current) return;
       setCandidates(data.items ?? []);
     } catch (e) {
@@ -126,7 +130,7 @@ export function EventsReviewPage() {
     setBusyId(candidateId);
     setNotice(null);
     try {
-      await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/approve`, {});
+      await approveEventCandidate(candidateId);
       if (dead.current) return;
       setCandidates(list => list.filter(c => c.id !== candidateId));
       setNotice({ kind: 'ok', text: `已通过 ${candidateId}` });
@@ -144,7 +148,7 @@ export function EventsReviewPage() {
     setBusyId(candidateId);
     setNotice(null);
     try {
-      await postJSON(`/api/event-technique/candidates/${encodeURIComponent(candidateId)}/reject`, { reason: rejectReason.trim() });
+      await rejectEventCandidate(candidateId, rejectReason.trim());
       if (dead.current) return;
       setCandidates(list => list.filter(c => c.id !== candidateId));
       setRejectId(null);
@@ -164,10 +168,7 @@ export function EventsReviewPage() {
     setBatching(true);
     setNotice(null);
     try {
-      const r = await postJSON<{ approved_count?: number; skipped_count?: number }>(
-        `/api/event-technique/event-types/${encodeURIComponent(selected)}/batch-approve`,
-        { min_confidence: 0.7 },
-      );
+      const r = await batchApproveEventTypes(selected, 0.7);
       if (dead.current) return;
       setNotice({ kind: 'ok', text: `批量通过 ${r.approved_count ?? 0} 条 (跳过 ${r.skipped_count ?? 0})` });
       void loadCandidates(selected);

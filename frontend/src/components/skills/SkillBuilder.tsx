@@ -13,7 +13,7 @@
  * 文案硬编码中文 (i18n 接入为 D3 任务).
  */
 import { useMemo, useState } from 'react';
-import { postJSON } from '../../lib/api';
+import { createSkill, validateSkillDraft } from '../../api/skills';
 import {
   CATEGORY_LABELS,
   SkillCategory,
@@ -190,10 +190,7 @@ export function SkillBuilder({ onBack, onCreated }: {
   const dryRunValidate = async (): Promise<boolean> => {
     setErrors([]);
     try {
-      const resp = await postJSON<{ ok: boolean; errors: string[] }>(
-        '/api/skill-builder/validate',
-        { payload: draft }
-      );
+      const resp = await validateSkillDraft(draft);
       if (!resp.ok) {
         setErrors(resp.errors);
         return false;
@@ -210,10 +207,7 @@ export function SkillBuilder({ onBack, onCreated }: {
     setSubmitting(true);
     setErrors([]);
     try {
-      const resp = await postJSON<{ id: string }>(
-        '/api/skill-builder',
-        draft
-      );
+      const resp = await createSkill(draft);
       setNotice(`已创建 skill ${resp.id}（未启用，到列表里手动开启）`);
       onCreated?.(resp.id);
     } catch (e) {

@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import type { BookmarkImportResult } from '../types';
-import { apiFetch } from '../lib/api';
+import { importBookmarks } from '../api/knowledge';
 
 interface BookmarkImportProps {
   onImported?: () => void;
@@ -58,12 +57,7 @@ export function BookmarkImport({ onImported }: BookmarkImportProps) {
 
   const submitImport = (payload: { bookmarks?: unknown } | { html?: string }) => {
     setBusy(true);
-    const url = new URL('/api/knowledge/bookmarks/import', window.location.origin);
-    url.searchParams.set('validate', validate ? 'true' : 'false');
-    apiFetch<BookmarkImportResult>(url.toString(), {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    importBookmarks(payload, validate)
       .then(result => {
         const parts: string[] = [`导入 ${result.imported ?? 0}`];
         if (result.skipped_duplicates) parts.push(`重复 ${result.skipped_duplicates}`);

@@ -48,6 +48,7 @@ import { getJSON, postJSON, apiFetch } from '../lib/api';
 const CG_BASE = '/api/codegarden';
 const PROJECTS_URL = `${CG_BASE}/projects`;
 const GITHUB_IMPORT_URL = `${CG_BASE}/github/import`;
+const GITHUB_METADATA_URL = `${CG_BASE}/github/metadata`;
 const FROM_KNOWLEDGE_URL = `${CG_BASE}/from-knowledge`;
 const CANDIDATES_URL = `${CG_BASE}/candidates`;
 const DEPENDENCIES_URL = `${CG_BASE}/dependencies`;
@@ -352,4 +353,23 @@ export function loadEnvTemplate(name: string): Promise<EnvTemplateResponse> {
 
 export function deleteResource(id: string): Promise<void> {
   return apiFetch<void>(`${RESOURCES_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// 项目动态 / 阶段时间线 / GitHub 元数据 (ProjectDetail / GithubImportDialog)
+// ---------------------------------------------------------------------------
+
+/** GET /api/codegarden/projects/{id}/activities — 项目动态 ({activities}) */
+export function getProjectActivities<T = { activities?: unknown[] }>(projectId: string): Promise<T> {
+  return getJSON<T>(`${PROJECTS_URL}/${encodeURIComponent(projectId)}/activities`);
+}
+
+/** GET /api/codegarden/projects/{id}/timeline — 生命周期阶段 ({stages}) */
+export function getProjectTimeline<T = { stages?: unknown[] }>(projectId: string): Promise<T> {
+  return getJSON<T>(`${PROJECTS_URL}/${encodeURIComponent(projectId)}/timeline`);
+}
+
+/** GET /api/codegarden/github/metadata?url= — 仓库元数据预览 */
+export function getGithubRepoMetadata<T = unknown>(repoUrl: string): Promise<T> {
+  return getJSON<T>(`${GITHUB_METADATA_URL}?url=${encodeURIComponent(repoUrl)}`);
 }

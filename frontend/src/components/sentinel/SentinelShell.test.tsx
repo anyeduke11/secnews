@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 
 const SOURCES = { sources: [{ category: 'security', source_name: 'FreeBuf', status: 'active' }], registered_total: 1, registered_active: 1, registered_stale: 0, registered_dead: 0 };
 
@@ -185,5 +186,44 @@ describe('SentinelShell 版面条 bandnav (Phase 2 编辑部形态, DEV-0181)', 
     expect(screen.getByText('情报流')).toBeInTheDocument();
     expect(window.localStorage.getItem('bandnav-collapsed')).toBe('0');
     expect(document.querySelector('.sentinel')?.className).not.toContain('bandnav-collapsed');
+  });
+});
+
+// B2 退出条件 (2026-11-17): 三态主题可切换 — 唯一驱动面是 <html data-theme>。
+// 壳只负责呈现按钮与 cycleTheme 调用, 状态源仍是 contexts/ThemeContext (单一 ThemeProvider)。
+describe('B2: 三态主题 light → dark → paper (经 <html data-theme> 驱动)', () => {
+  let fetchMock: ReturnType<typeof makeFetch>;
+  beforeEach(() => {
+    fetchMock = makeFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    try { window.localStorage.removeItem('hotspot-theme'); } catch { /* jsdom 兜底 */ }
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    try { window.localStorage.removeItem('hotspot-theme'); } catch { /* jsdom 兜底 */ }
+  });
+
+  it('按钮轮换三态, 每态写 <html data-theme> 与 localStorage', async () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/']}>
+          <SentinelShell layer="data" ingested={null}><div>x</div></SentinelShell>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('light'));
+
+    // light → dark
+    fireEvent.click(screen.getByRole('button', { name: '切换到纸面版' }));
+    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
+
+    // dark → paper
+    fireEvent.click(screen.getByRole('button', { name: '切换到晨间亮色' }));
+    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('paper'));
+    expect(window.localStorage.getItem('hotspot-theme')).toBe('paper');
+
+    // paper → light (轮换闭合)
+    fireEvent.click(screen.getByRole('button', { name: '切换到夜航暗色' }));
+    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('light'));
   });
 });

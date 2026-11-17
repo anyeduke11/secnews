@@ -17,7 +17,7 @@
  *  - 历史趋势图 (留 v0.8 — 当前只渲染 4 个核心数字)
  */
 import { useEffect, useState } from 'react';
-import { getJSON } from '../../lib/api';
+import { getHealth, getSecretsStatus, getSourcesHealth, getStats } from '../../api/settings';
 import type { SectionKey } from './sections';
 
 interface Props {
@@ -112,10 +112,10 @@ export function SettingsDashboard({ onJump }: Props) {
   useEffect(() => {
     let cancelled = false;
     const fetches: Array<Promise<unknown>> = [
-      getJSON<unknown>('/api/health').catch(() => null),
-      getJSON<unknown>('/api/secrets/status').catch(() => null),
-      getJSON<unknown>('/api/stats').catch(() => null),
-      getJSON<unknown>('/api/sources/health').catch(() => null),
+      getHealth<unknown>().catch(() => null),
+      getSecretsStatus().catch(() => null),
+      getStats<unknown>().catch(() => null),
+      getSourcesHealth<unknown>().catch(() => null),
     ];
     Promise.all(fetches).then(([h, s, st, src]) => {
       if (cancelled) return;

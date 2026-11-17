@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
-import { apiFetch, getJSON } from '../../lib/api';
+import { listPlanningActions, updatePlanningActionStatus } from '../../api/action';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { STAGE_COLORS, STAGE_LABELS } from './LifecycleProgress';
 
@@ -94,12 +94,6 @@ function ActionTypeIcon({ type }: { type: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Endpoints (本组件专用, 常量化)
-// ---------------------------------------------------------------------------
-
-const PLANNING_ACTIONS_URL = '/api/kl/planning-actions';
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -115,7 +109,7 @@ export function KnowledgePlanningPanel() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJSON<PlanningAction[]>(`${PLANNING_ACTIONS_URL}?status=pending`);
+      const data = await listPlanningActions<PlanningAction>('pending');
       if (dead.current) return;
       // API 已按 priority DESC 排序，但本地再确保一次
       data.sort((a, b) => b.priority - a.priority);
@@ -136,10 +130,7 @@ export function KnowledgePlanningPanel() {
   const updateStatus = useCallback(async (id: number, status: string) => {
     setUpdatingIds(prev => new Set(prev).add(id));
     try {
-      await apiFetch(`${PLANNING_ACTIONS_URL}/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
-      });
+      await updatePlanningActionStatus(id, status);
       if (dead.current) return;
       // 从列表中移除
       setActions(prev => prev.filter(a => a.id !== id));

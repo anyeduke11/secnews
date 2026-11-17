@@ -9,54 +9,26 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, getJSON, postJSON } from '../../lib/api';
+import {
+  getProxySettings,
+  getProxyTest,
+  putProxySettings,
+  resetProxyHealth,
+} from '../../api/settings';
+import type {
+  ProxyHealth,
+  ProxyProbeResult as ProbeResult,
+  ProxyTestResult as TestResult,
+} from '../../api/settings';
 import '../settings/settings-shell.css';
 
 type ProxyMode = 'off' | 'builtin' | 'auto' | 'manual';
 type ProxyMessage = { type: 'ok' | 'error' | 'mute'; text: string } | null;
 
-interface ProbeResult {
-  ok: boolean;
-  status?: number;
-  error?: string;
-  ms?: number;
-}
-
-export interface TestResult {
-  name: string;
-  host: string;
-  url: string;
-  policy: 'proxy' | 'direct';
-  direct: ProbeResult;
-  proxy: ProbeResult | null;
-  ok: boolean;
-}
-
-interface ProxyHealth {
-  circuit_open: boolean;
-  open_remaining_seconds: number;
-  consecutive_failures: number;
-  fail_threshold: number;
-  open_seconds: number;
-  opened_count: number;
-  total_failures: number;
-  total_successes: number;
-  last_error: string;
-}
+export type { TestResult };
 
 interface ProxySettingsProps {
   open: boolean;
-}
-
-/** GET/PUT /api/proxy/settings 响应 (字段宽松, 与后端契约对齐) */
-interface ProxySettingsResponse {
-  status?: string;
-  message?: string;
-  settings?: { mode?: string; no_proxy?: string };
-  effective_proxy?: string;
-  builtin?: { proxy_url?: string };
-  health?: ProxyHealth | null;
-  detected_system_proxy?: Record<string, string> | null;
 }
 
 const MODE_LABEL: Record<ProxyMode, string> = {
@@ -99,7 +71,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
   }, []);
 
   const load = useCallback(async () => {
-    const data = await getJSON<ProxySettingsResponse>('/api/proxy/settings');
+    const data = await getProxySettings();
     applySettings(data);
   }, [applySettings]);
 
@@ -116,10 +88,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
     setSaving(true);
     setMessage(null);
     try {
-      const data = await apiFetch<ProxySettingsResponse>('/api/proxy/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ mode, no_proxy: noProxy }),
-      });
+      const data = await putProxySettings(mode, noProxy);
       if (data.status === 'ok') {
         applySettings(data);
         setMessage({ type: 'ok', text: `代理配置已保存 (${MODE_LABEL[mode]})` });
@@ -139,12 +108,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
     setTestStatus(null);
     setMessage(null);
     try {
-      const data = await getJSON<{
-        results?: TestResult[];
-        status?: string;
-        health?: ProxyHealth;
-        summary?: string;
-      }>('/api/proxy/test');
+      const data = await getProxyTest();
       setTestResults(data.results || []);
       setTestStatus(data.status || null);
       if (data.health) setHealth(data.health);
@@ -162,7 +126,7 @@ export function ProxySettings({ open }: ProxySettingsProps) {
 
   const handleResetHealth = useCallback(async () => {
     try {
-      const data = await postJSON<{ health?: ProxyHealth }>('/api/proxy/health/reset', undefined);
+      const data = await resetProxyHealth();
       if (data.health) setHealth(data.health);
       setMessage({ type: 'ok', text: '熔断器已闭合, 下一次请求重新尝试代理' });
     } catch {

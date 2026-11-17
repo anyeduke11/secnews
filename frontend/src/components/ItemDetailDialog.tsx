@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
-import { deleteKnowledgeItem, getKnowledgeItem, updateKnowledgeItem } from '../api/knowledge';
+import { createAnnotation, deleteKnowledgeItem, getKnowledgeItem, listAnnotations, updateKnowledgeItem } from '../api/knowledge';
 import type { KnowledgeItemPatch } from '../api/knowledge';
-import { getJSON, postJSON } from '../lib/api';
 import { importFromKnowledgeWithStatus } from '../api/codegarden';
 import { Icon } from './Icon';
 
@@ -39,9 +38,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
 
   const loadNotes = useCallback((id: string) => {
     // 原 r.ok ? json : null 语义经 apiFetch 归一: 非 ok 也走 catch → null → 清空 notes
-    getJSON<{ items?: Array<{ id: number; content: string; created_at?: string }>; annotations?: Array<{ id: number; content: string; created_at?: string }> }>(
-      `/api/annotations?entity_type=knowledge_item&entity_id=${encodeURIComponent(id)}`,
-    )
+    listAnnotations<{ id: number; content: string; created_at?: string }>('knowledge_item', id)
       .catch(() => null)
       .then(data => {
         const items = data?.items ?? data?.annotations ?? [];
@@ -96,7 +93,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const handleAddNote = () => {
     if (!item_id || !noteText.trim()) return;
     setNoteSaving(true);
-    postJSON('/api/annotations', {
+    createAnnotation({
       entity_type: 'knowledge_item',
       entity_id: item_id,
       content: noteText.trim(),

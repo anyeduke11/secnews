@@ -13,7 +13,7 @@
  *       compact 模式仅渲染 input+save 行, 不显示标题/描述 (兼容嵌入场景)
  */
 import { useState, useCallback } from 'react';
-import { postJSON } from '../../lib/api';
+import { postScenarioModel } from '../../api/settings';
 
 export type Scenario = 'deep' | 'light' | 'image';
 
@@ -56,10 +56,7 @@ export function ScenarioModelsPanel({ initial, scope = 'scenario', onSaved, comp
     setSavingScenario(scenario);
     setScenarioMessage(null);
     try {
-      const d = await postJSON<{ status?: string; old_model?: string; new_model?: string; message?: string }>(
-        '/api/settings/scenario-model',
-        { scenario, model, actor: 'web' },
-      );
+      const d = await postScenarioModel(scenario, model);
       if (d.status === 'ok') {
         setScenarioMessage({ type: 'ok', text: `${scenario}: ${d.old_model ?? '(无)'} → ${d.new_model}` });
         onSaved?.(scenario, d.old_model ?? null, d.new_model ?? '');

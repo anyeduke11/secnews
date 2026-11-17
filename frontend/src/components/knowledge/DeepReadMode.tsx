@@ -12,8 +12,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { LifecycleProgress } from './LifecycleProgress';
 import type { KnowledgeItem } from '../../types';
-import { getKnowledgeItem, getKnowledgeItemChunks, KnowledgeApiError, postAttentionEvent } from '../../api/knowledge';
-import { getJSON } from '../../lib/api';
+import { getKnowledgeItem, getKnowledgeItemChunks, getRecommendedKnowledge, KnowledgeApiError, postAttentionEvent } from '../../api/knowledge';
 import { OnboardingHint } from '../layout/OnboardingHint';
 
 interface RecommendResult {
@@ -119,7 +118,7 @@ export function DeepReadMode() {
     setRecommendLoading(true);
 
     // 非 2xx 由 apiFetch 抛错 → 与原 `if (!r.ok) return` 同为静默放弃推荐
-    getJSON<RecommendResponse>(`/api/recommend/knowledge/${encodeURIComponent(id)}?limit=5`)
+    getRecommendedKnowledge<RecommendResponse>(id, 5)
       .then(data => {
         if (!cancelled) setRecommendations(data.items || []);
       })

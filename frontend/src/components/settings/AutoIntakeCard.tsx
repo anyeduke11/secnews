@@ -7,15 +7,8 @@
  * 保存按钮统一走 PATCH (service 逐键写 settings.kv + audit_log)。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '../../lib/api';
-
-interface AutoIntakeConfig {
-  enabled: boolean;
-  min_quality_score: number;
-  daily_limit: number;
-  require_domain_hit: boolean;
-  today_intaken: number;
-}
+import { getAutoIntake, patchAutoIntake } from '../../api/settings';
+import type { AutoIntakeConfig } from '../../api/settings';
 
 export function AutoIntakeCard() {
   const [cfg, setCfg] = useState<AutoIntakeConfig | null>(null);
@@ -26,7 +19,7 @@ export function AutoIntakeCard() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    apiFetch<AutoIntakeConfig>('/api/settings/auto-intake')
+    getAutoIntake()
       .then((d) => {
         setCfg(d);
         setLoadError(false);
@@ -39,16 +32,7 @@ export function AutoIntakeCard() {
     if (saving) return;
     setSaving(true);
     setSaveError(false);
-    apiFetch<AutoIntakeConfig>('/api/settings/auto-intake', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        enabled: next.enabled,
-        min_quality_score: next.min_quality_score,
-        daily_limit: next.daily_limit,
-        require_domain_hit: next.require_domain_hit,
-      }),
-    })
+    patchAutoIntake(next)
       .then((d) => {
         setCfg(d);
         setSavedFlash(true);

@@ -5,18 +5,19 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, getJSON } from '../../lib/api';
+import { getSecrets, getSecretsStatus, lockSecrets } from '../../api/settings';
+import type { SecretsStatusPayload } from '../../api/settings';
 
 export function SecretsStatusCard() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<{ setup?: boolean; unlocked?: boolean; remaining_seconds?: number; total?: number } | null>(null);
+  const [status, setStatus] = useState<SecretsStatusPayload | null>(null);
   const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
-    getJSON<{ setup?: boolean; unlocked?: boolean; remaining_seconds?: number; total?: number }>('/api/secrets/status')
+    getSecretsStatus()
       .then(d => setStatus(d))
       .catch(() => {});
-    getJSON<{ items?: any[] }>('/api/secrets?limit=5')
+    getSecrets<{ items?: any[] }>(5)
       .then(d => setItems(d.items || []))
       .catch(() => {});
   }, []);
@@ -87,7 +88,7 @@ export function SecretsStatusCard() {
           </button>
           {status?.unlocked && (
             <button type="button" className="st-btn danger" onClick={async () => {
-              try { await apiFetch('/api/secrets/lock', { method: 'POST' }); } catch {}
+              try { await lockSecrets(); } catch {}
               window.location.reload();
             }} aria-label="立即锁定">
               立即锁定

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PublishHistoryItem } from '../types';
-import { getJSON } from '../lib/api';
+import { getDraftPublishHistory } from '../api/knowledge';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 
 interface PublishHistoryProps {
@@ -30,7 +30,7 @@ export function PublishHistory({ draft_id, onClose }: PublishHistoryProps) {
   const loadHistory = useCallback((id: number) => {
     setLoading(true);
     setError(null);
-    getJSON<{ history?: PublishHistoryItem[] }>(`/api/content/drafts/${id}/publish-history`)
+    getDraftPublishHistory<{ history?: PublishHistoryItem[] }>(id)
       .then(data => {
         if (dead.current) return;
         setHistory(data.history || []);

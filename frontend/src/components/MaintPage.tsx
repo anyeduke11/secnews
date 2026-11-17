@@ -17,7 +17,14 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { getJSON, postJSON } from '../lib/api';
+import {
+  cleanupQualityLogs,
+  getMaintenanceDirtyReport,
+  getMaintenanceHealth,
+  getMaintenanceIndexHealth,
+  getMaintenanceQualityLogTiers,
+  runMaintenanceVacuum,
+} from '../api/settings';
 import { useI18n } from '../contexts/I18nContext';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 
@@ -138,8 +145,8 @@ export function MaintPage() {
     const healthP = (async () => {
       try {
         const [h, d] = await Promise.all([
-          getJSON<HealthResp>('/api/maintenance/health'),
-          getJSON<DirtyReportResp>('/api/maintenance/dirty-report'),
+          getMaintenanceHealth<HealthResp>(),
+          getMaintenanceDirtyReport<DirtyReportResp>(),
         ]);
         if (dead.current) return;
         setHealth(h);
@@ -153,7 +160,7 @@ export function MaintPage() {
     })();
     const indexP = (async () => {
       try {
-        const ih = await getJSON<IndexHealthResp>('/api/maintenance/index-health');
+        const ih = await getMaintenanceIndexHealth<IndexHealthResp>();
         if (dead.current) return;
         setIndexHealth(ih);
         setIndexHealthError(false);
@@ -164,7 +171,7 @@ export function MaintPage() {
     })();
     const tiersP = (async () => {
       try {
-        const tr = await getJSON<TiersResp>(`/api/maintenance/quality-log-tiers?days=${cutoffDays}`);
+        const tr = await getMaintenanceQualityLogTiers<TiersResp>(cutoffDays);
         if (dead.current) return;
         setTiers(tr);
         setTiersError(false);
@@ -183,7 +190,7 @@ export function MaintPage() {
   const runVacuum = useCallback(async () => {
     setVacuum('running');
     try {
-      const r = await postJSON<VacuumResp>('/api/maintenance/vacuum', {});
+      const r = await runMaintenanceVacuum<VacuumResp>({});
       if (dead.current) return;
       setVacuumInfo(r);
       setVacuum(r.status === 'ok' ? 'ok' : 'error');
@@ -203,10 +210,7 @@ export function MaintPage() {
       // DatabaseMaintenance 一致), query 参数 + dry_run=false。
       // DEV-0322 三档模型: 保留窗口 = 档宽(cutoffDays) × 3 档; 每次清理
       // 归档滚出窗口的最旧一档 (与分档展示"超窗口"行同一 cutoff 口径)。
-      const r = await postJSON<CleanupResp>(
-        `/api/maintenance/cleanup-quality-logs?days=${cutoffDays * 3}&dry_run=false`,
-        undefined,
-      );
+      const r = await cleanupQualityLogs<CleanupResp>(cutoffDays * 3);
       if (dead.current) return;
       setCleanupInfo(r);
       setCleanup('ok');

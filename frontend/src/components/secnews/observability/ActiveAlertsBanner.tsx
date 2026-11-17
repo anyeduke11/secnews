@@ -6,8 +6,7 @@
  * 30s 自动刷新 (与 StatusBar 同频).
  */
 import { useEffect, useState } from 'react';
-import { getActiveAlerts } from '../../../api/secnews';
-import { apiFetch } from '../../../lib/api';
+import { ackObservabilityAlert, getActiveAlerts } from '../../../api/secnews';
 
 interface AlertItem {
   id: number;
@@ -66,7 +65,7 @@ export function ActiveAlertsBanner() {
     setAckingId(id);
     setAckError(null);
     try {
-      await apiFetch(`/api/observability/alerts/${id}/ack`, { method: 'POST' });
+      await ackObservabilityAlert(id);
       await refresh();
     } catch (e) {
       setAckError(e instanceof Error ? e.message : String(e));

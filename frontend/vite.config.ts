@@ -31,6 +31,25 @@ export default defineConfig({
     // e2e/*.spec.ts 是 Playwright 用例 (有自己的 runner), vitest 收集会在
     // import 阶段报 "test.describe() called here" 假失败
     exclude: [...configDefaults.exclude, 'e2e/**'],
+    // FRONTEND_REWRITE_V1_PLAN §7.2: B0 建基线, B1 起回填 thresholds。
+    // 下限 = B0 全局实测值 (lines 57.05 / statements 57.05 / functions 57.42 / branches 76.39),
+    // 任一批次不得把全局覆盖率压到基线以下。
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/**/*.d.ts',
+      ],
+      thresholds: {
+        lines: 57.05,
+        statements: 57.05,
+        functions: 57.42,
+        branches: 76.39,
+      },
+    },
   },
   // v0.5 M1-Task3: manualChunks 拆 vendor
   // 验收: 主 chunk <300KB (基线 1.14MB)

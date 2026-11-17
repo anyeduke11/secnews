@@ -7,7 +7,7 @@
  * V2: st-section + st-cellgrid + st-btn (active=primary)
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, getJSON } from '../../lib/api';
+import { getCurrentMode, getModes, switchMode } from '../../api/settings';
 
 const MODE_LABELS: Record<string, string> = {
   brief: '简报',
@@ -29,8 +29,8 @@ export function ModeSwitcher() {
     try {
       // modes 一路失败不阻塞 current (原实现为独立的 res.ok 分支检查)
       const [cData, mData] = await Promise.all([
-        getJSON<{ mode?: string | null }>('/api/mode/current'),
-        getJSON<{ modes?: string[] }>('/api/mode/modes').catch(() => null),
+        getCurrentMode(),
+        getModes().catch(() => null),
       ]);
       setCurrent(cData.mode ?? null);
       if (mData) setModes(mData.modes ?? []);
@@ -45,10 +45,7 @@ export function ModeSwitcher() {
     setSwitching(true);
     setError(null);
     try {
-      const d = await apiFetch<{ mode?: string }>(
-        `/api/mode/switch?mode=${encodeURIComponent(mode)}`,
-        { method: 'PUT' },
-      );
+      const d = await switchMode(mode);
       setCurrent(d.mode ?? mode);
     } catch {
       setError('切换失败: 网络或后端不可达');

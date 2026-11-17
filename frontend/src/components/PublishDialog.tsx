@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { SkillValidation, PublishTask } from '../types';
-import { getJSON, postJSON } from '../lib/api';
+import { publishContentDraft, validateKnowledgeSkill } from '../api/shared';
 import { Icon } from './Icon';
 
 interface PublishDialogProps {
@@ -57,9 +57,7 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
 
     try {
       // Step 1: validate skill (非 ok 时 apiFetch 抛错 → 统一走 catch toast)
-      const validateData: SkillValidation = await getJSON<SkillValidation>(
-        `/api/knowledge/skills/${encodeURIComponent(skill_name)}/validate`,
-      );
+      const validateData: SkillValidation = await validateKnowledgeSkill<SkillValidation>(skill_name);
 
       if (!validateData.valid) {
         const reason = validateData.reason || '';
@@ -74,14 +72,11 @@ export function PublishDialog({ draft_id, draft_title, onClose, onPublished }: P
         .map(t => t.trim())
         .filter(t => t.length > 0);
 
-      const data: PublishTask = await postJSON<PublishTask>(
-        `/api/content/drafts/${draft_id}/publish`,
-        {
-          platform,
-          skill_name,
-          options: { dry_run: dryRun, tags: tagsArray },
-        },
-      );
+      const data: PublishTask = await publishContentDraft<PublishTask>(draft_id, {
+        platform,
+        skill_name,
+        options: { dry_run: dryRun, tags: tagsArray },
+      });
 
       showToast('ok', `发布任务已创建 (task_id: ${data.task_id})`);
       onPublished?.(data.task_id);

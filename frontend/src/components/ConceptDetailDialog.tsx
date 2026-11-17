@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConceptDetail } from '../types';
-import { getJSON } from '../lib/api';
+import { getKnowledgeConceptDetail } from '../api/knowledge';
 import { Icon } from './Icon';
 
 interface ConceptDetailDialogProps {
@@ -17,7 +17,7 @@ export function ConceptDetailDialog({ slug, onClose, onSelectItem }: ConceptDeta
   const loadConcept = useCallback((s: string) => {
     setLoading(true);
     setError(null);
-    getJSON<ConceptDetail>(`/api/knowledge/concepts/${encodeURIComponent(s)}`)
+    getKnowledgeConceptDetail<ConceptDetail>(s)
       .then(data => {
         setConcept(data as ConceptDetail);
         setLoading(false);

@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, getJSON } from '../../lib/api';
+import { getSyncStatus, setSyncAuto } from '../../api/settings';
 
 export function SyncSettings() {
   const navigate = useNavigate();
@@ -18,17 +18,14 @@ export function SyncSettings() {
   } | null>(null);
 
   useEffect(() => {
-    getJSON<{ status?: NonNullable<typeof status> } & NonNullable<typeof status>>('/api/sync/status')
+    getSyncStatus()
       .then(d => setStatus(d.status || d))
       .catch(() => {});
   }, []);
 
   const handleToggleAuto = async () => {
     try {
-      await apiFetch('/api/sync/auto', {
-        method: 'POST',
-        body: JSON.stringify({ enabled: !status?.auto_sync_enabled }),
-      });
+      await setSyncAuto(!status?.auto_sync_enabled);
       setStatus(s => s ? { ...s, auto_sync_enabled: !s.auto_sync_enabled } : s);
     } catch {}
   };

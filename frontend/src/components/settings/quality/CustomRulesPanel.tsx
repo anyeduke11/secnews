@@ -10,7 +10,15 @@
  * 语义全局开关/预算 (quality.semantic_rules.*) 在 QualityRulesPanel 通用列表维护。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, getJSON } from '../../../lib/api';
+import {
+  createCustomRule,
+  deleteCustomRule,
+  dryRunCustomRules,
+  getCustomRuleGates,
+  getCustomRules,
+  putQualityRules,
+  updateCustomRule,
+} from '../../../api/settingsQuality';
 
 export interface CustomRule {
   id: number;
@@ -79,8 +87,8 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
   const load = useCallback(async () => {
     try {
       const [r, g] = await Promise.all([
-        getJSON<{ rules: CustomRule[] }>('/api/quality/custom-rules'),
-        getJSON<{ gates: GateInfo[] }>('/api/quality/custom-rules/gates'),
+        getCustomRules<{ rules: CustomRule[] }>(),
+        getCustomRuleGates<{ gates: GateInfo[] }>(),
       ]);
       setRules(r.rules || []);
       setGates(g.gates || []);
@@ -105,13 +113,9 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
         ? { ...form, match_kind: 'nl', action: 'flag' as const }
         : form;
       if (editingId == null) {
-        await apiFetch('/api/quality/custom-rules', {
-          method: 'POST', body: JSON.stringify(payload),
-        });
+        await createCustomRule(payload);
       } else {
-        await apiFetch(`/api/quality/custom-rules/${editingId}`, {
-          method: 'PUT', body: JSON.stringify(payload),
-        });
+        await updateCustomRule(editingId, payload);
       }
       setForm(EMPTY_FORM);
       setEditingId(null);
@@ -127,9 +131,7 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
   const toggleRule = useCallback(async (r: CustomRule) => {
     setBusy(true);
     try {
-      await apiFetch(`/api/quality/custom-rules/${r.id}`, {
-        method: 'PUT', body: JSON.stringify({ enabled: !r.enabled }),
-      });
+      await updateCustomRule(r.id, { enabled: !r.enabled });
       await load();
     } catch {
       setMsg({ type: 'error', text: '切换失败' });
@@ -141,7 +143,7 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
   const removeRule = useCallback(async (id: number) => {
     setBusy(true);
     try {
-      await apiFetch(`/api/quality/custom-rules/${id}`, { method: 'DELETE' });
+      await deleteCustomRule(id);
       if (editingId === id) { setEditingId(null); setForm(EMPTY_FORM); }
       await load();
     } catch {
@@ -154,10 +156,7 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
   const toggleGate = useCallback(async (g: GateInfo) => {
     setBusy(true);
     try {
-      await apiFetch('/api/quality/rules', {
-        method: 'PUT',
-        body: JSON.stringify({ rules: { [`quality.gate.${g.name}.enabled`]: !g.enabled } }),
-      });
+      await putQualityRules({ [`quality.gate.${g.name}.enabled`]: !g.enabled });
       await load();
     } catch {
       setMsg({ type: 'error', text: '开关切换失败' });
@@ -170,10 +169,7 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
     setBusy(true);
     setMsg(null);
     try {
-      const d = await apiFetch<DryRunResult>('/api/quality/custom-rules/dry-run', {
-        method: 'POST',
-        body: JSON.stringify({ limit: 20, with_semantic: withSemantic }),
-      });
+      const d = await dryRunCustomRules<DryRunResult>({ limit: 20, with_semantic: withSemantic });
       setDryRun(d);
     } catch {
       setMsg({ type: 'error', text: 'dry-run 失败' });

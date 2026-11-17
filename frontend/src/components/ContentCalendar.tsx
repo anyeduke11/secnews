@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentCalendarEntry } from '../types';
-import { apiFetch, getJSON, postJSON } from '../lib/api';
+import {
+  createContentCalendarEntry,
+  deleteContentCalendarEntry,
+  listContentCalendar,
+} from '../api/shared';
 import { useAbortGuard } from '../hooks/useAbortGuard';
-
-const CALENDAR_URL = '/api/content/calendar';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -30,7 +32,7 @@ export function ContentCalendar() {
   const loadEntries = useCallback(() => {
     setLoading(true);
     setError(null);
-    getJSON<{ entries?: ContentCalendarEntry[] }>(`${CALENDAR_URL}?month=${fmtMonth(month)}`)
+    listContentCalendar<ContentCalendarEntry>(fmtMonth(month))
       .then(data => {
         if (dead.current) return;
         setEntries(data.entries || []);
@@ -49,7 +51,7 @@ export function ContentCalendar() {
 
   const handleCreate = () => {
     if (!selectedDate || !form.topic.trim()) return;
-    postJSON(CALENDAR_URL, {
+    createContentCalendarEntry({
       date: selectedDate,
       topic: form.topic.trim(),
       type: form.type,
@@ -68,7 +70,7 @@ export function ContentCalendar() {
   };
 
   const handleDelete = (id: number) => {
-    apiFetch<void>(`/api/content/calendar/${id}`, { method: 'DELETE' })
+    deleteContentCalendarEntry(id)
       .then(() => {
         if (dead.current) return;
         loadEntries();

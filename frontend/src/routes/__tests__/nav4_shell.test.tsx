@@ -12,10 +12,20 @@ import { join } from "node:path";
 
 const ROOT = process.cwd();
 const ROUTES_TSX = readFileSync(join(ROOT, "src/routes/index.tsx"), "utf-8");
-const SHELL_TSX = readFileSync(join(ROOT, "src/components/sentinel/SentinelShell.tsx"), "utf-8");
+// B2 (2026-11-17): 壳本体按五层架构拆入 src/shell/ (types/menuOf/pipe/PipeBar/MenuNav/AppShell),
+// components/sentinel/SentinelShell.tsx 降为 4 导出的兼容桥 (B6 全量改指后删除)。
+// 守卫改为对"壳源码集合"整体断言, 断言条目与强度不变 (源码方向锁);
+// 运行时行为 (tab 高亮 / chips 顺序 / gate 过滤 / 收起持久化) 由 SentinelShell.test.tsx 覆盖。
+const SHELL_FILES = ["types.ts", "menuOf.ts", "pipe.tsx", "PipeBar.tsx", "MenuNav.tsx", "AppShell.tsx"];
+const SHELL_TSX = SHELL_FILES
+  .map(f => readFileSync(join(ROOT, "src/shell", f), "utf-8"))
+  .join("\n");
 const SENTINEL_CSS = readFileSync(join(ROOT, "src/components/sentinel/sentinel.css"), "utf-8");
 const THEME_CONTEXT = readFileSync(join(ROOT, "src/contexts/ThemeContext.tsx"), "utf-8");
 const INDEX_CSS = readFileSync(join(ROOT, "src/index.css"), "utf-8");
+// B1 (2026-11-17): :root 变量已迁至 tokens/tokens.css, 守卫按"全局 CSS"整体断言
+const TOKENS_CSS = readFileSync(join(ROOT, "src/tokens/tokens.css"), "utf-8");
+const GLOBAL_CSS = `${INDEX_CSS}\n${TOKENS_CSS}`;
 const LAYOUT_TSX = readFileSync(join(ROOT, "src/components/PageLayout.tsx"), "utf-8");
 
 /** 取路由声明所在行 (本项目路由 element 单行书写) */
@@ -189,9 +199,9 @@ describe("P2 纸面版 theme 入口接入", () => {
     expect(THEME_CONTEXT).toMatch(/const\s+cycleTheme\s*=\s*useCallback/);
   });
 
-  it("index.css :root[data-theme=\"paper\"] 块已加 (暖米黄纸底 + 衬线字体)", () => {
-    expect(INDEX_CSS).toMatch(/:root\[data-theme=['"]paper['"]\]\s*\{/);
-    expect(INDEX_CSS).toMatch(/--font-serif/);
+  it("全局 :root[data-theme=\"paper\"] 块已加 (暖米黄纸底 + 衬线字体)", () => {
+    expect(GLOBAL_CSS).toMatch(/:root\[data-theme=['"]paper['"]\]\s*\{/);
+    expect(GLOBAL_CSS).toMatch(/--font-serif/);
   });
 
   it("SentinelShell 主题按钮改为 cycleTheme + 三 svg 显隐", () => {
@@ -227,14 +237,20 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/maint['"]\)/);
   });
 
-  it("MaintPage 走 /api/maintenance/* 真实端点 (3 工具卡映射)", () => {
+  // B3 (2026-11-17): 端点 URL 从组件迁入域 API 模块 (FRONTEND_REWRITE_V1_PLAN §5),
+  // 守卫改为双向断言: 组件走域模块 (不得直调 lib/api) + 域模块仍含 3 个真实端点。
+  it("MaintPage 走 /api/maintenance/* 真实端点 (3 工具卡映射, 经 api/settings 域模块)", () => {
     const maint = readFileSync(join(ROOT, "src/components/MaintPage.tsx"), "utf-8");
-    expect(maint).toMatch(/\/api\/maintenance\/health/);
-    expect(maint).toMatch(/\/api\/maintenance\/vacuum/);
-    expect(maint).toMatch(/\/api\/maintenance\/cleanup/);
+    expect(maint).toMatch(/from ['"]\.\.\/api\/settings['"]/);
+    expect(maint).not.toMatch(/from ['"]\.\.\/lib\/api['"]/);
+
+    const domain = readFileSync(join(ROOT, "src/api/settings.ts"), "utf-8");
+    expect(domain).toMatch(/\/api\/maintenance\/health/);
+    expect(domain).toMatch(/\/api\/maintenance\/vacuum/);
+    expect(domain).toMatch(/\/api\/maintenance\/cleanup/);
     // v0.8.8 C2.1: 备份卡整块退役 (端点随 backup_service 一并删除)
-    expect(maint).not.toMatch(/\/api\/maintenance\/backups/);
-    expect(maint).not.toMatch(/\/api\/maintenance\/backup-verify/);
+    expect(domain).not.toMatch(/\/api\/maintenance\/backups/);
+    expect(domain).not.toMatch(/\/api\/maintenance\/backup-verify/);
   });
 });
 
@@ -296,10 +312,20 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
   });
 });
 
+describe("B2 (2026-11-17): 全局 Toast 提到 App 根", () => {
+  it("App 根组合 ToastProvider; 布局壳与路由表不再自包 (单一 Provider)", () => {
+    const app = readFileSync(join(ROOT, "src/App.tsx"), "utf-8");
+    expect(app).toMatch(/<ToastProvider>/);
+    // 仅锁"是否自包 Provider"(import / JSX), 注释里提到字样不算
+    expect(LAYOUT_TSX).not.toMatch(/import[^;]*ToastProvider|<ToastProvider/);
+    expect(ROUTES_TSX).not.toMatch(/import[^;]*ToastProvider|<ToastProvider/);
+  });
+});
+
 describe("Phase 2 编辑部形态: masthead + bandnav + pressbar (DEV-0181)", () => {
   it("壳三段用编辑部类名, 旧哨兵顶栏/浮卡心跳类名清空", () => {
     expect(SHELL_TSX).toMatch(/className="masthead"/);
-    expect(SHELL_TSX).toMatch(/className=\{`bandnav\$\{bandnavCollapsed/);
+    expect(SHELL_TSX).toMatch(/className=\{`bandnav\$\{collapsed \? ' collapsed'/);
     expect(SHELL_TSX).toMatch(/className="pressbar"/);
     expect(SHELL_TSX).not.toMatch(/className="appbar"/);
     expect(SHELL_TSX).not.toMatch(/layer-link/);

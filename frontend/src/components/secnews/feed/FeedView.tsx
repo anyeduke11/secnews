@@ -6,7 +6,9 @@
  * v0.7 Batch ⑨ B9-1: 接入 i18n (feed.* namespace)
  */
 import { useState, useEffect, useCallback } from 'react';
-import { ApiError, getJSON } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
+import { getSecNewsFeed } from '../../../api/secnews';
+import type { FeedItem } from '../../../api/secnews';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { DigestCard } from './DigestCard';
 import { FeedCard } from './FeedCard';
@@ -15,16 +17,6 @@ import { useI18n } from '../../../contexts/I18nContext';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
 import { useReactions } from '../../../hooks/useReactions';
 import { ReactionButtons, useReactionAction } from '../../sentinel/ReactionButtons';
-
-interface FeedItem {
-  id: string;
-  title: string;
-  url: string;
-  source: string;
-  category: string;
-  summary?: string;
-  published_at?: string;
-}
 
 export function FeedView() {
   const { locale, t } = useI18n();
@@ -47,7 +39,7 @@ export function FeedView() {
       if (category) params.set('category', category);
       if (keyword) params.set('keyword', keyword);
       params.set('limit', '30');
-      const data = await getJSON<{ items?: FeedItem[]; total?: number }>(`/api/secnews/feed?${params}`);
+      const data = await getSecNewsFeed(params);
       if (dead.current) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? 0);

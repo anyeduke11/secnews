@@ -17,9 +17,22 @@
  *   - push(masterKey)  /  pull(masterKey)  /  bidirectional(masterKey)
  *
  * 错误: 4xx/5xx 抛到 .catch, 调用方负责处理 (UI 一般用 toast).
+ *
+ * 端点收敛到 api/settings.ts 的 sync 段; 本 hook 只负责 abort 串联 + loading/error 联动。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch as rawApiFetch } from '../lib/api';
+import {
+  bidirectionalSync,
+  clearSyncConfig,
+  fetchSyncHistory,
+  fetchSyncPreview,
+  getSyncStatus,
+  pullSync,
+  pushSync,
+  saveSyncConfig,
+  setSyncAuto,
+  testSyncConnection,
+} from '../api/settings';
 import type {
   SyncBundlePreview,
   SyncConfigResponse,
@@ -31,6 +44,12 @@ import type {
   SyncUpsertRequest,
 } from '../types';
 
+/** 请求选项 (与 lib/api 的 ApiFetchOptions 兼容子集) */
+interface RequestOptions {
+  signal?: AbortSignal;
+  onLoadingChange?: (loading: boolean) => void;
+}
+
 export function useSync() {
   const [status, setStatus] = useState<SyncStatusResponse | null>(null);
   const [history, setHistory] = useState<SyncHistoryItem[]>([]);
@@ -40,45 +59,44 @@ export function useSync() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 复用 lib/api.ts 的统一 apiFetch; 本 hook 只负责:
-  //   - abort 串联 (新请求取消上一次)
-  //   - loading / error 状态联动 (与旧实现行为一致)
-  const apiFetch = useCallback(async <T,>(
-    url: string,
-    init?: RequestInit & { skipLoading?: boolean },
-  ): Promise<T> => {
-    if (abortRef.current) abortRef.current.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    const { skipLoading, ...rest } = init ?? {};
-    setError(null);
-    try {
-      return await rawApiFetch<T>(url, {
-        ...rest,
-        signal: ctrl.signal,
-        onLoadingChange: skipLoading ? undefined : setLoading,
-      });
-    } catch (e) {
-      // 被新请求 abort 时不污染 error 状态 (与旧实现一致)
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
-      throw e;
-    } finally {
-      if (abortRef.current === ctrl) abortRef.current = null;
-    }
-  }, []);
+  // 统一请求外壳: abort 串联 (新请求取消上一次) + loading/error 联动 (与旧实现行为一致)
+  const request = useCallback(
+    async <T,>(
+      run: (options: RequestOptions) => Promise<T>,
+      init?: { skipLoading?: boolean },
+    ): Promise<T> => {
+      if (abortRef.current) abortRef.current.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setError(null);
+      try {
+        return await run({
+          signal: ctrl.signal,
+          onLoadingChange: init?.skipLoading ? undefined : setLoading,
+        });
+      } catch (e) {
+        // 被新请求 abort 时不污染 error 状态 (与旧实现一致)
+        if ((e as Error).name !== 'AbortError') setError((e as Error).message);
+        throw e;
+      } finally {
+        if (abortRef.current === ctrl) abortRef.current = null;
+      }
+    },
+    [],
+  );
 
   // ---- 读 ----
   // 读 —— 出错也写空 status, 避免 SyncPage configured 永远 false
   const fetchStatus = useCallback(async () => {
     try {
-      const r = await apiFetch<SyncStatusResponse>('/api/sync/status');
+      const r = await request<SyncStatusResponse>(opts => getSyncStatus<SyncStatusResponse>(opts));
       setStatus(r);
       return r;
     } catch (e) {
       setStatus({ version: '1.0', status: { configured: false }, recent_history: [] });
       throw e;
     }
-  }, [apiFetch]);
+  }, [request]);
 
   // 启动期重试: status 第一次没回来 + history 显示以前配过, 强制再 fetch
   const fetchStatusRetryRef = useRef(0);
@@ -95,8 +113,8 @@ export function useSync() {
 
   const fetchHistory = useCallback(async (limit = 50) => {
     try {
-      const r = await apiFetch<{ version: string; history: SyncHistoryItem[] }>(
-        `/api/sync/history?limit=${limit}`,
+      const r = await request<{ version: string; history: SyncHistoryItem[] }>(opts =>
+        fetchSyncHistory<{ version: string; history: SyncHistoryItem[] }>(limit, opts),
       );
       setHistory(r.history);
       return r.history;
@@ -104,81 +122,71 @@ export function useSync() {
       setHistory([]);
       throw e;
     }
-  }, [apiFetch]);
+  }, [request]);
 
   const fetchPreview = useCallback(async () => {
-    const r = await apiFetch<{ version: string; preview: SyncBundlePreview }>(
-      '/api/sync/bundle/preview',
+    const r = await request<{ version: string; preview: SyncBundlePreview }>(opts =>
+      fetchSyncPreview<{ version: string; preview: SyncBundlePreview }>(opts),
     );
     setPreview(r.preview);
     return r.preview;
-  }, [apiFetch]);
+  }, [request]);
 
   // ---- 写 ----
   const testConnection = useCallback(async (req: SyncTestRequest) => {
-    const r = await apiFetch<SyncTestResponse>('/api/sync/test', {
-      method: 'POST',
-      body: JSON.stringify(req),
-    });
+    const r = await request<SyncTestResponse>(opts =>
+      testSyncConnection<SyncTestResponse, SyncTestRequest>(req, opts),
+    );
     return r;
-  }, [apiFetch]);
+  }, [request]);
 
   const upsertConfig = useCallback(async (req: SyncUpsertRequest) => {
-    const r = await apiFetch<SyncConfigResponse>('/api/sync/config', {
-      method: 'POST',
-      body: JSON.stringify(req),
-    });
+    const r = await request<SyncConfigResponse>(opts =>
+      saveSyncConfig<SyncConfigResponse, SyncUpsertRequest>(req, opts),
+    );
     await fetchStatus();
     return r;
-  }, [apiFetch, fetchStatus]);
+  }, [request, fetchStatus]);
 
   const deleteConfig = useCallback(async () => {
-    await apiFetch<{ version: string; deleted: boolean }>('/api/sync/config', {
-      method: 'DELETE',
-    });
+    await request<{ version: string; deleted: boolean }>(opts =>
+      clearSyncConfig<{ version: string; deleted: boolean }>(opts),
+    );
     await fetchStatus();
-  }, [apiFetch, fetchStatus]);
+  }, [request, fetchStatus]);
 
   const setAutoSync = useCallback(async (enabled: boolean) => {
-    await apiFetch<{ version: string; auto_sync_enabled: boolean }>('/api/sync/auto', {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
-    });
+    await request<{ version: string; auto_sync_enabled: boolean }>(opts =>
+      setSyncAuto<{ version: string; auto_sync_enabled: boolean }>(enabled, opts),
+    );
     await fetchStatus();
-  }, [apiFetch, fetchStatus]);
+  }, [request, fetchStatus]);
 
   const push = useCallback(async (master_key: string) => {
-    const r = await apiFetch<SyncPushResponse>('/api/sync/push', {
-      method: 'POST',
-      body: JSON.stringify({ master_key }),
-    });
+    const r = await request<SyncPushResponse>(opts => pushSync<SyncPushResponse>(master_key, opts));
     setLastResult(r);
     await fetchStatus();
     await fetchHistory(50);
     return r;
-  }, [apiFetch, fetchStatus, fetchHistory]);
+  }, [request, fetchStatus, fetchHistory]);
 
   const pull = useCallback(async (master_key: string) => {
-    const r = await apiFetch<SyncPushResponse>('/api/sync/pull', {
-      method: 'POST',
-      body: JSON.stringify({ master_key }),
-    });
+    const r = await request<SyncPushResponse>(opts => pullSync<SyncPushResponse>(master_key, opts));
     setLastResult(r);
     await fetchStatus();
     await fetchHistory(50);
     return r;
-  }, [apiFetch, fetchStatus, fetchHistory]);
+  }, [request, fetchStatus, fetchHistory]);
 
   const bidirectional = useCallback(async (master_key: string) => {
-    const r = await apiFetch<SyncPushResponse>('/api/sync/bidirectional', {
-      method: 'POST',
-      body: JSON.stringify({ master_key }),
-    });
+    const r = await request<SyncPushResponse>(opts =>
+      bidirectionalSync<SyncPushResponse>(master_key, opts),
+    );
     setLastResult(r);
     await fetchStatus();
     await fetchHistory(50);
     return r;
-  }, [apiFetch, fetchStatus, fetchHistory]);
+  }, [request, fetchStatus, fetchHistory]);
 
   // 启动时拉一次 status
   useEffect(() => {

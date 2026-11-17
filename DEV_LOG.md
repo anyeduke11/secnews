@@ -1,4 +1,87 @@
 
+## [DEV-0394] refactor(fe): 前端重构 V1 B3 — useQuery 查询工厂 + 域 API 模块收敛（54 处直调清零）
+- **时间**: 2026-11-17
+- **类型**: 数据层收敛（绞杀者 B3；退出条件 = 直调计数降为 0（grep 断言）/ 无回归）
+- **关联文件**:
+  - `frontend/src/hooks/useQuery.ts` + `useQuery.test.tsx`（新建）：`useSyncExternalStore` + 模块级 Map 查询工厂 —— 同 key 去重 / 前缀 `invalidate` / `{data,state,error,refetch}` 四态（`state ∈ loading|ready|empty|error`）/ `bindInvalidateOn` / `__resetQueryCache`；10 tests
+  - `frontend/src/api/`：新建 `settings.ts`（58 函数）/ `settingsQuality.ts`（10）/ `skills.ts`（10）/ `action.ts`（19）/ `security.ts`（7）/ `report.ts`（5）/ `pipeline.ts`（1）；扩充 `knowledge.ts` / `secnews.ts` / `codegarden.ts` / `shared.ts`（`listInfoFilterRules` 加泛型，修 `QualityDashboardPage` TS2345）
+  - 约 56 个组件 / 16 个 hook 改为经域模块取数（URL / method / body 原样搬运，非 2xx 仍抛 `ApiError`）
+  - `frontend/src/shell/pipe.tsx`：`getJSON` 直调改指 `api/pipeline`（B2 遗留的最后一处）
+  - `frontend/src/components/secnews/pipeline/TokenLedger.tsx`：改从 `api/pipeline` 导入
+  - `frontend/src/api/__tests__/domain_endpoints.test.ts`（新建）：9 tests 锁 `report` / `security` / `skills` 的 URL + query 拼接 + method/body
+  - `frontend/src/routes/__tests__/nav4_shell.test.tsx`：MaintPage 断言改**双向**（组件走域模块 + 域模块仍含 3 个真实端点），任一侧删除即红
+- **gate 断言**: `grep -rn "getJSON\|postJSON\|apiFetch" src/{components,routes,hooks,pages,shell} | grep "lib/api" | grep -v test` → **0 行**
+- **实测门禁**（全绿）:
+  - `npx tsc --noEmit` exit 0
+  - `npx vitest run --coverage` **109 文件 / 770 tests 全通过**；覆盖率 statements **58.03** / branches **77.13** / functions **58.16** / lines **58.03**（基线 57.05 / 76.39 / 57.42 / 57.05；thresholds 未降）
+  - `npx vite build --logLevel error` exit 0；首屏 JS gzip **93,517 B**（index 27,691 + vendor-react 53,816 + SentinelHomePage 12,010；基线 92,998，**+519 B / +0.56%**）；首屏 CSS gzip **16,684 B**（+177 B）；全量 JS **552,383 B / 73 chunk**（+0.51%）
+  - `python scripts/generate_meta.py --check` OK（56/19/99/155 · core_routers 67）
+- **返工记录（不隐瞒）**: ① 首跑 functions 覆盖 **56.91%** 低于 57.42 门槛（域函数抽走后原组件内的覆盖随迁）→ 新增 `domain_endpoints.test.ts` 补端点契约，**未下调阈值**；② 先改指 `api/secnews` 导致首屏 **+732 B**（整包进入口 chunk）→ 抽出单函数 `api/pipeline.ts` 后回落
+- **负向指标**: **首屏 JS 相对基线 +0.56%**，为 B3 唯一负向项（域模块被壳常驻 hook 静态引用）；20% 目标由 B4–B6 承担
+- **显式缺口**: G5 `api/settings.ts` 847 行超 §2.2 300 行上限（B6 按子域拆）；G6 `useQuery` 无生产消费者（B4 首个区块接入 + 绑 SSE 失效）—— 登记于验证报告 §4
+- **契约偏差 D1–D5（需 owner 知情）**: `ready`≡`success` 对齐 `AsyncStatus`；域模块落 `src/api/` 而非 `domains/`；`searchGlobal` 与 `searchAll` 并存；`/api/skill-registry` 双形状保留；`getFederationStatus` 暂挂 `settings.ts` —— 全文见验证报告 §5.5
+- **Rule 6 预算声明**: 本批约 56 文件跨域收敛 + 两轮 agent 返工，超出 repo-wide 15,000/任务口径，已在收尾汇报中显式声明
+
+## [DEV-0393] refactor(fe): 前端重构 V1 B2 — 壳原地拆入 src/shell/ + 全局 Toast 提到根（零视觉/零行为变更）
+- **时间**: 2026-11-17
+- **类型**: 结构性拆分（绞杀者 B2；退出条件 = nav4 守卫改造后绿 / 三态主题可切换 / 旧页 `--sn-*` 正常渲染）
+- **关联文件**:
+  - `frontend/src/shell/`（新建 6 文件）：`types.ts`（SentinelLayer / PipeSnapshot / SourceHealthRow / BandItem）· `menuOf.ts`（LAYER_DEFS + menuOf() + BANDNAV_DEFS + bandnav 收起持久化）· `pipe.tsx`（fetchPipe / usePipe / usePipeReloadOnSse / PipeProvider / fetchIngested24h）· `PipeBar.tsx`（印务条）· `MenuNav.tsx`（masthead + bandnav + 主题三态按钮）· `AppShell.tsx`（组装层）
+  - `frontend/src/components/sentinel/SentinelShell.tsx`（由 191+ 行实现降为 **9 行兼容桥**）：对外 4 类导出符号（`SentinelShell` / `menuOf` / `fetchPipe, usePipe, usePipeReloadOnSse` / 三个类型）契约不变，6 处旧 import 暂不改，B6 全量改指后删除
+  - `frontend/src/App.tsx`：根层组合 `ToastProvider`（B2 契约「全局 Toast 提到根」）
+  - `frontend/src/components/PageLayout.tsx`：`PageLayout` / `SentinelLayout` 撤掉自包 `ToastProvider`（单一 Provider）
+  - `frontend/src/routes/index.tsx`：删除 `/` 路由级 `ToastProvider`（DEV-0314 的临时补丁随根化撤销）
+  - `frontend/src/routes/__tests__/nav4_shell.test.tsx`：`SHELL_TSX` 改为对 `src/shell/` 六文件**聚合**读取（断言条目与强度不变）；`bandnav` 类名断言随局部变量改名 `collapsed` 同步；新增「Toast 提到根」守卫
+  - `frontend/src/components/sentinel/SentinelShell.test.tsx`：新增三态主题运行时用例（light → dark → paper → light，逐态断言 `<html data-theme>` + `localStorage`）
+  - `frontend/src/components/PageLayout.test.tsx`：原「supports Toast by mounting ToastProvider」改为「不依赖 Provider 祖先也能独立渲染」（原断言随根化失效，改后不谎报）
+  - `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md`（新建）：§7.4 要求的验证报告，登记 B1/B2 命令与原始数字 + 4 项显式缺口
+- **与契约 §8 风险条款的偏差（需 owner 知情）**: 契约写「`nav4_shell` 在 B2 改造为路由/菜单行为断言，而不是源码字符串匹配」；实际采用**聚合源码断言 + 行为断言并存**：211 行守卫里有大量「方向锁/防复活」项（四菜单 LAYER_DEFS 不含 `/judge`、`菜单必须消失`、`BANDNAV_DEFS` 四 key + gate、masthead/bandnav/pressbar 类名、menuOf 21 分支），改写成行为断言会**削弱**这些守卫（行为断言只能覆盖已实现路径，无法锁死"不许复活"）。折中：守卫文本源改指 `src/shell/*`，真正属运行时行为的部分（tab 高亮 / chips 顺序 / gate 过滤 / 收起持久化 / 三态主题）由 `SentinelShell.test.tsx` 承担。
+- **实测门禁**（全绿）:
+  - `npx tsc --noEmit` exit 0
+  - `npx vitest run --coverage` **107 文件 / 751 tests 全通过**；覆盖率 lines **57.54** / statements **57.54** / functions **57.85** / branches **76.62**（基线 57.05 / 57.05 / 57.42 / 76.39；thresholds 未降）
+  - `npx vite build --logLevel error` exit 0；首屏 JS gzip **92,835 B**（index 27,060 + vendor-react 53,738 + SentinelHomePage 12,037；基线 92,998，−163 B）；首屏 CSS gzip **16,567 B**（基线 16,507，+60 B）；全量 JS gzip **548,357 B / 69 chunk**（基线 549,589，−1,232 B）
+  - `python scripts/generate_meta.py --check` OK（56/19/99/155 · core_routers 67；AGENTS 7/7 文档数字与版本一致）
+- **退出条件核对**: ① nav4 守卫 61 tests 全通过 ② 三态主题运行时用例通过（`<html data-theme>` 三态轮换 + 持久化）③ `--sn-*` 别名 191 处仍在 `components/sentinel/sentinel.css`（→ 全局 token），`tokens/tokens.css` 中 0 处，全部旧页渲染用例通过
+- **遗留**: G1 LCP 基线仍缺（B4 前必须）；G2 PRD 92 条能力四向映射未产出（B4 前必须）；G3 四原子迁 `primitives/`（77 处 import，B6）；G4 兼容桥与 6 处旧路径并存（B6 删除）—— 全部登记于验证报告 §4。
+
+## [DEV-0392] feat(fe): 前端重构 V1 B1 — tokens.css 单一源 + L1 primitives 八件 + coverage.thresholds 回填
+- **时间**: 2026-11-17
+- **类型**: 设计系统基建（零业务行为变更；退出条件 = 每原子 ≥1 测试 / 无业务依赖 / token 重复定义归零）
+- **关联文件**:
+  - `frontend/src/tokens/tokens.css`（新建 379 行）：由脚本按原 `index.css` 行号切片生成，**逐字搬运零改值**（原 L9-61 基础 token / L63-358 三态主题 alias / L387-390 正文排版 / L402-416 断点媒体查询），首行 `@import '../styles/breakpoints.css'`
+  - `frontend/src/index.css`（1071 → ~702 行）：5 个 `:root` 块 + 正文排版 + 三段媒体查询全部删除，改为顶部 `@import './tokens/tokens.css'`
+  - `frontend/src/primitives/`（新建 16 文件）：`StatusBadge` / `Panel` / `DataTable` / `AsyncState` / `PageHeader` / `Toolbar` / `SplitPane` / `Inspector` 八件 + 各 1 个 colocated test（合计 32 tests）
+  - `frontend/vite.config.ts`：回填 `coverage.thresholds` = B0 全局值（lines/statements 57.05 · functions 57.42 · branches 76.39）
+  - `frontend/src/routes/__tests__/nav4_shell.test.tsx`：paper 主题守卫改用「全局 CSS」(`index.css + tokens.css`) 断言，**未削弱原意**
+- **实测门禁**（全绿）:
+  - `npx tsc --noEmit` exit 0
+  - `npx vitest run --coverage` 全量通过；覆盖率 **lines 57.52 / statements 57.52 / functions 57.70 / branches 76.62**（均 ≥ B0 基线，thresholds 生效）
+  - `npx vite build` exit 0；首屏 JS gzip **93,010 B**（基线 92,998，+12 B ≈ 0.01%，B1 未动 JS 逻辑）；首屏 CSS gzip **15,323 B**（基线 15,146，+177 B，来自 tokens.css 头部注释）；全量 JS gzip **549,592 B / 69 chunk**（基线 549,589）
+  - `python scripts/generate_meta.py --check` OK（后端零改动，56/19/99/155 不变）
+- **B1 最大陷阱（已修复，务必保留该约束）**: `@import` 必须写在 `@tailwind` **之前**。首次迁移把 import 放在 `@tailwind` 三行之后，Vite **静默丢弃**该 import（构建 exit 0，无任何警告），产物中 `--bp-sm` / `--mint:` / `color-scheme:light` / `--mono:` / `--font-serif` 全部消失，CSS gzip 假性下降 1,976 B。修复后逐项复验已回归。`index.css` 顶部已写注释固化该实测结论。
+- **显式延后（Rule 12，不静默跳过）**: 契约 §4 中「`EmptyState` / `Toast` / `ErrorBoundary` / `Icon` 迁入 `primitives/`」**本批未做** —— 实测这四件共有 **77 处 import 引用**，属大规模机械改动，且不在 §6 B1 退出条件内。改为 B2（壳替换，import 面本就重写）或 B6（收口清理）一并进行。
+- **遗留**: LCP 基线仍缺（B4 前必须补齐）；PRD 92 条能力四向映射未产出（B4 前必须）
+
+## [DEV-0391] chore(fe): 前端重构 V1 B0 — 覆盖率与首屏基线实测入档（零业务代码变更）
+- **时间**: 2026-11-17
+- **类型**: 度量基线 / 工程准备（B0；退出条件 = 基线数字入档 + `tsc` 绿 + 包体积不变）
+- **关联文件**:
+  - `docs/FRONTEND_REWRITE_V1_PLAN.md`（§6 B0/B1 边界微调：`tokens.css` 建库从 B0 移入 B1 —— 全局 CSS 改动与 B0「包体积不变」退出条件冲突，避免半成品状态）
+  - `docs/audit/FRONTEND_REWRITE_BASELINE_2026-11-17.md`（新建：唯一基线存档，后续批次只与此比较）
+  - `frontend/vite.config.ts`（新增 `test.coverage`：provider=v8 / reporter=text+json-summary / include `src/**/*.{ts,tsx}` / 三条 exclude；**不设 thresholds** —— 契约 §7.2 规定 B1 才回填，B0 设了首跑即失败）
+  - `frontend/package.json` + `package-lock.json`（新增 devDependency `@vitest/coverage-v8@^2.1.9`）
+  - `.gitignore`（`frontend/coverage/` 产物不入库）
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`（本轮只读确认「阅读前提：2026-11-17 前端重构 V1 立项」段已在位，履行 PRD 优先纪律）
+- **基线数字（实测，非估算）**:
+  - 覆盖率：Lines **57.05%** / Statements **57.05%** / Functions **57.42%** / Branches **76.39%**（`npx vitest run --coverage`，全量用例通过 exit 0；汇总源 `coverage/coverage-summary.json`）
+  - 首屏 `/` JS gzip：**92,998 B** = `index-*.js` 27,119 + `vendor-react` 53,816 + `SentinelHomePage` 12,063
+  - 首屏 CSS gzip：`index-*.css` 15,146 + `pages-*.css` 1,361
+  - 全量 JS gzip：**549,589 B** / 69 chunk（top3: vendor-echarts 213,486 / vendor-react 53,816 / SettingsPage 35,723）
+- **显式缺口（Rule 12，不编数）**: **LCP 未采集**。契约 §7.1 要求「JS gzip 与 LCP 双指标取 min」，本批只完成 JS gzip 侧。LCP 需 `vite preview` + Playwright + `PerformanceObserver` + 3 次中位数（1440×900 冷缓存），**B4 首个重写页面落地前必须补齐并回填存档**；缺失期间 B6「性能提升 ≥20%」只能以 JS gzip 单指标判定，且须在验收报告显式声明该降级。
+- **为什么 B0 不产目录骨架**: git 不保留空目录，B1 建文件时自然生成层级；`tokens.css` 迁移方式定为 `index.css` 顶部 `@import` + 删除原段落（视觉零变化），与 L1 primitives 同批。
+- **门禁**: `tsc --noEmit` exit 0 · `vitest run` 全量通过 · `vite build` OK（产物体积未变，配置类改动不进包）· 后端零改动，未重跑 pytest
+- **遗留**: LCP 基线（B4 前必须）· PRD 92 条能力 → 路由/组件/测试四向映射（B4 前必须）
+
 ## [DEV-0390] fix(fe): M-4 包体未达标修复 — echarts tree-shaking 入口（745,356 → 577,813 B，关闭 v0.8.8 发布门门 13）
 - **时间**: 2026-11-17
 - **类型**: 性能/体积修复（零业务能力变更；关闭 v0.8.8 发布门门 13 的 ❌）

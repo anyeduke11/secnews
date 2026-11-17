@@ -6,13 +6,11 @@
  * 改为引用 utils, 文章行改为共享 HighlightArticleCard。
  */
 import { useState, useEffect } from 'react';
-import { ApiError, getJSON } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { getWeeklyAvailable, getWeeklyOverview } from '../../api/report';
 import { catColors, renderFormatted } from './utils';
 import { HighlightArticleCard } from './shared';
 import type { WeeklyOverview } from './types';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const WEEKLY_AVAILABLE_URL = '/api/reports/weekly/available';
 
 export function WeeklyReportContent() {
   const [overview, setOverview] = useState<WeeklyOverview | null>(null);
@@ -26,7 +24,7 @@ export function WeeklyReportContent() {
   useEffect(() => {
     let cancelled = false;
     // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok ? json : {weeks: []}` 同为空列表降级
-    getJSON<{ weeks?: Array<{ value: string; label: string; vol: string }> }>(WEEKLY_AVAILABLE_URL)
+    getWeeklyAvailable<{ weeks?: Array<{ value: string; label: string; vol: string }> }>()
       .then(data => {
         if (!cancelled) {
           const w = data.weeks || [];
@@ -51,7 +49,7 @@ export function WeeklyReportContent() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getJSON<WeeklyOverview>(`/api/reports/weekly/overview?week_start=${selectedWeek}`);
+        const data = await getWeeklyOverview<WeeklyOverview>(selectedWeek);
         if (!cancelled) setOverview(data);
       } catch (e: any) {
         if (!cancelled) {

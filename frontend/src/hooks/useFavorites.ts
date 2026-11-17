@@ -25,7 +25,7 @@
  *   DELETE /api/favorites/{hotspot_id} → { status, hotspot_id, removed }
  */
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { apiFetch } from '../lib/api';
+import { addFavorite, deleteFavorite, listFavorites } from '../api/shared';
 import type {
   AddFavoriteResponse,
   FavoritesListResponse,
@@ -75,7 +75,7 @@ export function refreshFavorites(): Promise<void> {
   refreshPromise = (async () => {
     updateState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const data = await apiFetch<FavoritesListResponse>('/api/favorites?limit=1000');
+      const data = await listFavorites<FavoritesListResponse>(1000);
       updateState(() => ({
         ids: new Set((data.items || []).map(it => it.hotspot_id)),
         total: data.total || 0,
@@ -115,24 +115,18 @@ export function toggleFavorite(item: HotspotItem): Promise<void> {
   return (async () => {
     try {
       if (wasFavorited) {
-        const r = await apiFetch<RemoveFavoriteResponse>(
-          `/api/favorites/${encodeURIComponent(item.id)}`,
-          { method: 'DELETE' },
-        );
+        const r = await deleteFavorite<RemoveFavoriteResponse>(item.id);
         // 服务端本来就没有该收藏 → 总数不应 -1
         if (!r.removed) {
           updateState(prev => ({ ...prev, total: prev.total + 1 }));
         }
       } else {
-        const r = await apiFetch<AddFavoriteResponse>('/api/favorites', {
-          method: 'POST',
-          body: JSON.stringify({
-            hotspot_id: item.id,
-            category: item.category,
-            title: item.title,
-            source: item.source,
-            url: item.url,
-          }),
+        const r = await addFavorite<AddFavoriteResponse>({
+          hotspot_id: item.id,
+          category: item.category,
+          title: item.title,
+          source: item.source,
+          url: item.url,
         });
         // 后端 created=false → 本来已收藏, 总数不应 +1
         if (!r.created) {

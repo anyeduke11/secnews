@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { EChart } from './shared/EChart';
 import type { ConceptProgress } from '../types';
-import { getJSON } from '../lib/api';
+import { getKnowledgeProgress } from '../api/knowledge';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 
 export function MasteryGauge() {
@@ -11,7 +11,7 @@ export function MasteryGauge() {
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   useEffect(() => {
-    getJSON<{ progress?: ConceptProgress[] }>('/api/knowledge/progress')
+    getKnowledgeProgress<ConceptProgress>()
       .then(data => {
         if (dead.current) return;
         setProgress(data.progress || []);

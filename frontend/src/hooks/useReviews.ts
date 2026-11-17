@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getJSON, postJSON, apiFetch } from '../lib/api';
+import {
+  createReview as createReviewApi,
+  getReviewStats,
+  listDueReviews,
+  submitReviewGrade,
+} from '../api/action';
+import type { ReviewItem, ReviewStats } from '../api/action';
 
 /**
  * v1.7 Phase 2 — 复习队列 Hook (SM-2 间隔复习)
  *
- * 对接后端:
+ * 对接后端 (经 api/action.ts 强类型函数):
  *  - GET  /api/reviews/due                到期复习队列
  *  - POST /api/reviews/{type}/{id}/grade  提交评分 (0-5)
  *  - POST /api/reviews/{type}/{id}        创建首条复习
@@ -17,31 +23,9 @@ import { getJSON, postJSON, apiFetch } from '../lib/api';
  *  - refresh:        重新拉取队列 + 统计
  *  - submitGrade:    提交评分后自动刷新
  *  - createReview:   为实体创建首条复习
- *
- * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
 
-const REVIEWS_URL = '/api/reviews';
-
-export interface ReviewItem {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  easiness: number;
-  interval: number;
-  repetitions: number;
-  due_at: string;
-  last_grade: number | null;
-  last_reviewed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ReviewStats {
-  total: number;
-  due: number;
-  avg_easiness: number;
-}
+export type { ReviewItem, ReviewStats };
 
 export interface UseReviewsReturn {
   items: ReviewItem[];
@@ -67,9 +51,7 @@ export function useReviews(): UseReviewsReturn {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJSON<{ items?: ReviewItem[] }>(`${REVIEWS_URL}/due?limit=50`, {
-        signal: controller.signal,
-      });
+      const data = await listDueReviews<ReviewItem>(50, { signal: controller.signal });
       setItems(data.items || []);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
@@ -81,7 +63,7 @@ export function useReviews(): UseReviewsReturn {
 
   const fetchStats = useCallback(async () => {
     try {
-      const data = await getJSON<{ stats?: ReviewStats | null }>(`${REVIEWS_URL}/stats`);
+      const data = await getReviewStats<ReviewStats>();
       setStats(data.stats || null);
     } catch {
       // 静默
@@ -102,10 +84,7 @@ export function useReviews(): UseReviewsReturn {
 
   const submitGrade = useCallback(
     async (entityType: string, entityId: string, grade: number) => {
-      await postJSON(
-        `${REVIEWS_URL}/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}/grade`,
-        { grade },
-      );
+      await submitReviewGrade(entityType, entityId, grade);
       // 评分后刷新队列 (该项因 due_at 推后会离开队列)
       await refresh();
     },
@@ -115,10 +94,7 @@ export function useReviews(): UseReviewsReturn {
   const createReview = useCallback(
     async (entityType: string, entityId: string, intervalDays: number = 1) => {
       try {
-        await apiFetch(
-          `${REVIEWS_URL}/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?interval_days=${intervalDays}`,
-          { method: 'POST' },
-        );
+        await createReviewApi(entityType, entityId, intervalDays);
       } catch (e: any) {
         // 409 = 已存在, 视为成功; 其余错误抛出
         if (!/409|conflict/i.test(e?.message || '')) throw e;

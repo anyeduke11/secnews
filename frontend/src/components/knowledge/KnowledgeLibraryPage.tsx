@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getJSON } from '../../lib/api';
+import { listKnowledgeItems, listKnowledgeTopics } from '../../api/knowledge';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
 import { DIFFICULTIES, DOMAINS, TYPES } from '../KnowledgeFilters';
@@ -47,14 +47,14 @@ export function KnowledgeLibraryPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback((f: LibraryFilters, p: number) => {
-    const params = new URLSearchParams();
-    if (f.domain) params.set('domain', f.domain);
-    if (f.topic) params.set('topic', f.topic);
-    if (f.type) params.set('type', f.type);
-    if (f.difficulty) params.set('difficulty', f.difficulty);
-    params.set('limit', String(PAGE_SIZE));
-    params.set('offset', String((p - 1) * PAGE_SIZE));
-    return getJSON<{ items?: LibraryItem[]; total?: number }>(`/api/knowledge/items?${params.toString()}`);
+    return listKnowledgeItems<LibraryItem>({
+      domain: f.domain || undefined,
+      topic: f.topic || undefined,
+      type: f.type || undefined,
+      difficulty: f.difficulty || undefined,
+      limit: PAGE_SIZE,
+      offset: (p - 1) * PAGE_SIZE,
+    });
   }, []);
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function KnowledgeLibraryPage() {
       return;
     }
     let alive = true;
-    getJSON<{ topics?: string[] }>(`/api/knowledge/topics?domain=${encodeURIComponent(filters.domain)}`)
+    listKnowledgeTopics(filters.domain)
       .then(d => { if (alive) setTopics(d.topics || []); })
       .catch(() => { if (alive) setTopics([]); });
     return () => { alive = false; };

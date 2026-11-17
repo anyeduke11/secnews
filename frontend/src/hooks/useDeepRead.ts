@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiFetch } from '../lib/api';
+import { postDeepRead } from '../api/knowledge';
 import { DeepReadResponse, DeepReadSection, DeepReadTone } from '../types';
 
 const VALID_TONES: readonly DeepReadTone[] = ['mint', 'amber', 'red'];
@@ -60,13 +60,11 @@ export function useDeepRead(): UseDeepReadReturn {
       setLoading(true);
       setError(null);
       try {
-        const item = await apiFetch<DeepReadResponse>(
-          `/api/deep-read/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?force=${force ? '1' : '0'}${framework ? `&framework=${encodeURIComponent(framework)}` : ''}`,
-          {
-            method: 'POST',
-            signal: controller.signal,
-          },
-        );
+        const item = await postDeepRead(entityType, entityId, {
+          force,
+          framework,
+          signal: controller.signal,
+        });
         setData(item);
       } catch (e: any) {
         if (e?.name === 'AbortError') return;

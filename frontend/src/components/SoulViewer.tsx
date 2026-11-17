@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { SoulData } from '../types';
-import { apiFetch, getJSON } from '../lib/api';
+import { getSoul, regenerateSoul } from '../api/settings';
 
 export function SoulViewer() {
   const [soul, setSoul] = useState<SoulData | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
   const loadSoul = () => {
-    getJSON<SoulData>('/api/knowledge/soul')
+    getSoul()
       .then(setSoul)
       .catch(() => {});
   };
@@ -16,7 +16,7 @@ export function SoulViewer() {
 
   const handleRegenerate = () => {
     setRegenerating(true);
-    apiFetch('/api/knowledge/soul/regenerate', { method: 'POST' })
+    regenerateSoul()
       .then(() => loadSoul())
       .finally(() => setRegenerating(false));
   };

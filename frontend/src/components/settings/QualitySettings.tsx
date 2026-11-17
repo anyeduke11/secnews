@@ -11,7 +11,8 @@
  * 2026-09-22 IA 重构: Provider/密钥/场景模型面板迁出至 ModelsSettings (模型配置唯一入口), 本组件只留质量规则与 LLM 检测。
  */
 import { useState, useEffect } from 'react';
-import { getJSON } from '../../lib/api';
+import { getLlmStatus } from '../../api/settings';
+import { getQualityRules } from '../../api/settingsQuality';
 import { CustomRulesPanel } from './quality/CustomRulesPanel';
 import { LlmDetectionPanel, type LlmDetectionStatus } from './quality/LlmDetectionPanel';
 import { QualityRulesPanel } from './quality/QualityRulesPanel';
@@ -29,7 +30,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   // 拉 /api/quality/rules — 喂 QualityRulesPanel (llm_enabled/provider 是死字段, 不再消费)
   useEffect(() => {
     if (!open) return;
-    getJSON<{ rules?: QualityRule[] }>('/api/quality/rules')
+    getQualityRules<{ rules?: QualityRule[] }>()
       .then(data => {
         setRules((data.rules || []) as QualityRule[]);
       })
@@ -40,11 +41,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
   useEffect(() => {
     if (!open) return;
     setLlmLoading(true);
-    getJSON<{
-      gate_detect_available?: boolean;
-      effective_provider?: string | null;
-      key_source?: string;
-    }>('/api/llm/status')
+    getLlmStatus()
       .then(data => {
         setLlmStatus({
           gate_detect_available: data.gate_detect_available === true,

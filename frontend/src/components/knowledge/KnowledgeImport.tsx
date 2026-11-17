@@ -9,17 +9,16 @@
  */
 import { useState, useRef } from 'react';
 import { Icon } from '../Icon';
-import { getJSON, postJSON } from '../../lib/api';
+import {
+  getKnowledgeTask,
+  getObsidianConflicts,
+  importCuboxCards,
+  importCuboxDir,
+  openObsidianVault,
+  syncKnowledgeSource,
+} from '../../api/knowledge';
 import { BookmarkImport } from '../BookmarkImport';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const SYNC_URL = '/api/knowledge/sync?source=cubox';
-const OBSIDIAN_OPEN_URL = '/api/knowledge/obsidian/open';
-const OBSIDIAN_CONFLICTS_URL = '/api/knowledge/obsidian/conflicts';
-// C2 (DEV-0195): cubox CLI 导出 / 本地目录导入 (同步异常的人工兜底)
-const CUBOX_IMPORT_CARDS_URL = '/api/knowledge/cubox/import-cards';
-const CUBOX_IMPORT_DIR_URL = '/api/knowledge/cubox/import-dir';
 
 const PHASE_LABELS: Record<string, string> = {
   pending: '等待执行 ...',
@@ -74,12 +73,12 @@ export function KnowledgeImport() {
     }, 1000);
 
     // 非 2xx 由 apiFetch 抛错 (message 经 getApiErrorMessage 兜底), 网络异常走 catch
-    postJSON<{ task_id?: string }>(SYNC_URL, undefined)
+    syncKnowledgeSource('cubox')
       .then(data => {
         const taskId = data?.task_id;
         if (!taskId) throw new Error('no task_id returned');
         syncPollRef.current = setInterval(() => {
-          getJSON<{
+          getKnowledgeTask<{
             status?: string;
             error_message?: string;
             params?: {
@@ -88,7 +87,7 @@ export function KnowledgeImport() {
               total?: number;
               result?: { new?: number; merged?: number };
             };
-          }>(`/api/knowledge/tasks/${taskId}`)
+          }>(taskId)
             .then(task => {
               const params = task?.params || {};
               const phase = params?.phase || task?.status || 'pending';
@@ -131,7 +130,7 @@ export function KnowledgeImport() {
   };
 
   const handleOpenObsidian = () => {
-    postJSON<{ url?: string }>(OBSIDIAN_OPEN_URL, undefined)
+    openObsidianVault()
       .then(data => {
         if (data?.url) {
           window.location.href = data.url;
@@ -149,7 +148,7 @@ export function KnowledgeImport() {
       setConflicts(null);
       return;
     }
-    getJSON<{ conflicts?: Array<{ filename: string; size: number; mtime: number }> }>(OBSIDIAN_CONFLICTS_URL)
+    getObsidianConflicts()
       .then(data => {
         setConflicts(Array.isArray(data?.conflicts) ? data.conflicts : []);
       })
@@ -345,10 +344,7 @@ export function KnowledgeImport() {
                         return;
                       }
                       setCliBusy(true);
-                      const r = await postJSON<{ imported?: number; new?: number; merged?: number }>(
-                        CUBOX_IMPORT_CARDS_URL,
-                        { cards },
-                      );
+                      const r = await importCuboxCards({ cards });
                       flashToast({ kind: 'ok', msg: `已导入 ${r.imported ?? 0} 条（新建 ${r.new ?? 0} · 合并 ${r.merged ?? 0}）` });
                     } catch (err) {
                       flashToast({ kind: 'err', msg: `导入失败: ${err instanceof Error ? err.message : String(err)}` });
@@ -381,10 +377,7 @@ export function KnowledgeImport() {
                     if (!dirPath.trim() || dirBusy) return;
                     setDirBusy(true);
                     try {
-                      const r = await postJSON<{ imported?: number; cards?: number; new?: number; merged?: number }>(
-                        CUBOX_IMPORT_DIR_URL,
-                        { path: dirPath.trim() },
-                      );
+                      const r = await importCuboxDir({ path: dirPath.trim() });
                       flashToast({ kind: 'ok', msg: `目录导入完成: ${r.cards ?? 0} 卡 → 入库 ${r.imported ?? 0} 条（新建 ${r.new ?? 0} · 合并 ${r.merged ?? 0}）` });
                     } catch (err) {
                       flashToast({ kind: 'err', msg: `目录导入失败: ${err instanceof Error ? err.message : String(err)}` });

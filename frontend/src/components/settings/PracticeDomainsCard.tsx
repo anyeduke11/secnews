@@ -12,42 +12,18 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
-import { apiFetch } from '../../lib/api';
-
-interface InterestsResponse {
-  domains: string[];
-  valid_domains: string[];
-  labels: Record<string, string>;
-}
-
-interface RecommendationsResponse {
-  recommended: string[];
-  reasons: Record<string, string>;
-  cached_at: string | null;
-  note: string;
-}
-
-interface WeightEntry {
-  explicit_selected: number;
-  behavioral_score: number;
-  blended_score: number;
-  events_30d: number;
-  last_event_at: string | null;
-}
-
-interface DriftInfo {
-  detected: boolean;
-  behavioral_top: string[];
-  explicit_domains: string[];
-  overlap: number;
-  overlap_min: number;
-}
-
-interface WeightsResponse {
-  weights: Record<string, WeightEntry>;
-  domains: string[];
-  drift?: DriftInfo;
-}
+import {
+  getDomainRecommendations,
+  getInterestWeights,
+  getInterests,
+  patchInterests,
+  resetInterestBehavior,
+} from '../../api/settings';
+import type {
+  DomainRecommendationsResponse as RecommendationsResponse,
+  InterestDrift as DriftInfo,
+  InterestWeightEntry as WeightEntry,
+} from '../../api/settings';
 
 export function PracticeDomainsCard() {
   const { t } = useI18n();
@@ -62,7 +38,7 @@ export function PracticeDomainsCard() {
   const [savedFlash, setSavedFlash] = useState(false);
 
   const loadWeights = useCallback(() => {
-    apiFetch<WeightsResponse>('/api/interest/weights')
+    getInterestWeights()
       .then((w) => {
         setWeights(w.weights || {});
         setDrift(w.drift || null);
@@ -72,7 +48,7 @@ export function PracticeDomainsCard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    apiFetch<InterestsResponse>('/api/settings/interests', { signal: controller.signal })
+    getInterests({ signal: controller.signal })
       .then((data) => {
         setDomains(data.domains || []);
         setOptions((data.valid_domains || []).map((id) => ({ id, label: data.labels?.[id] || id })));
@@ -89,7 +65,7 @@ export function PracticeDomainsCard() {
   const [recsRefreshing, setRecsRefreshing] = useState(false);
   const loadRecs = useCallback((force: boolean) => {
     if (force) setRecsRefreshing(true);
-    apiFetch<RecommendationsResponse>(`/api/interest/domains/recommendations${force ? '?force=1' : ''}`)
+    getDomainRecommendations(force)
       .then((data) => setRecs(data))
       .catch(() => {})
       .finally(() => { if (force) setRecsRefreshing(false); });
@@ -103,11 +79,7 @@ export function PracticeDomainsCard() {
       setDomains(next);
       setSaving(true);
       setError(false);
-      apiFetch<{ status: string }>('/api/settings/interests', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domains: next }),
-      })
+      patchInterests(next)
         .then(() => {
           setSavedFlash(true);
           window.setTimeout(() => setSavedFlash(false), 1500);
@@ -125,7 +97,7 @@ export function PracticeDomainsCard() {
   const resetBehavior = useCallback(() => {
     if (saving) return;
     setSaving(true);
-    apiFetch('/api/interest/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    resetInterestBehavior()
       .then(() => loadWeights())
       .catch(() => setError(true))
       .finally(() => setSaving(false));

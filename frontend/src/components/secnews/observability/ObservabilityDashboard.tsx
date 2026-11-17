@@ -10,8 +10,8 @@
  * Batch ④ 落 alerts/thresholds 后, 顶部加告警横幅 + 阈值编辑折叠面板。
  */
 import { useEffect, useState } from 'react';
-import { getObservabilitySummary } from '../../../api/secnews';
-import { getJSON } from '../../../lib/api';
+import { getObservabilityRecent, getObservabilitySummary } from '../../../api/secnews';
+import type { RecentEvent } from '../../../api/secnews';
 import { useI18n } from '../../../contexts/I18nContext';
 
 interface SummaryResp {
@@ -28,16 +28,6 @@ interface SummaryResp {
     p95_ms: number;
     max_ms: number;
   }>;
-}
-
-interface RecentEvent {
-  trace_id: string;
-  method: string;
-  path_template: string;
-  status: number;
-  duration_ms: number;
-  error: string | null;
-  occurred_at: string;
 }
 
 const REFRESH_MS = 5_000;
@@ -59,7 +49,7 @@ export function ObservabilityDashboard() {
         // allSettled: 单端点失败不再拖垮另一端点已取到的数据
         const [s, r] = await Promise.allSettled([
           getObservabilitySummary<SummaryResp>(),
-          getJSON<{ items?: RecentEvent[] }>('/api/observability/recent?limit=20'),
+          getObservabilityRecent(20),
         ]);
         if (cancelled) return;
         if (s.status === 'fulfilled') setSummary(s.value);

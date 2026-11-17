@@ -1,5 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiFetch, getJSON } from '../lib/api';
+import {
+  createSecret,
+  deleteSecret,
+  exportSecretsBlob,
+  getSecretOAuthConfig,
+  getSecrets,
+  getSecretsStatus,
+  importSecretsB64,
+  lockSecrets,
+  revealSecret,
+  setupSecretsMasterKey,
+  testSecret,
+  unlockSecrets,
+  unlockSecretsWithOAuth,
+  updateSecret,
+} from '../api/settings';
 import {
   SecretItem,
   SecretListResponse,
@@ -55,6 +70,8 @@ export interface OAuthConfigResponse {
  *  - reveal (在 unlock 状态下拿到明文)
  *  - test connection (Phase 41 Q4)
  *  - import / export (Phase 41 Q3, 加密 JSON)
+ *
+ * 端点收敛到 api/settings.ts (密钥保险箱唯一来源), 保持既有 URL / method / body。
  */
 export function useSecrets(): UseSecretsReturn {
   const [status, setStatus] = useState<SecretStatusResponse | null>(null);
@@ -67,7 +84,7 @@ export function useSecrets(): UseSecretsReturn {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const data = await getJSON<SecretStatusResponse>('/api/secrets/status');
+      const data = await getSecretsStatus<SecretStatusResponse>();
       setStatus(data);
     } catch {
       // 静默
@@ -81,7 +98,7 @@ export function useSecrets(): UseSecretsReturn {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<SecretListResponse>('/api/secrets', {
+      const data = await getSecrets<SecretListResponse>(undefined, {
         signal: controller.signal,
       });
       setItems(data.items || []);
@@ -122,10 +139,7 @@ export function useSecrets(): UseSecretsReturn {
 
   const setupMasterKey = useCallback(
     async (masterKey: string): Promise<void> => {
-      await apiFetch('/api/secrets/setup', {
-        method: 'POST',
-        body: JSON.stringify({ master_key: masterKey, role: 'admin' }),
-      });
+      await setupSecretsMasterKey(masterKey);
       await refreshStatus();
     },
     [refreshStatus]
@@ -133,10 +147,7 @@ export function useSecrets(): UseSecretsReturn {
 
   const unlock = useCallback(
     async (masterKey: string): Promise<SecretUnlockResponse> => {
-      const data = await apiFetch<SecretUnlockResponse>('/api/secrets/unlock', {
-        method: 'POST',
-        body: JSON.stringify({ master_key: masterKey, role: 'admin' }),
-      });
+      const data = await unlockSecrets<SecretUnlockResponse>(masterKey);
       await refreshStatus();
       await refreshList();
       return data;
@@ -145,17 +156,14 @@ export function useSecrets(): UseSecretsReturn {
   );
 
   const lock = useCallback(async (): Promise<void> => {
-    await apiFetch('/api/secrets/lock', { method: 'POST' });
+    await lockSecrets();
     await refreshStatus();
     await refreshList();
   }, [refreshStatus, refreshList]);
 
   const add = useCallback(
     async (req: SecretCreateRequest): Promise<SecretItem> => {
-      const data = await apiFetch<{ item: SecretItem }>('/api/secrets', {
-        method: 'POST',
-        body: JSON.stringify(req),
-      });
+      const data = await createSecret<SecretItem, SecretCreateRequest>(req);
       const item: SecretItem = data.item;
       setItems(prev => [item, ...prev]);
       setTotal(prev => prev + 1);
@@ -166,10 +174,7 @@ export function useSecrets(): UseSecretsReturn {
 
   const update = useCallback(
     async (id: number, req: SecretUpdateRequest): Promise<SecretItem> => {
-      const data = await apiFetch<{ item: SecretItem }>(`/api/secrets/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(req),
-      });
+      const data = await updateSecret<SecretItem, SecretUpdateRequest>(id, req);
       const item: SecretItem = data.item;
       setItems(prev => prev.map(p => (p.id === id ? item : p)));
       return item;
@@ -180,7 +185,7 @@ export function useSecrets(): UseSecretsReturn {
   const remove = useCallback(
     async (id: number): Promise<void> => {
       // DELETE 返回 204, apiFetch 对 204 直接返回 undefined
-      await apiFetch(`/api/secrets/${id}`, { method: 'DELETE' });
+      await deleteSecret(id);
       setItems(prev => prev.filter(p => p.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
     },
@@ -189,17 +194,14 @@ export function useSecrets(): UseSecretsReturn {
 
   const reveal = useCallback(
     async (id: number, masterKey: string): Promise<SecretRevealResponse> => {
-      return apiFetch<SecretRevealResponse>(`/api/secrets/${id}/reveal`, {
-        method: 'POST',
-        body: JSON.stringify({ master_key: masterKey }),
-      });
+      return revealSecret<SecretRevealResponse>(id, masterKey);
     },
     []
   );
 
   const testConnection = useCallback(
     async (id: number): Promise<SecretTestResponse> => {
-      return apiFetch<SecretTestResponse>(`/api/secrets/${id}/test`, { method: 'POST' });
+      return testSecret<SecretTestResponse>(id);
     },
     []
   );
@@ -210,8 +212,7 @@ export function useSecrets(): UseSecretsReturn {
       // 后端强制走 query 参数, 但 master_key 不能放 URL (易被日志记录) —
       // 改成 POST + body 模式更安全; 不过这里 API 已经写好了 GET + query,
       // 所以走 GET 接受这个 trade-off (短 TTL, 浏览器内存, 不会进 server log)
-      const url = `/api/secrets/export?master_key=${encodeURIComponent(masterKey)}`;
-      return apiFetch<Blob>(url, { parse: 'blob' });
+      return exportSecretsBlob(masterKey);
     },
     []
   );
@@ -228,30 +229,19 @@ export function useSecrets(): UseSecretsReturn {
       }
       const base64 = btoa(binary);
 
-      return apiFetch<SecretImportResponse>('/api/secrets/import', {
-        method: 'POST',
-        body: JSON.stringify({ payload_b64: base64, master_key: masterKey }),
-      });
+      return importSecretsB64<SecretImportResponse>(base64, masterKey);
     },
     []
   );
 
   // D1 (Batch ⑧): OAuth 解锁 — 前端 OAuth 授权后拿 access_token 调此接口
   const getOAuthConfig = useCallback(async (): Promise<OAuthConfigResponse> => {
-    return apiFetch<OAuthConfigResponse>('/api/secrets/oauth-config', {
-      method: 'GET',
-    });
+    return getSecretOAuthConfig<OAuthConfigResponse>();
   }, []);
 
   const unlockWithOAuth = useCallback(
     async (token: string, role: string = 'admin'): Promise<SecretUnlockResponse> => {
-      const data = await apiFetch<SecretUnlockResponse>(
-        '/api/secrets/unlock-with-oauth',
-        {
-          method: 'POST',
-          body: JSON.stringify({ token, role }),
-        }
-      );
+      const data = await unlockSecretsWithOAuth<SecretUnlockResponse>(token, role);
       await refreshStatus();
       await refreshList();
       return data;

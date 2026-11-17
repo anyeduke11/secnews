@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
-import { getJSON } from '../../lib/api';
+import { getSkillRegistrySummary } from '../../api/settings';
 import { SkillSummary } from '../../types/skill';
 
 interface DashboardProps {
@@ -75,9 +75,7 @@ export function Dashboard({ onBack }: DashboardProps) {
     let alive = true;
     (async () => {
       try {
-        const data = await getJSON<{ skills: SkillSummary[] }>(
-          '/api/skill-registry'
-        );
+        const data = await getSkillRegistrySummary<SkillSummary>();
         if (alive) setSkills(data.skills || []);
       } catch (e) {
         if (alive) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getJSON } from '../lib/api';
+import { searchKnowledge } from '../api/knowledge';
 
 interface SearchResult {
   id: string;
@@ -37,10 +37,7 @@ export default function KnowledgeSearchBar({ onSelect }: KnowledgeSearchBarProps
       return;
     }
     setLoading(true);
-    const url = new URL('/api/knowledge/search', window.location.origin);
-    url.searchParams.set('q', q.trim());
-    url.searchParams.set('limit', '20');
-    getJSON<{ results?: SearchResult[] }>(url.toString())
+    searchKnowledge<{ results?: SearchResult[] }>(q.trim(), 20)
       .then(data => {
         setResults(Array.isArray(data?.results) ? data.results : []);
         setShowResults(true);

@@ -5,31 +5,12 @@
  * PUT /api/observability/thresholds (整块替换); 校验失败显示 400 错误.
  */
 import { useEffect, useState } from 'react';
-import { getJSON, apiFetch } from '../../../lib/api';
+import {
+  getObservabilityThresholds,
+  saveObservabilityThresholds,
+} from '../../../api/secnews';
+import type { MetricSpec, Thresholds } from '../../../api/secnews';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const THRESHOLDS_URL = '/api/observability/thresholds';
-
-interface MetricSpec {
-  warn?: number;
-  critical?: number;
-  window_minutes?: number;
-}
-
-interface Thresholds {
-  api?: Record<string, MetricSpec>;
-  llm?: Record<string, MetricSpec>;
-  job?: Record<string, MetricSpec>;
-  audit?: Record<string, MetricSpec>;
-  alerts?: { channels?: string[]; cooldown_minutes?: number };
-}
-
-interface ThresholdsResp {
-  thresholds: Thresholds;
-  defaults: Thresholds;
-  as_of: string;
-}
 
 const CATEGORIES: { key: keyof Thresholds; label: string; metrics: { id: string; label: string }[] }[] = [
   { key: 'api', label: 'API', metrics: [
@@ -57,7 +38,7 @@ export function ThresholdEditor() {
 
   useEffect(() => {
     // 非 2xx 由 apiFetch 抛错 → 与原 `r.ok ? json : null` 同为静默不设 rules
-    getJSON<ThresholdsResp>(THRESHOLDS_URL)
+    getObservabilityThresholds()
       .then((d) => {
         if (dead.current) return;
         setRules(d.thresholds);
@@ -90,10 +71,7 @@ export function ThresholdEditor() {
     setMessage(null);
     try {
       // 校验失败 (400) 由 apiFetch 抛 ApiError, message 经 getApiErrorMessage 友好化
-      await apiFetch(THRESHOLDS_URL, {
-        method: 'PUT',
-        body: JSON.stringify({ thresholds: rules }),
-      });
+      await saveObservabilityThresholds({ thresholds: rules });
       if (dead.current) return;
       setMessage('已保存');
     } catch (e) {

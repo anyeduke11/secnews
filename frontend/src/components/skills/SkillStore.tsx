@@ -18,7 +18,7 @@
  */
 import { useMemo, useState } from 'react';
 import { CATEGORY_LABELS, SKILL_TYPE_LABELS, SkillCategory, SkillTypeCode, SkillSummary } from '../../types/skill';
-import { postJSON } from '../../lib/api';
+import { runSkill } from '../../api/skills';
 import { useSkillRegistry, useSkillToggle } from '../../hooks/useSkillRegistry';
 import { SkillCard } from './SkillCard';
 
@@ -96,10 +96,7 @@ export function SkillStore({
     if (runningId) return;
     setRunningId(skill.id);
     try {
-      const resp = await postJSON<{ ticket_id?: string }>(
-        `/api/skill-registry/${encodeURIComponent(skill.id)}/run`,
-        { inputs: null }
-      );
+      const resp = await runSkill(skill.id);
       setNotice({
         kind: 'ok',
         text: resp?.ticket_id

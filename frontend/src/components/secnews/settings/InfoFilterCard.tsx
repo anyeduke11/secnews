@@ -12,34 +12,17 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../../contexts/I18nContext';
-import { ApiError, getJSON, postJSON, apiFetch } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
+import {
+  createInfoFilterRule,
+  deleteInfoFilterRule,
+  getInfoFilterGate,
+  listInfoFilterRules,
+  patchInfoFilterRule,
+  previewInfoFilter,
+} from '../../../api/secnews';
+import type { FilterRule, GateStatus, PreviewResult } from '../../../api/secnews';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const GATE_URL = '/api/info-filter/gate';
-const RULES_URL = '/api/info-filter/rules';
-const PREVIEW_URL = '/api/info-filter/preview';
-
-interface FilterRule {
-  id: number;
-  rule_type: 'allow' | 'deny';
-  match_kind: 'category' | 'source_name' | 'source_id' | 'tag';
-  match_value: string;
-  enabled: number;
-  note: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PreviewResult {
-  verdict: 'allow' | 'deny' | 'neutral';
-  matched_rule: FilterRule | null;
-}
-
-interface GateStatus {
-  extension: string;
-  is_enabled: boolean;
-}
 
 const MATCH_KINDS = ['source_name', 'source_id', 'category', 'tag'] as const;
 
@@ -69,7 +52,7 @@ export function InfoFilterCard() {
     try {
       let gate: GateStatus;
       try {
-        gate = await getJSON<GateStatus>(GATE_URL);
+        gate = await getInfoFilterGate();
       } catch (e) {
         if (dead.current) return;
         // 404 = feature gate 关闭 (原 r.status === 404 分支)
@@ -87,7 +70,7 @@ export function InfoFilterCard() {
       }
       setGateOff(false);
       try {
-        const d = await getJSON<{ rules?: FilterRule[] }>(RULES_URL);
+        const d = await listInfoFilterRules();
         if (dead.current) return;
         setRules(d.rules || []);
       } catch {
@@ -109,7 +92,7 @@ export function InfoFilterCard() {
     setOpMsg(null);
     try {
       // 非 2xx 由 apiFetch 抛 ApiError (message 经 getApiErrorMessage/{error} 兜底)
-      await postJSON(RULES_URL, {
+      await createInfoFilterRule({
         rule_type: newRuleType,
         match_kind: newMatchKind,
         match_value: newMatchValue.trim(),
@@ -133,10 +116,7 @@ export function InfoFilterCard() {
 
   const toggleRule = async (rule: FilterRule) => {
     try {
-      await apiFetch(`${RULES_URL}/${rule.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ enabled: rule.enabled ? 0 : 1 }),
-      });
+      await patchInfoFilterRule(rule.id, { enabled: rule.enabled ? 0 : 1 });
       await refresh();
     } catch {
       if (dead.current) return;
@@ -147,7 +127,7 @@ export function InfoFilterCard() {
   const deleteRule = async (id: number) => {
     if (!window.confirm(t('info_filter.delete_confirm'))) return;
     try {
-      await apiFetch(`${RULES_URL}/${id}`, { method: 'DELETE' });
+      await deleteInfoFilterRule(id);
       if (dead.current) return;
       setOpMsg({ kind: 'ok', text: t('info_filter.deleted') });
       await refresh();
@@ -160,7 +140,7 @@ export function InfoFilterCard() {
   const runPreview = async () => {
     if (!previewName.trim()) return;
     try {
-      const d = await postJSON<PreviewResult>(PREVIEW_URL, {
+      const d = await previewInfoFilter({
         category: previewCat.trim(),
         source_name: previewName.trim(),
       });

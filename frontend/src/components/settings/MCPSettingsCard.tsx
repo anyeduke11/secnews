@@ -15,16 +15,10 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch, getJSON } from '../../lib/api';
+import { getMCPConfig, getMCPStatus, getMCPTools, putMCPEnabled } from '../../api/settings';
+import type { MCPTool } from '../../api/settings';
 import { Icon } from '../Icon';
 import '../settings/settings-shell.css';
-
-interface MCPTool {
-  name: string;
-  category: 'read' | 'write';
-  description: string;
-  enabled: boolean;
-}
 
 interface MCPSettingsCardProps {
   open: boolean;
@@ -49,11 +43,9 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
       try {
         // apiFetch 统一封装: 非 ok 抛错 → 失败的一路置 null 跳过 (对应原 res.ok 分支检查)
         const [statusData, toolsData, configData] = await Promise.all([
-          getJSON<{ enabled?: boolean }>('/api/mcp/status').catch(() => null),
-          getJSON<{ tools?: MCPTool[] }>('/api/mcp/tools').catch(() => null),
-          getJSON<{ stdio?: { mcpServers?: Record<string, unknown> }; sse?: { mcpServers?: Record<string, { url?: string }> } }>(
-            '/api/settings/mcp/config',
-          ).catch(() => null),
+          getMCPStatus().catch(() => null),
+          getMCPTools().catch(() => null),
+          getMCPConfig().catch(() => null),
         ]);
         if (cancelled) return;
         if (statusData) {
@@ -86,10 +78,7 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
     async (next: boolean) => {
       setLoading(true);
       try {
-        await apiFetch('/api/settings/mcp/enabled', {
-          method: 'PUT',
-          body: JSON.stringify({ enabled: next }),
-        });
+        await putMCPEnabled(next);
         setEnabled(next);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);

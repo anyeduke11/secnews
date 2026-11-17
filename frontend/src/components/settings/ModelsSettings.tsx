@@ -7,18 +7,11 @@
  * 数据流: 本组件拉 /api/llm/status 后以 props 喂 ProviderPanel/SecretsPanel。
  */
 import { useEffect, useState } from 'react';
-import { getJSON } from '../../lib/api';
+import { getLlmStatus } from '../../api/settings';
 import { ProviderPanel } from './quality/ProviderPanel';
 import { SecretsPanel } from './quality/SecretsPanel';
 import { ModelPoolPanel } from './ModelPoolPanel';
 import { ScenarioModelsPanel } from './ScenarioModelsPanel';
-
-interface LLMStatus {
-  providers?: Record<string, { status?: string; model?: string }>;
-  effective_provider?: unknown;
-  config_source?: unknown;
-  key_source?: unknown;
-}
 
 export function ModelsSettings() {
   const [providerOptions, setProviderOptions] = useState<string[]>([]);
@@ -28,7 +21,7 @@ export function ModelsSettings() {
 
   useEffect(() => {
     let dead = false;
-    getJSON<LLMStatus>('/api/llm/status')
+    getLlmStatus()
       .then(data => {
         if (dead) return;
         const ps = data?.providers ? Object.keys(data.providers) : [];

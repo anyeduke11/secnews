@@ -4,6 +4,38 @@
 
 **版本性质**: v0.8.8 是重构版 (零新业务能力), 本版是**主干流量版** —— 补齐 v0.8.6 遗留的执行链六断点, 让"资讯→Signal→Case→Claim→Run→Artifact→Knowledge"全链真实流动。P0~P6 七阶段 18 commit 全交付。版本族文档 = `docs/v0.8.9/V0.8.9_PRD.md` + `V0.8.9_IMPLEMENTATION_PLAN.md`。
 
+### 前端重构 V1 · B0 基线 (DEV-0391, 2026-11-17)
+- owner 裁决启动前端全量重构（全量重写 / 桌面端口径 / 允许完全重新设计视觉），实施契约 = `docs/FRONTEND_REWRITE_V1_PLAN.md`；纪律 = 绞杀者模式，任一 commit 点可构建/可部署/可回滚，壳数量恒为 1
+- **B0 只建基线、零业务代码变更**：`vite.config.ts` 增 `test.coverage`（v8，**不设 thresholds** —— B1 才回填，B0 设了首跑即失败）+ devDependency `@vitest/coverage-v8`
+- 覆盖率基线：Lines **57.05%** / Statements **57.05%** / Functions **57.42%** / Branches **76.39%**（全量用例通过）
+- 首屏 `/` JS gzip 基线：**92,998 B**（`index` 27,119 + `vendor-react` 53,816 + `SentinelHomePage` 12,063）；全量 JS 549,589 B / 69 chunk
+- **显式缺口**：LCP 基线未采集（需 `vite preview` + Playwright + 3 次中位数，B4 首个重写页落地前必须补齐）；缺失期间 B6「性能提升 ≥20%」只能以 JS gzip 单指标判定并须声明降级
+- 存档：`docs/audit/FRONTEND_REWRITE_BASELINE_2026-11-17.md`（唯一基线，后续批次只与此比较）
+
+### 前端重构 V1 · B1 设计系统基座 (DEV-0392, 2026-11-17)
+- **tokens.css 单一源**：全局 5 个 `:root` 块 + 三态主题 alias + 正文排版 + 断点媒体查询（379 行）从 `index.css` 逐字切出，`index.css` 改为顶部 `@import`（1071 → ~702 行）；`^:root` 定义全仓只剩 `tokens/tokens.css` + `styles/breakpoints.css`，重复定义归零
+- **L1 primitives 八件**（`frontend/src/primitives/`）：`StatusBadge` / `Panel` / `DataTable` / `AsyncState` / `PageHeader` / `Toolbar` / `SplitPane` / `Inspector`，各带 colocated test，合计 32 tests；无业务依赖，未接入任何页面
+- **coverage.thresholds 回填**：lines/statements 57.05 · functions 57.42 · branches 76.39（= B0 全局值）；实测 lines 57.52 / statements 57.52 / functions 57.70 / branches 76.62，全部高于基线
+- **踩坑固化**：`@import` 必须位于 `@tailwind` 之前 —— 否则 Vite 静默丢弃整个 token 文件（构建 exit 0 无警告，产物中 `--bp-sm`/`--mint:`/`color-scheme:light` 全部消失、CSS gzip 假性下降 1,976 B）
+- **体积**：首屏 JS gzip 93,010 B（基线 92,998，+12 B）；首屏 CSS gzip 15,323 B（基线 15,146，+177 B 来自注释）；全量 JS 549,592 B / 69 chunk
+- **显式延后**：`EmptyState`/`Toast`/`ErrorBoundary`/`Icon` 迁入 `primitives/`（77 处 import 引用）移至 B2/B6，理由已记入 DEV-0392
+
+### 前端重构 V1 · B2 壳拆分与 Toast 根化 (DEV-0393, 2026-11-17)
+- **壳原地拆入 `frontend/src/shell/`（6 文件）**：`types.ts`（壳类型）· `menuOf.ts`（四菜单归属 + bandnav 定义与收起持久化）· `pipe.tsx`（心跳条数据层）· `PipeBar.tsx`（印务条）· `MenuNav.tsx`（masthead + 版面条 + 主题三态按钮）· `AppShell.tsx`（组装层）；五层架构 L2 位落位，壳数量仍为 1
+- **兼容桥**：`components/sentinel/SentinelShell.tsx` 由实现降为 9 行 re-export（对外 5 类符号契约不变），6 处旧 import 保持可用，B6 全量改指后删除
+- **全局 Toast 提到根**：`ToastProvider` 上移至 `App.tsx`，`PageLayout`/`SentinelLayout` 与 `/` 路由级包裹撤销（DEV-0314 临时补丁随根化退出），全站单一 Provider
+- **守卫改造**：`nav4_shell.test.tsx` 断言源改指 `src/shell/*` 六文件聚合（断言条目与强度不变），新增「Toast 只在 App 根」守卫；运行时行为（tab 高亮 / chips 顺序 / gate 过滤 / 收起持久化 / 三态主题）由 `SentinelShell.test.tsx` 承担
+- **退出条件**：① nav4 守卫 61 tests 绿 ② 三态主题 light→dark→paper 运行时用例通过（`<html data-theme>` + `localStorage`）③ 旧页 `--sn-*` 别名 191 处仍生效
+- **门禁与体积**：`tsc` exit 0；**107 文件 / 751 tests 全通过**，覆盖率 lines 57.54 / statements 57.54 / functions 57.85 / branches 76.62（≥ B0 基线）；`vite build` exit 0，首屏 JS gzip **92,835 B**（基线 92,998，−163 B）、首屏 CSS gzip 16,567 B（+60 B）、全量 JS 548,357 B / 69 chunk（−1,232 B）
+- **留痕**：验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §3；4 项显式缺口（LCP 基线 / PRD 四向映射 / 四原子迁 primitives / 兼容桥删除）登记于该报告 §4
+
+### 前端重构 V1 · B3 数据层收敛 (DEV-0394, 2026-11-17)
+- **`hooks/useQuery` 查询工厂**：`useSyncExternalStore` + 模块级 Map —— 同 key 去重 / 前缀 `invalidate` / 四态 `{data,state,error,refetch}` / `bindInvalidateOn`；10 tests
+- **域 API 模块**：新建 `api/settings.ts`(58) / `settingsQuality.ts`(10) / `skills.ts`(10) / `action.ts`(19) / `security.ts`(7) / `report.ts`(5) / `pipeline.ts`(1)，扩充 `knowledge` / `secnews` / `codegarden` / `shared`；约 56 组件 / 16 hook 改经域模块取数（URL/method/body 原样搬运，非 2xx 仍抛 `ApiError`）
+- **退出条件**：gate 直调 grep **0 行**（含 B2 遗留 `shell/pipe.tsx`）；新增 `domain_endpoints.test.ts` 9 tests 锁 URL + query 拼接
+- **门禁与体积**：`tsc` exit 0；**109 文件 / 770 tests 全通过**，覆盖率 statements 58.03 / branches 77.13 / functions 58.16 / lines 58.03（≥ B0）；`vite build` exit 0，首屏 JS gzip **93,517 B**（基线 92,998，**+519 B / +0.56%** — 本批唯一负向项，域模块被壳常驻 hook 静态引用）、首屏 CSS 16,684 B（+177 B）、全量 JS 552,383 B / 73 chunk
+- **留痕**：验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §5；缺口 G5（`api/settings.ts` 847 行待拆）/ G6（`useQuery` 待接线）登记于 §4；契约偏差 D1–D5 见 §5.5
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

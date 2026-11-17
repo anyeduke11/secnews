@@ -8,7 +8,8 @@
  *       chip 徽章显示 config_source (env > settings.kv > router > yaml) 三档
  */
 import { useState, useCallback } from 'react';
-import { getJSON, postJSON } from '../../../lib/api';
+import { getLlmStatus } from '../../../api/settings';
+import { postLlmProvider } from '../../../api/settingsQuality';
 
 export interface ProviderPanelProps {
   providerOptions: string[];
@@ -32,17 +33,11 @@ export function ProviderPanel({
     setSaving(true);
     setMsg(null);
     try {
-      const data = await postJSON<{ status?: string; old_provider?: string; new_provider?: string; message?: string }>(
-        '/api/settings/llm-provider',
-        { provider: defaultProvider, actor: 'web' },
-      );
+      const data = await postLlmProvider(defaultProvider);
       if (data.status === 'ok') {
         setMsg({ type: 'ok', text: `已切换: ${data.old_provider ?? '(无)'} → ${data.new_provider}` });
         // 重拉确认
-        const d2 = await getJSON<{
-          effective_provider?: unknown;
-          config_source?: unknown;
-        }>('/api/llm/status');
+        const d2 = await getLlmStatus();
         if (typeof d2.effective_provider === 'string') onChange(d2.effective_provider);
         if (typeof d2.config_source === 'string') onSource(d2.config_source);
       } else {

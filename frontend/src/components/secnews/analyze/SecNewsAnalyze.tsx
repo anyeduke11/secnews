@@ -6,28 +6,14 @@
  * 按钮禁用并说明原因 (feature flag 由 /api/settings/features 派生)。
  */
 import { useState } from 'react';
-import { ApiError, postJSON } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
+import {
+  evaluateContent,
+  importKnowledgeUrl,
+  postDshTask,
+} from '../../../api/secnews';
+import type { DshTaskResult, EvalResult, ImportResult } from '../../../api/secnews';
 import { useFeatureFlags } from '../../../hooks/useFeatureFlags';
-
-interface ImportResult {
-  id: string;
-  title: string;
-  url: string;
-}
-
-interface DshTaskResult {
-  ok: boolean;
-  agent: string;
-  result?: number | string;
-  error?: string;
-  session_id?: string;
-}
-
-interface EvalResult {
-  score: number;
-  reasoning?: string;
-  error?: string;
-}
 
 export function SecNewsAnalyze() {
   const flags = useFeatureFlags();
@@ -50,7 +36,7 @@ export function SecNewsAnalyze() {
     setImportResult(null);
     setImportError(null);
     try {
-      const d = await postJSON<ImportResult>('/api/kl/import/url', { url: url.trim() });
+      const d = await importKnowledgeUrl(url.trim());
       setImportResult(d);
     } catch (e) {
       setImportError(e instanceof ApiError
@@ -72,7 +58,7 @@ export function SecNewsAnalyze() {
       // dsh gate 关闭时不发请求, 直接呈现禁用原因
       if (flags.dsh) {
         try {
-          setDshResult(await postJSON<DshTaskResult>('/api/dsh/task', {
+          setDshResult(await postDshTask({
             task_type: 'classify',
             payload: { content: analyzeInput },
           }));
@@ -89,10 +75,7 @@ export function SecNewsAnalyze() {
 
       let d: EvalResult & { ok?: boolean };
       try {
-        d = await postJSON('/api/llm/evaluate', {
-          content: analyzeInput,
-          scenario: 'deep',
-        });
+        d = await evaluateContent(analyzeInput, 'deep');
       } catch (e) {
         if (e instanceof ApiError) {
           setEvalError(`LLM 评测失败 (${e.status})`);

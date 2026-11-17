@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getJSON } from '../../lib/api';
+import { getKnowledgeHubStats } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
@@ -47,7 +47,7 @@ export function KnowledgeHubPage() {
 
   const load = useCallback(() => {
     setError(null);
-    getJSON<HubStats>('/api/knowledge/hub-stats')
+    getKnowledgeHubStats<HubStats>()
       .then((s) => { if (dead.current) return; setStats(s); })
       .catch(e => {
         if (dead.current) return;

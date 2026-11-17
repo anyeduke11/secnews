@@ -2,12 +2,17 @@
  * useSkillRegistry / useSkillToggle — v0.8 Phase A 技能注册表 hooks
  *
  * 数据源: /api/skill-registry/v1 (v1.0.2 F4a 迁移至 v1 端点, 返回 {version, items, total})。
- * 统一走 lib/api 的 apiFetch/postJSON (仓库 P0 约定, 禁裸 fetch):
- *   - apiFetch 已把 {detail:{message,...}} 解析为 Error.message, hook 只做兜底文案
+ * 统一走 api/settings.ts 的强类型函数 (内部为 lib/api 薄封装, 禁裸 fetch):
+ *   - lib/api 已把 {detail:{message,...}} 解析为 Error.message, hook 只做兜底文案
  *   - POST enable/disable 成功后由调用方决定是否 refresh (hook 不自动拉列表)
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, postJSON } from '../lib/api';
+import {
+  getSkillRegistry,
+  getSkillRegistryDetail,
+  listSkillRegistryRuns,
+  toggleSkillRegistry,
+} from '../api/settings';
 import { SkillDetail, SkillRun, SkillSummary } from '../types/skill';
 
 export interface UseSkillRegistryReturn {
@@ -31,11 +36,7 @@ export function useSkillRegistry(category?: string): UseSkillRegistryReturn {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams();
-    if (category) params.set('category', category);
-    const qs = params.toString();
-    const path = `/api/skill-registry/v1${qs ? `?${qs}` : ''}`;
-    apiFetch<{ version: string; items: SkillSummary[]; total: number }>(path, { skipLoading: true })
+    getSkillRegistry<SkillSummary>(category, { skipLoading: true })
       .then(data => {
         if (cancelled) return;
         setSkills(Array.isArray(data?.items) ? data.items : []);
@@ -78,7 +79,7 @@ export function useSkillDetail(skillId: string): UseSkillDetailReturn {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch<SkillDetail>(`/api/skill-registry/${encodeURIComponent(skillId)}`, { skipLoading: true })
+    getSkillRegistryDetail<SkillDetail>(skillId, { skipLoading: true })
       .then(data => {
         if (cancelled) return;
         setDetail(data);
@@ -120,7 +121,7 @@ export function useSkillRuns(skillId: string): UseSkillRunsReturn {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch<SkillRun[]>(`/api/skill-registry/${encodeURIComponent(skillId)}/runs?limit=20`, {
+    listSkillRegistryRuns<SkillRun>(skillId, 20, {
       skipLoading: true,
     })
       .then(data => {
@@ -160,10 +161,7 @@ export function useSkillToggle(): UseSkillToggleReturn {
   const toggle = useCallback(async (skillId: string, next: boolean) => {
     setBusy(true);
     try {
-      await postJSON<{ enabled: boolean }>(
-        `/api/skill-registry/${encodeURIComponent(skillId)}/${next ? 'enable' : 'disable'}`,
-        {}
-      );
+      await toggleSkillRegistry(skillId, next);
     } finally {
       setBusy(false);
     }

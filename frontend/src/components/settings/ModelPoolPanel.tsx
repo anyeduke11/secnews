@@ -9,31 +9,15 @@
  * pi 在 agent_channels 单列 — 本面板模型表格永不出现 pi。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, getJSON, postJSON } from '../../lib/api';
-
-interface PoolPlatform {
-  name: string;
-  label: string;
-  base_url: string;
-  key_env: string;
-  configured: boolean;
-  key_source: string;
-  available: boolean | null;
-  models: string[];
-  model_count: number;
-  latency_ms: number | null;
-  error: string | null;
-}
-
-interface PoolSnapshot {
-  platforms: PoolPlatform[];
-  agent_channels: Array<{ name: string; kind: string; desc: string }>;
-  probed: boolean;
-}
-
-interface SecretsStatus {
-  unlocked?: boolean;
-}
+import {
+  createSecret,
+  getLlmPool,
+  getLlmPoolPlatform,
+  getLlmPoolRouting,
+  getSecretsStatus,
+  putLlmPoolRoute,
+} from '../../api/settings';
+import type { PoolPlatform, PoolRouting, PoolSnapshot } from '../../api/settings';
 
 function PlatformChip({ p }: { p: PoolPlatform }) {
   if (!p.configured) {
@@ -57,25 +41,20 @@ const TIER_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 't3_chunk_summary', label: 'FLASH 档 (摘要/轻量高频)' },
 ];
 
-interface CurrentRouting {
-  routing?: Record<string, { label: string; provider: string | null; model: string | null }>;
-  error?: string | null;
-}
-
 export function ModelPoolPanel() {
   const [snap, setSnap] = useState<PoolSnapshot | null>(null);
   const [probing, setProbing] = useState(false);
   const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
   const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
   const [msg, setMsg] = useState<{ name: string; type: 'ok' | 'warn' | 'error'; text: string } | null>(null);
-  const [routing, setRouting] = useState<CurrentRouting['routing']>({});
+  const [routing, setRouting] = useState<PoolRouting['routing']>({});
   const [routeOpen, setRouteOpen] = useState<Record<string, boolean>>({});
   const [routeDrafts, setRouteDrafts] = useState<Record<string, { tier: string; model: string }>>({});
   const [writing, setWriting] = useState<string | null>(null);
 
   const loadRouting = useCallback(async () => {
     try {
-      const d = await getJSON<CurrentRouting>('/api/llm/pool/routing');
+      const d = await getLlmPoolRouting();
       setRouting(d.routing ?? {});
     } catch {
       /* 路由展示失败不阻塞池面板 */
@@ -85,7 +64,7 @@ export function ModelPoolPanel() {
   const load = useCallback(async (probe: boolean) => {
     setProbing(probe);
     try {
-      const d = await getJSON<PoolSnapshot>(`/api/llm/pool${probe ? '?probe=1' : ''}`);
+      const d = await getLlmPool(probe);
       setSnap(d ?? null);
     } catch {
       setSnap(null);
@@ -97,8 +76,8 @@ export function ModelPoolPanel() {
   useEffect(() => {
     load(false);
     loadRouting();
-    getJSON<SecretsStatus>('/api/secrets/status')
-      .then((d: SecretsStatus) => setVaultUnlocked(Boolean(d?.unlocked)))
+    getSecretsStatus()
+      .then(d => setVaultUnlocked(Boolean(d?.unlocked)))
       .catch(() => setVaultUnlocked(null));
   }, [load, loadRouting]);
 
@@ -111,12 +90,9 @@ export function ModelPoolPanel() {
     }
     try {
       // 与 SecretsPanel 同一保险箱通道 (provider=<平台名> 即 pool 密钥解析键)
-      await apiFetch('/api/secrets', {
-        method: 'POST',
-        body: JSON.stringify({
-          provider: p.name, name: p.label, model: '', base_url: p.base_url,
-          api_key: key, master_key: '',
-        }),
+      await createSecret({
+        provider: p.name, name: p.label, model: '', base_url: p.base_url,
+        api_key: key, master_key: '',
       });
       setKeyDrafts(prev => ({ ...prev, [p.name]: '' }));
     } catch (e) {
@@ -125,7 +101,7 @@ export function ModelPoolPanel() {
     }
     setMsg({ name: p.name, type: 'ok', text: '密钥已入保险箱, 探测中…' });
     try {
-      const d = await getJSON<PoolSnapshot>(`/api/llm/pool?probe=1&only=${p.name}`);
+      const d = await getLlmPoolPlatform(p.name);
       const updated = d.platforms?.[0];
       if (updated) {
         setSnap(prev => prev
@@ -144,8 +120,7 @@ export function ModelPoolPanel() {
     setWriting(platform);
     setMsg(null);
     try {
-      const d = await postJSON<{ status?: string; message?: string }>(
-        '/api/llm/pool/route',
+      const d = await putLlmPoolRoute(
         { override_key: overrideKey, provider: platform, model, force },
       );
       if (d.status === 'ok') {

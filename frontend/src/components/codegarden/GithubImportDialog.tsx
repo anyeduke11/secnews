@@ -8,7 +8,8 @@ import {
   SourceTypeDetail,
 } from '../../types/codegarden';
 import { Icon } from '../Icon';
-import { ApiError, getJSON } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { getGithubRepoMetadata } from '../../api/codegarden';
 
 interface GithubImportDialogProps {
   open: boolean;
@@ -54,9 +55,7 @@ export function GithubImportDialog({ open, onClose, onImported, importFn }: Gith
   const handlePreview = async () => {
     if (!repoUrl.trim()) { flash('err', '请输入 GitHub repo URL'); return; }
     try {
-      const data = await getJSON<GithubRepoMetadata>(
-        `/api/codegarden/github/metadata?url=${encodeURIComponent(repoUrl.trim())}`,
-      );
+      const data = await getGithubRepoMetadata<GithubRepoMetadata>(repoUrl.trim());
       // 修复 spec bug: API 实际返回 {owner, repo, description, language, ...}
       // 不存在 full_name / stars 字段
       if (data.language) setTechStack(prev => prev || data.language!);

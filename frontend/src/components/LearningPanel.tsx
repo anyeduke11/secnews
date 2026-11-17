@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
-import { getJSON, postJSON } from '../lib/api';
+import { generateLearningPlans, getKnowledgeTask, listLearningPlans } from '../api/knowledge';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 import { EmptyState } from './EmptyState';
 
@@ -24,7 +24,7 @@ export function LearningPanel() {
   const loadPlans = useCallback(() => {
     setLoading(true);
     setError(null);
-    getJSON<{ plans?: LearningPlan[] }>('/api/knowledge/plans?status=active')
+    listLearningPlans<{ plans?: LearningPlan[] }>('active')
       .then(data => {
         if (dead.current) return;
         setPlans(data.plans || []);
@@ -57,10 +57,7 @@ export function LearningPanel() {
       setGenElapsed(Math.round((Date.now() - startTime) / 1000));
     }, 1000);
 
-    postJSON<{ task_id?: number; task?: { id?: number }; status?: string }>(
-      '/api/knowledge/plans/generate',
-      { domains: [] },
-    )
+    generateLearningPlans<{ task_id?: number; task?: { id?: number }; status?: string }>([])
       .then(data => {
         if (dead.current) { stopGen(); return; }
         const taskId = data?.task_id ?? data?.task?.id;
@@ -93,7 +90,7 @@ export function LearningPanel() {
         let polls = 0;
         genPollRef.current = setInterval(() => {
           polls++;
-          getJSON<{ status?: string; error_message?: string }>(`/api/knowledge/tasks/${taskId}`)
+          getKnowledgeTask<{ status?: string; error_message?: string }>(taskId)
             .then(task => {
               if (dead.current) { stopGen(); return; }
               const status = task?.status;

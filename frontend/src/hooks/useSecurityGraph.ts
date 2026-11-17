@@ -1,33 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getJSON } from '../lib/api';
+import { getSecurityGraph } from '../api/security';
+import type { SecurityEntity, SecurityGraphResponse } from '../api/security';
 
 /**
- * 安全知识图谱 Hook — 端点为单一 hook 专用 → 常量化于此。
+ * 安全知识图谱 Hook — 端点函数见 api/security.ts。
  */
 
-const SECURITY_GRAPH_URL = '/api/security/graph';
-
-export interface SecurityEntity {
-  id: string;
-  entity_type: 'tactic' | 'technique' | 'cve' | 'cwe' | 'compliance' | 'product' | 'cpe';
-  name: string;
-  description?: string;
-  external_ref?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface SecurityGraphResponse {
-  ok: boolean;
-  nodes: (SecurityEntity & { entity_type: string })[];
-  edges: { source_id: string; target_id: string; edge_type: string; weight: number }[];
-  stats: {
-    tactics: number;
-    techniques: number;
-    cves: number;
-    compliance_items: number;
-    knowledge_items: number;
-  };
-}
+// 类型对外兼容: 既有消费方 (components/security/*) 仍从本模块 import
+export type { SecurityEntity, SecurityGraphResponse };
 
 export function useSecurityGraph(view: 'full' | 'attack' | 'cve' | 'compliance' = 'full') {
   const [data, setData] = useState<SecurityGraphResponse | null>(null);
@@ -44,9 +24,7 @@ export function useSecurityGraph(view: 'full' | 'attack' | 'cve' | 'compliance' 
     setError(null);
 
     try {
-      const json = await getJSON<SecurityGraphResponse>(`${SECURITY_GRAPH_URL}?view=${view}`, {
-        signal: controller.signal,
-      });
+      const json = await getSecurityGraph(view, { signal: controller.signal });
       setData(json);
     } catch (err: any) {
       if (err.name === 'AbortError') return;

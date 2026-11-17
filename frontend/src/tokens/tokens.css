@@ -1,0 +1,379 @@
+/* ===== L0 Token 单一源 (FRONTEND_REWRITE_V1_PLAN §2.2 / §3) =====
+   本文件是全站 CSS 变量的唯一定义处; index.css 以 @import 引入, 视觉零变化。
+   迁移纪律 (B1, 2026-11-17): 仅搬家不改值 — 下列内容与迁移前 index.css 逐字一致。
+   分层: 基础 token → 暗色 → 亮色(默认) → paper → 编辑部 alias → 正文排版变量。
+   断点 token 由 styles/breakpoints.css 提供 (本文件首行引入)。
+*/
+
+@import '../styles/breakpoints.css';
+
+:root {
+  /* 排版: 等宽主字体, 暗色技术美学 */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  /* P2 (2026-09-13) 纸面版衬线字体 — 暖米黄纸底配衬线更接近编辑感;
+     系统 Georgia/思源宋体 fallback 保证跨平台可读 */
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif;
+
+  /* 圆角统一三档 6/8/10 (哨兵终端纪律) / 徽标 full */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-full: 9999px;
+
+  /* 原参考稿 token 短别名: 新组件按参考稿命名引用, 与 --font-* 同源 */
+  --mono: var(--font-mono);
+  --sans: var(--font-sans);
+  --hairline: 1px solid var(--line);
+
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  --text-on-color: #fff;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+
+  /* Stage1 可读性: 全局字号下限 (正文 >=11px / 描述辅助 >=11px, 见反 slop 清单) */
+  --text-min: 11px;
+
+  /* Stage1 断点 token (与 Tailwind 对齐; @media 无法用 var(), 供实现参考 避免散数)
+     sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536 */
+}
+
+/* ===== 暗色主题 — 夜读版, JS 切换 data-theme="dark" =====
+   Stage1 light-first 修正: :root 默认走下方亮色 token, 不再以 CSS 暗色兜底,
+   与 getInitialTheme() 的 light 默认对齐, 消除首屏闪色双轨矛盾。
+   选择器用 :root[data-theme=dark] 提升特异性, 避免与 :root(同为单伪类) 平局时被后写覆盖。 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* 哨兵终端 · 夜巡 — 近黑深蓝底, 层次靠 hairline + 1-3% 亮度差 */
+  --bg-primary: #0a1628;
+  --bg-lift: #0d1c33;
+  --bg-secondary: #0d1c33;
+  --bg-card: #0f2140;
+  --bg-panel: #0f2140;
+  --bg-hover: #13294d;
+  --bg-elevated: #16304f;
+  --surface-raised: rgba(238, 243, 250, 0.03);
+  --surface-glass: rgba(10, 22, 40, 0.92);
+  --line: rgba(148, 180, 220, 0.14);
+  --line-strong: rgba(148, 180, 220, 0.26);
+  --border-color: rgba(148, 180, 220, 0.14);
+  --border-light: rgba(148, 180, 220, 0.2);
+  --border-subtle: rgba(148, 180, 220, 0.08);
+  --ink: #eef3fa;
+  --ink-2: #9db0c9;
+  --ink-3: #5f7492;
+  --text-primary: #eef3fa;
+  --text-secondary: #9db0c9;
+  --text-muted: #5f7492;
+  --text-disabled: rgba(95, 116, 146, 0.45);
+  /* 语义三色锁: mint=正常/新增/激活, amber=需注意, red 专属漏洞告警 */
+  --mint: #00e5a0;
+  --amber: #ffab5e;
+  --red: #ff6470;
+  --mint-dim: rgba(0, 229, 160, 0.13);
+  --amber-dim: rgba(255, 140, 66, 0.14);
+  --red-dim: rgba(255, 71, 87, 0.12);
+  --accent: #00e5a0;
+  --accent-soft: rgba(0, 229, 160, 0.13);
+  --accent-dim: rgba(0, 229, 160, 0.35);
+  --accent-highlight: rgba(0, 229, 160, 0.06);
+  --accent-glow: rgba(0, 229, 160, 0.1);
+  --text-on-light: #06281c;
+  --text-on-color: #06281c;
+  --bg-overlay: rgba(4, 12, 24, 0.66);
+  /* 零霓虹纪律: 禁彩色发光阴影, 层次只给 hairline 与亮度差 */
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(4, 12, 24, 0.5);
+  --shadow-modal: 0 12px 40px rgba(4, 12, 24, 0.5);
+  --shadow-toast: 0 4px 20px rgba(4, 12, 24, 0.45);
+  --shadow-glow: none;
+  --color-success: #00e5a0;
+  --color-warning: #ffab5e;
+  --color-error: #ff6470;
+  --color-info: #4dd6e2;
+  /* 分类色 (暗色) — mint 不参与分类, 保留给信号语义 */
+  --color-ai: #4dd6e2;
+  --color-ai_security: #ff8093;
+  --color-security: #ff8093;
+  --color-finance: #ffd257;
+  --color-startup: #a48bff;
+  --color-bid: #ff9e57;
+  --color-general: #00e5a0;
+  --color-github: #8f9dff;
+  --color-tech: #54ccbf;
+  /* 三层流程标识 (资料 / 判读 / 行动) */
+  --layer-data: #4dd6e2;
+  --layer-judge: #ffab5e;
+  --layer-action: #8f9dff;
+  /* 数据可视化色板 (SecNews 看板图表专用, 分类色板即品牌) */
+  --chart-compliance-dengbao: #4f46e5;
+  --chart-compliance-gdpr: #059669;
+  --chart-compliance-iso27001: #d97706;
+  --chart-severity-critical: #b91c1c;
+  --chart-severity-high: #ea580c;
+  --chart-severity-medium: #f59e0b;
+  --chart-severity-low: #84cc16;
+  --chart-severity-none: #e5e7eb;
+  /* 图谱与 P0 语境 */
+  --node-solid: #eef3fa;
+  --p0-title: #ffd7db;
+  --kg-halo-dim: rgba(238, 243, 250, 0.55);
+  --flow-arrow: var(--border-color);
+  --flow-connector-bg: rgba(238, 243, 250, 0.03);
+  --transition-card: all 200ms var(--ease-out);
+  --transition-btn: all 120ms var(--ease-out);
+  /* v1.0.2 F3: 补全 V1Prototype 引用但未定义的 token (M2) */
+  --bg-muted: #1e293b;
+  --bg-warning: #451a03;
+  --text-success: var(--color-success);
+  --text-on-warning: #fde68a;
+  --text-on-success: #06281c;
+  --text-on-info: #06281c;
+  --bg-input: #0d1c33;
+}
+
+/* ===== 亮色主题 (默认) — 哨兵终端 · 晨间: 冷白纸底 + 深海军蓝墨 ===== */
+:root {
+  color-scheme: light;
+  --bg-primary: #edf1f7;
+  --bg-lift: #fbfcfe;
+  --bg-secondary: #fbfcfe;
+  --bg-card: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-hover: #e2e9f3;
+  --bg-elevated: #dfe7f2;
+  --surface-raised: rgba(20, 41, 74, 0.03);
+  --surface-glass: rgba(237, 241, 247, 0.92);
+  --line: rgba(22, 43, 80, 0.13);
+  --line-strong: rgba(22, 43, 80, 0.26);
+  --border-color: rgba(22, 43, 80, 0.13);
+  --border-light: rgba(22, 43, 80, 0.19);
+  --border-subtle: rgba(22, 43, 80, 0.07);
+  --ink: #14294a;
+  --ink-2: #45597c;
+  --ink-3: #7188a8;
+  --text-primary: #14294a;
+  --text-secondary: #45597c;
+  --text-muted: #7188a8;
+  --text-disabled: rgba(113, 136, 168, 0.5);
+  /* 语义三色锁 (亮色降饱和过 AA): mint=正常/新增/激活, amber=需注意, red 专属漏洞 */
+  --mint: #04785c;
+  --amber: #a86314;
+  --red: #cc3d50;
+  --mint-dim: rgba(4, 120, 92, 0.1);
+  --amber-dim: rgba(168, 99, 20, 0.12);
+  --red-dim: rgba(204, 61, 80, 0.1);
+  --accent: #04785c;
+  --accent-soft: rgba(4, 120, 92, 0.1);
+  --accent-dim: rgba(4, 120, 92, 0.3);
+  --accent-highlight: rgba(4, 120, 92, 0.06);
+  --accent-glow: rgba(4, 120, 92, 0.1);
+  --text-on-light: #ffffff;
+  --text-on-color: #ffffff;
+  --bg-overlay: rgba(20, 41, 74, 0.4);
+  /* 零霓虹纪律: 层次靠 hairline 与亮度差, 不给彩色发光阴影 */
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(20, 41, 74, 0.1);
+  --shadow-modal: 0 12px 40px rgba(20, 41, 74, 0.16);
+  --shadow-toast: 0 4px 20px rgba(20, 41, 74, 0.1);
+  --shadow-glow: none;
+  --color-success: #04785c;
+  --color-warning: #a86314;
+  --color-error: #cc3d50;
+  --color-info: #0e7490;
+  /* 分类色 (亮色) — 与暗色同色相, 压暗保证纸底可读 */
+  --color-ai: #0e7490;
+  --color-ai_security: #be185d;
+  --color-security: #be185d;
+  --color-finance: #8a6508;
+  --color-startup: #6d28d9;
+  --color-bid: #b45309;
+  --color-general: #04785c;
+  --color-github: #4338ca;
+  --color-tech: #0f766e;
+  /* 三层流程标识 (资料 / 判读 / 行动) */
+  --layer-data: #0e7490;
+  --layer-judge: #a86314;
+  --layer-action: #4338ca;
+  /* 数据可视化色板 (SecNews 看板图表专用, 亮色与暗色同值, 纸底可读) */
+  --chart-compliance-dengbao: #4f46e5;
+  --chart-compliance-gdpr: #059669;
+  --chart-compliance-iso27001: #d97706;
+  --chart-severity-critical: #b91c1c;
+  --chart-severity-high: #ea580c;
+  --chart-severity-medium: #f59e0b;
+  --chart-severity-low: #84cc16;
+  --chart-severity-none: #e5e7eb;
+  /* 图谱与 P0 语境 */
+  --node-solid: #14294a;
+  --p0-title: #7e1d2e;
+  --kg-halo-dim: rgba(22, 43, 80, 0.42);
+  --flow-arrow: var(--border-color);
+  --flow-connector-bg: rgba(20, 41, 74, 0.02);
+  --transition-card: all 200ms var(--ease-out);
+  --transition-btn: all 120ms var(--ease-out);
+  /* v1.0.2 F3: 补全 V1Prototype 引用但未定义的 token (M2) */
+  --bg-muted: #f3f4f6;
+  --bg-warning: #fef3c7;
+  --text-success: var(--color-success);
+  --text-on-warning: #78350f;
+  --text-on-success: #ffffff;
+  --text-on-info: #ffffff;
+  --bg-input: #ffffff;
+}
+
+/* ===== 纸面版主题 (P2 2026-09-13) — 编辑部暖色映射 (方案A 原型直接移植)
+   最小侵入: 仅覆写 bg/ink/font 6 个核心 token; 语义三色 (mint/amber/red)、
+   分类色、图表色沿用亮色值不动, 保留信号语义识别。
+   适配 demo `--marker`/`--serif` 的视觉语言但保留本仓库纪律 (hairline + 零霓虹 + 圆角统一)。*/
+:root[data-theme="paper"] {
+  color-scheme: light;
+  /* 编辑部暖色映射 (方案A 原型直接移植) */
+  --bg-primary: #F7F4EE;          /* 原生纸色 --paper */
+  --bg-lift: #f0ebe0;             /* --paper-2 */
+  --bg-secondary: #f5f0e6;
+  --bg-card: #fdf8ec;             /* --card */
+  --bg-panel: #fdf8ec;
+  --bg-hover: #f5f0e6;
+  --bg-elevated: #efe9dd;
+  --surface-raised: rgba(28, 25, 23, 0.03);
+  --surface-glass: rgba(247, 244, 238, 0.92);
+  /* 深褐墨 — 接近打印油墨, AA 对比度 11.7:1 达标 */
+  --ink: #1C1917;
+  --ink-2: #5a4a36;
+  --ink-3: #8a7659;
+  --text-primary: #1C1917;
+  --text-secondary: #5a4a36;
+  --text-muted: #8a7659;
+  --text-disabled: rgba(138, 118, 89, 0.5);
+  /* 语义三色锁 (编辑部): ok/warn/err/info */
+  --mint: #2E6B4F;                /* --ok */
+  --amber: #A0691F;               /* --warn */
+  --red: #BE3426;                 /* --err / --accent */
+  --mint-dim: rgba(46, 107, 79, 0.1);
+  --amber-dim: rgba(160, 105, 31, 0.12);
+  --red-dim: rgba(190, 52, 38, 0.1);
+  --accent: #BE3426;              /* 编辑红 */
+  --accent-2: #8a281d;
+  --accent-soft: rgba(190, 52, 38, 0.1);
+  --accent-dim: rgba(190, 52, 38, 0.35);
+  --accent-line: rgba(190, 52, 38, 0.25);
+  --accent-highlight: rgba(190, 52, 38, 0.06);
+  --accent-glow: rgba(190, 52, 38, 0.1);
+  --color-success: #2E6B4F;
+  --color-warning: #A0691F;
+  --color-error: #BE3426;
+  --color-info: #3B5B78;
+  /* 分类色 (纸底编辑部版) */
+  --color-ai: #3B5B78;
+  --color-ai_security: #be185d;
+  --color-security: #be185d;
+  --color-finance: #8a6508;
+  --color-startup: #6d28d9;
+  --color-bid: #b45309;
+  --color-general: #2E6B4F;
+  --color-github: #4338ca;
+  --color-tech: #0f766e;
+  /* hairline — 轻触即见的编辑细线 */
+  --line: #E4DED2;                /* --hairline */
+  --line-strong: #d6cfc2;         /* --hairline-2 */
+  --border-color: #E4DED2;
+  --border-light: #d6cfc2;
+  --border-subtle: rgba(28, 25, 23, 0.07);
+  /* 字体 — 编辑部衬线主视觉 */
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* 零霓虹 + 轻阴影 */
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-modal: 0 12px 40px rgba(28, 25, 23, 0.1);
+  --shadow-toast: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-glow: none;
+  --shadow-pop: 0 4px 12px rgba(28, 25, 23, 0.08);
+  --highlight: #FFF9C4;
+  --text-on-light: #ffffff;
+  --text-on-color: #ffffff;
+  --bg-overlay: rgba(28, 25, 23, 0.4);
+  --transition-card: all 200ms var(--ease-out);
+  --transition-btn: all 120ms var(--ease-out);
+  --bg-muted: #f0ebe0;
+  --bg-warning: #fef3c7;
+  --text-success: var(--color-success);
+  --text-on-warning: #78350f;
+  --text-on-success: #ffffff;
+  --text-on-info: #ffffff;
+  --bg-input: #fdf8ec;
+}
+
+/* ===== 编辑部设计系统 (方案A) =====
+   来源: V2 Hotspot 工作站-方案A-编辑部-可交互原型.html
+   约定:
+   - 本区块为 alias 层, 只引入原型里有而本仓没有的新名字 (--paper/--card/--muted/--ok/--warn/--err/--info/--ff-* 等),
+     严禁重声明 --ink/--accent/--hairline 等既有 token (自引用会成 CSS 环, 覆写会破坏原语义)
+   - 值全部转发全局 token → 亮/暗主题走哨兵色板, paper 主题自动获得编辑部暖色 (见上方 paper 块)
+   - 组件侧细线一律用 var(--line) (颜色), var(--hairline) 保留为 `1px solid var(--line)` 边框简写语义
+*/
+:root {
+  --paper: var(--bg-primary);
+  --paper-2: var(--bg-lift);
+  --card: var(--bg-card);
+  --muted: var(--ink-3);
+  --hairline-2: var(--line-strong);
+  --accent-2: var(--accent);
+  --accent-line: color-mix(in srgb, var(--accent) 25%, transparent);
+  --ok: var(--mint);
+  --warn: var(--amber);
+  --err: var(--red);
+  --info: var(--color-info);
+  --highlight: var(--accent-highlight);
+  --shadow-pop: var(--shadow-popover);
+  --ff-serif: var(--font-serif);
+  --ff-sans: var(--font-sans);
+  --ff-mono: var(--font-mono);
+}
+
+/* 正文基础排版抽成变量: 工具页在 SentinelShell 壳内 (.sentinel 15px/无衬线) 需按 body 口径复位,
+   见 sentinel.css 的 .sentinel .tool-main */
+:root { --body-fs: 13px; --body-lh: 1.65; }
+
+
+@media (max-width: 767px) {
+  /* 手机: 触摸缩放场景, 基础字号放大 */
+  :root { --body-fs: 14px; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* 平板: 此前直接复用桌面 13px, 触摸距离下偏小, 升 1px 兜底 */
+  :root { --body-fs: 14px; }
+}
+
+@media (min-width: 1536px) {
+  /* 宽屏(>=2xl): 此前与笔记本同字号, 视距更远下偏小, 升 1px 补偿 */
+  :root { --body-fs: 14px; }
+}

@@ -8,14 +8,11 @@
  * 语义: TOML 写入后运行时读数 5s 内跟随; 路由注册/job 调度为启动快照, 需重启。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, apiFetch, getJSON } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { getFeatureGates, putFeatureGate } from '../../api/settings';
+import type { FeatureGate } from '../../api/settings';
 
-interface GateItem {
-  name: string;
-  enabled: boolean;
-  source: 'default' | 'toml' | 'env';
-  effective_scope: 'runtime' | 'startup';
-}
+type GateItem = FeatureGate;
 
 interface RowNote {
   kind: 'ok' | 'error';
@@ -48,7 +45,7 @@ export function FeatureGatesCard() {
 
   useEffect(() => {
     let dead = false;
-    getJSON<{ items?: GateItem[] }>('/api/settings/feature-gates')
+    getFeatureGates()
       .then(d => { if (!dead) setGates(d.items ?? []); })
       .catch(() => { if (!dead) setGates([]); });
     return () => { dead = true; };
@@ -59,10 +56,7 @@ export function FeatureGatesCard() {
     setBusy(gate.name);
     setRowNote(null);
     try {
-      const resp = await apiFetch<{ note?: string }>(
-        `/api/settings/feature-gates/${encodeURIComponent(gate.name)}`,
-        { method: 'PUT', body: JSON.stringify({ enabled: next }) },
-      );
+      const resp = await putFeatureGate(gate.name, next);
       setGates(prev => prev?.map(g => (g.name === gate.name ? { ...g, enabled: next } : g)) ?? prev);
       setRowNote({ name: gate.name, note: { kind: 'ok', text: resp.note ?? '已写入 TOML' } });
     } catch (e) {

@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EChart } from '../shared/EChart';
 import { Icon } from '../Icon';
-import { getJSON } from '../../lib/api';
+import { getKlCompounding } from '../../api/secnews';
 import { STAGE_LABELS, STAGE_COLORS } from './LifecycleProgress';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
@@ -87,7 +87,7 @@ export function KnowledgeCompoundingDashboard() {
     setError(null);
     try {
       // 非 2xx 由 apiFetch 抛错 (message 经 getApiErrorMessage 兜底)
-      const json = await getJSON<CompoundingData>('/api/kl/compounding');
+      const json = await getKlCompounding<CompoundingData>();
       if (dead.current) return;
       setData(json);
     } catch (e: any) {

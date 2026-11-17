@@ -30,9 +30,9 @@ import { useHotspotData } from '../../hooks/useHotspotData';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useReactions, type ReactionType } from '../../hooks/useReactions';
 import { CATEGORIES, HotspotItem, PRACTICE_DOMAIN_LABELS, plainSummary } from '../../types';
-import { getJSON, postJSON } from '../../lib/api';
 import { trackInterest } from '../../lib/interest';
-import { getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
+import { getQualitySummary, getNewsAlertUnread, getPickedItems, PickedItem } from '../../api/secnews';
+import { getRefreshIntervalSetting, importKlUrl } from '../../api/shared';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { NewsAlertList } from './NewsAlertList';
 import { ReactionButtons, useReactionAction } from './ReactionButtons';
@@ -164,7 +164,7 @@ function UrlImport({ onDone }: { onDone: () => void }) {
     setMsg(null);
     try {
       // apiFetch 非 ok 抛错 → catch 显式报错 (message 为后端 detail; 原实现拼接 HTTP 状态)
-      const data = await postJSON<{ id?: string }>('/api/kl/import/url', { url: url.trim() });
+      const data = await importKlUrl(url.trim());
       setMsg({ kind: 'ok', text: `已入库 ${data.id ?? ''} · kl:raw` });
       setUrl('');
       onDone();
@@ -333,7 +333,7 @@ export function SentinelHomePage() {
   const loadSide = useCallback(async () => {
     try {
       // R-13: 待办域退役, 右栏只剩质量门禁 (todos 不再拉取)
-      setQuality(await getJSON<QualitySummaryRaw>('/api/quality/summary'));
+      setQuality(await getQualitySummary<QualitySummaryRaw>());
     } catch { /* 右栏失败不阻塞主列 */ }
   }, []);
 
@@ -344,7 +344,7 @@ export function SentinelHomePage() {
   // 真实采集间隔 (分钟): 供页脚 / 空态文案, 与 /settings 里的选择保持一致
   useEffect(() => {
     let alive = true;
-    getJSON<{ interval_minutes?: number } | null>('/api/settings/refresh-interval')
+    getRefreshIntervalSetting()
       .then(d => {
         if (alive && d && typeof d.interval_minutes === 'number' && d.interval_minutes > 0) {
           setCollectMinutes(d.interval_minutes);

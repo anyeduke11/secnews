@@ -10,7 +10,7 @@ import {
 } from '../../types/codegarden';
 import { Icon } from '../Icon';
 import { knowledgeItemPath } from '../../api/knowledge';
-import { getJSON } from '../../lib/api';
+import { getProjectActivities, getProjectTimeline } from '../../api/codegarden';
 import { UpstreamStatus } from './UpstreamStatus';
 
 interface ProjectDetailProps {
@@ -38,12 +38,10 @@ export function ProjectDetail({ project, onClose, onTransition, onSync }: Projec
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    // 本组件专用端点 (常量化); 非 2xx 由 apiFetch 抛错 → 走 catch toast
-    const activitiesUrl = `/api/codegarden/projects/${project.id}/activities`;
-    const timelineUrl = `/api/codegarden/projects/${project.id}/timeline`;
+    // 本组件专用端点 (收敛到 api/codegarden); 非 2xx 由 apiFetch 抛错 → 走 catch toast
     Promise.all([
-      getJSON<{ activities?: CgProjectActivity[] }>(activitiesUrl),
-      getJSON<{ stages?: CgProjectStage[] }>(timelineUrl),
+      getProjectActivities<{ activities?: CgProjectActivity[] }>(project.id),
+      getProjectTimeline<{ stages?: CgProjectStage[] }>(project.id),
     ])
       .then(([a, s]) => {
         if (cancelled) return;

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getJSON, postJSON, apiFetch } from '../lib/api';
+import { generateDigest, getLatestDigest, markDigestRead } from '../api/knowledge';
+import type { Digest } from '../api/knowledge';
 
 /**
  * v1.7 Phase 4 — 简报 Hook
  *
- * 对接后端:
- *  - GET /api/digests/latest                最新简报 (Phase 4 新增; 无简报时 404)
- *  - POST /api/digests/generate             手动触发生成
- *  - PUT  /api/digests/read                 标记已读
+ * 对接后端 (经 api/knowledge.ts 强类型函数):
+ *  - GET  /api/digests/latest                最新简报 (Phase 4 新增; 无简报时 404)
+ *  - POST /api/digests/generate              手动触发生成
+ *  - PUT  /api/digests/read                  标记已读
  *
  * 暴露:
  *  - digest: 最新简报 { id, period, summary, item_ids, created_at, count? }
@@ -17,25 +18,9 @@ import { getJSON, postJSON, apiFetch } from '../lib/api';
  *  - markRead:   标记已读
  *
  * 验收 4: 每日 08:00 生成简报 — 后端 scheduler 触发, 前端展示最新简报.
- *
- * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
 
-const DIGESTS_URL = '/api/digests';
-
-export interface Digest {
-  id: string;
-  period: string;
-  summary: string;
-  /**
-   * Phase 5 commit 2: LLM 生成的 Markdown 叙事摘要.
-   * 若为空 (LLM 不可用 / 输入为空), 前端 fallback 到 summary 字段.
-   */
-  summary_md?: string | null;
-  item_ids: string[];
-  created_at: string;
-  count?: number;
-}
+export type { Digest };
 
 export interface UseDigestReturn {
   digest: Digest | null;
@@ -47,7 +32,7 @@ export interface UseDigestReturn {
 }
 
 /**
- * 404 (暂无简报) 判定: lib/api 的 apiFetch 把非 2xx 统一转为 Error(message),
+ * 404 (暂无简报) 判定: 统一请求层把非 2xx 转为 Error(message),
  * message 优先取后端 detail.message ("暂无简报"), 兜底 statusText ("Not Found")
  * 或 "HTTP 404"。与原实现的 `r.status === 404` 分支等价。
  */
@@ -65,9 +50,7 @@ export function useDigest(): UseDigestReturn {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJSON<{ item?: Digest | null; digest?: Digest | null }>(
-        `${DIGESTS_URL}/latest`,
-      );
+      const data = await getLatestDigest();
       setDigest(data.item || data.digest || null);
     } catch (e: any) {
       if (isDigestNotFound(e)) {
@@ -83,7 +66,7 @@ export function useDigest(): UseDigestReturn {
   const generate = useCallback(async (): Promise<Digest | null> => {
     setError(null);
     try {
-      const data = await postJSON<Digest | { item: Digest }>(`${DIGESTS_URL}/generate`, undefined);
+      const data = await generateDigest();
       const newDigest: Digest = (data as { item?: Digest }).item || (data as Digest);
       setDigest(newDigest);
       return newDigest;
@@ -95,7 +78,7 @@ export function useDigest(): UseDigestReturn {
 
   const markRead = useCallback(async () => {
     try {
-      await apiFetch(`${DIGESTS_URL}/read`, { method: 'PUT' });
+      await markDigestRead();
     } catch {
       // 静默
     }

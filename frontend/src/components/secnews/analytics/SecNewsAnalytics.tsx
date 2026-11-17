@@ -7,7 +7,8 @@
  * (此前硬编码 [] 使 ATT&CK tab 恒空)。
  */
 import { useEffect, useState } from 'react';
-import { getJSON } from '../../../lib/api';
+import { getRecentCves } from '../../../api/secnews';
+import type { RecentCve } from '../../../api/secnews';
 import { CveHeatmap } from '../CveHeatmap';
 import { AttackNavigator } from '../AttackNavigator';
 import { ComplianceMatrix } from '../ComplianceMatrix';
@@ -22,12 +23,6 @@ const FRAMEWORKS: FrameworkOption[] = [
   { id: 'iso27001', name: 'ISO 27001' },
 ];
 
-interface RecentCve {
-  id: string;
-  name: string;
-  created_at: string;
-}
-
 export function SecNewsAnalytics() {
   const [tab, setTab] = useState<Tab>('heatmap');
   const [cveIds, setCveIds] = useState<string[]>([]);
@@ -37,7 +32,7 @@ export function SecNewsAnalytics() {
   useEffect(() => {
     let cancelled = false;
     // 非 2xx 由 apiFetch 抛错 → 原 `r.ok ? json : null` 分支合并进 catch 呈现
-    getJSON<{ items?: RecentCve[]; total?: number }>('/api/cve/recent?limit=50')
+    getRecentCves(50)
       .then((d) => {
         if (cancelled) return;
         setCveIds((d.items ?? []).map((x: RecentCve) => x.id));

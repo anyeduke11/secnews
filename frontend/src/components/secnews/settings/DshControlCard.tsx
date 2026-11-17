@@ -6,27 +6,14 @@
  * v0.7 Batch ⑨ B9-1: 接入 i18n (dsh.* namespace)
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, apiFetch, getJSON } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
+import {
+  getDshControlStatus,
+  postDshControlOp,
+  updateDshControlConfig,
+} from '../../../api/secnews';
+import type { DshStatus } from '../../../api/secnews';
 import { useI18n } from '../../../contexts/I18nContext';
-
-interface ProcessSnapshot {
-  running: boolean;
-  pid: number | null;
-  uptime_s: number | null;
-  restarts: number;
-  last_error: string | null;
-  log_tail?: string[];
-}
-
-interface DshStatus {
-  status: 'connected' | 'starting' | 'stopped' | 'not_configured';
-  endpoint: string;
-  command_raw: string;
-  autostart: boolean;
-  configured: boolean;
-  endpoint_reachable: boolean;
-  process: ProcessSnapshot;
-}
 
 const STATUS_I18N: Record<DshStatus['status'], string> = {
   connected: 'dsh.connected',
@@ -57,7 +44,7 @@ export function DshControlCard() {
 
   const refresh = useCallback(async () => {
     try {
-      const d = await getJSON<DshStatus>('/api/dsh/control/status');
+      const d = await getDshControlStatus();
       setGateOff(false);
       setError(null);
       setStatus(d);
@@ -88,7 +75,7 @@ export function DshControlCard() {
     setOpBusy(op);
     setOpMsg(null);
     try {
-      await apiFetch(`/api/dsh/control/${op}`, { method: 'POST' });
+      await postDshControlOp(op);
       const okI18n: Record<typeof op, string> = {
         start: 'dsh.started',
         stop: 'dsh.stopped_action',
@@ -114,10 +101,7 @@ export function DshControlCard() {
     setOpBusy('save');
     setOpMsg(null);
     try {
-      await apiFetch('/api/dsh/control/config', {
-        method: 'PUT',
-        body: JSON.stringify({ endpoint, command, autostart }),
-      });
+      await updateDshControlConfig({ endpoint, command, autostart });
       setOpMsg({ kind: 'ok', text: t('dsh.saved') });
       dirtyRef.current = false;
     } catch (e) {

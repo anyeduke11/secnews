@@ -23,7 +23,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { apiFetch } from '../../lib/api';
+import { postActionEndpoint } from '../../api/action';
 
 export interface ActionButton {
   key: string;
@@ -164,10 +164,11 @@ export function KnowledgeActionBar({ buttons = KNOWLEDGE_ACTION_BUTTONS, compact
       setBusyKey(btn.key);
       try {
         // 非 2xx 由 apiFetch 抛错 → 与原非 ok 分支同样以 toast 呈现
-        const data = await apiFetch<{ item?: { id?: string } }>(btn.apiEndpoint, {
-          method: btn.apiMethod ?? 'POST',
-          body: btn.apiBody ? JSON.stringify(btn.apiBody) : undefined,
-        });
+        const data = await postActionEndpoint<{ item?: { id?: string } }>(
+          btn.apiEndpoint,
+          btn.apiMethod ?? 'POST',
+          btn.apiBody || undefined,
+        );
         if (btn.showToast) {
           // C5-6: 创建类端点返回 {item:{id}} 时 toast 带实体 id (POST /api/v1/cases)
           const entityId = data?.item?.id;

@@ -4,7 +4,7 @@
  * 自获取模式：调用 /api/kl/pipeline/stats 获取 ledger 数据。
  */
 import { useState, useEffect } from 'react';
-import { getKlPipelineStats } from '../../../api/secnews';
+import { getKlPipelineStats } from '../../../api/pipeline';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 

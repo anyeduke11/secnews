@@ -5,21 +5,10 @@
  * 数据源: GET /api/kl/inbox/list · POST /api/kl/inbox/scan · GET /api/kl/quarantine/list
  */
 import { useCallback, useEffect, useState } from 'react';
-import { getJSON, postJSON } from '../../../lib/api';
+import { listKlInbox, listKlQuarantine, scanKlInbox } from '../../../api/secnews';
+import type { FileEntry } from '../../../api/secnews';
 import { useI18n } from '../../../contexts/I18nContext';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const INBOX_LIST_URL = '/api/kl/inbox/list';
-const INBOX_SCAN_URL = '/api/kl/inbox/scan';
-const QUARANTINE_LIST_URL = '/api/kl/quarantine/list';
-
-interface FileEntry {
-  name: string;
-  size: number;
-  preview?: string;
-  quarantined_at?: string;
-}
 
 export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
   const { t } = useI18n();
@@ -33,8 +22,8 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
     try {
       // allSettled + fulfilled 守卫: 与原 `res.ok` 静默分支同效 (失败保持上次值)
       const [inRes, qRes] = await Promise.allSettled([
-        getJSON<{ files?: FileEntry[] }>(INBOX_LIST_URL),
-        getJSON<{ files?: FileEntry[] }>(QUARANTINE_LIST_URL),
+        listKlInbox(),
+        listKlQuarantine(),
       ]);
       if (dead.current) return;
       if (inRes.status === 'fulfilled') setInbox(inRes.value.files ?? []);
@@ -48,7 +37,7 @@ export function InboxScanner({ onScanned }: { onScanned?: () => void }) {
     setScanning(true);
     setResult(null);
     try {
-      const data = await postJSON<{ moved: number; quarantined: number; quarantine_files?: FileEntry[] }>(INBOX_SCAN_URL, undefined);
+      const data = await scanKlInbox();
       if (dead.current) return;
       setResult(data);
       setQuarantine(data.quarantine_files ?? []);

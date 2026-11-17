@@ -23,7 +23,15 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, getJSON, postJSON } from '../../lib/api';
+import {
+  listPlanningActions,
+  getReviewStats,
+  listDueReviews,
+  submitReviewGrade,
+  undoReviewGrade,
+  updatePlanningActionStatus,
+} from '../../api/action';
+import { getSecNewsStats } from '../../api/secnews';
 import { SentinelShell } from './SentinelShell';
 import { ApprovalInbox } from '../action/ApprovalInbox';
 import { CopilotCards } from '../action/CopilotCards';
@@ -175,10 +183,10 @@ export function SentinelActionPage() {
     setNotice(null);
     const [pa, rv, rs, st] = await Promise.all([
       // apiFetch 非 ok / 网络失败抛错 → null (对应原 r.ok 分支检查 + .catch(() => null))
-      getJSON<PlanningAction[] | null>('/api/kl/planning-actions?status=pending').catch(() => null),
-      getJSON<{ items?: ReviewRow[] } | null>('/api/reviews/due?limit=20&enrich=1').catch(() => null),
-      getJSON<{ stats?: ReviewStats } | null>('/api/reviews/stats').catch(() => null),
-      getJSON<{ new_today?: number } | null>('/api/secnews/stats').catch(() => null),
+      listPlanningActions<PlanningAction>('pending').catch(() => null),
+      listDueReviews<ReviewRow>(20, { enrich: true }).catch(() => null),
+      getReviewStats<ReviewStats>().catch(() => null),
+      getSecNewsStats<{ new_today?: number }>().catch(() => null),
     ]);
 
     setActions(Array.isArray(pa) ? pa : []);
@@ -221,10 +229,7 @@ export function SentinelActionPage() {
     for (const step of steps) {
       try {
         // apiFetch 非 ok 抛错 → 就地 catch 回滚到已确认步骤 (原实现 throw 后由同一 catch 接住)
-        await apiFetch(`/api/kl/planning-actions/${action.id}/status`, {
-          method: 'PUT',
-          body: JSON.stringify({ status: step }),
-        });
+        await updatePlanningActionStatus(action.id, step);
       } catch {
         setActions(list => list.map(a => (a.id === action.id ? { ...a, status: settled } : a)));
         setActionState(s => ({ ...s, [action.id]: 'fail' }));
@@ -247,9 +252,10 @@ export function SentinelActionPage() {
     if (reviewState[row.id] === 'saving') return;
     setReviewState(s => ({ ...s, [row.id]: 'saving' }));
     try {
-      const data = await postJSON<{ item?: ReviewRow }>(
-        `/api/reviews/${encodeURIComponent(row.entity_type)}/${encodeURIComponent(row.entity_id)}/grade`,
-        { grade },
+      const data = await submitReviewGrade<{ item?: ReviewRow }>(
+        row.entity_type,
+        row.entity_id,
+        grade,
       );
       const next: ReviewRow | undefined = data?.item;
       const stillDue = !!next && new Date(next.due_at).getTime() <= Date.now();
@@ -284,10 +290,7 @@ export function SentinelActionPage() {
     undoTimer.current = null;
     setJustGraded(null);
     try {
-      await postJSON(
-        `/api/reviews/${encodeURIComponent(jg.entityType)}/${encodeURIComponent(jg.entityId)}/undo`,
-        {},
-      );
+      await undoReviewGrade(jg.entityType, jg.entityId);
       await load();
     } catch {
       /* 409 等: 窗口已收起, 不打扰 */

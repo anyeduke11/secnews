@@ -11,7 +11,17 @@
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
  */
 import { useState, useCallback, useEffect } from 'react';
-import { getJSON, postJSON } from '../../lib/api';
+import {
+  cleanupDuplicates,
+  cleanupHistory,
+  cleanupQualityLogs,
+  clearCache,
+  getMaintenanceDirtyReport,
+  getMaintenanceDuplicates,
+  getMaintenanceHealth,
+  getMaintenanceTableStats,
+  runMaintenanceVacuum,
+} from '../../api/settings';
 import '../settings/settings-shell.css';
 
 type DangerAction = 'vacuum' | 'dedup' | 'cleanup';
@@ -49,10 +59,10 @@ export function DatabaseMaintenance() {
   const loadData = useCallback(async () => {
     try {
       const [h, t, d, dup] = await Promise.all([
-        getJSON<{ size_mb?: number; fragmentation_pct?: number; journal_mode?: string }>('/api/maintenance/health'),
-        getJSON<{ tables?: any[] }>('/api/maintenance/table-stats'),
-        getJSON<Record<string, any>>('/api/maintenance/dirty-report'),
-        getJSON<{ hotspots?: any[]; knowledge_items?: any[] } | null>('/api/maintenance/duplicates'),
+        getMaintenanceHealth(),
+        getMaintenanceTableStats(),
+        getMaintenanceDirtyReport(),
+        getMaintenanceDuplicates(),
       ]);
       setDbHealth(h);
       setTableStats(t.tables || []);
@@ -67,7 +77,7 @@ export function DatabaseMaintenance() {
     setVacuuming(true);
     setVacuumMsg(null);
     try {
-      const d = await postJSON<{ status?: string; total_seconds?: number }>('/api/maintenance/vacuum', undefined);
+      const d = await runMaintenanceVacuum();
       setVacuumMsg(d.status === 'ok'
         ? { kind: 'ok', text: `VACUUM 完成 (${d.total_seconds}s)` }
         : { kind: 'bad', text: 'VACUUM 失败' });
@@ -80,10 +90,7 @@ export function DatabaseMaintenance() {
     setCleaningLogs(true);
     setCleanLogsMsg(null);
     try {
-      const d = await postJSON<{ rows_to_delete?: number; rows_remaining_after?: number }>(
-        `/api/maintenance/cleanup-quality-logs?days=${qualityLogDays}&dry_run=false`,
-        undefined,
-      );
+      const d = await cleanupQualityLogs(qualityLogDays);
       setCleanLogsMsg({
         kind: 'ok',
         text: `已清理 ${d.rows_to_delete} 条 quality 日志, 剩余 ${d.rows_remaining_after} 条`,
@@ -97,11 +104,7 @@ export function DatabaseMaintenance() {
     setDeduping(true);
     setDedupMsg(null);
     try {
-      const d = await postJSON<{
-        total_deleted?: number;
-        hotspots?: { total_deleted?: number };
-        knowledge_items?: { total_deleted?: number };
-      }>('/api/maintenance/cleanup-duplicates?dry_run=false', undefined);
+      const d = await cleanupDuplicates();
       setDedupMsg({
         kind: 'ok',
         text: `已删除 ${d.total_deleted} 条重复 (hotspots ${d.hotspots?.total_deleted || 0} + 知识库 ${d.knowledge_items?.total_deleted || 0})`,
@@ -115,10 +118,7 @@ export function DatabaseMaintenance() {
     setCleaning(true);
     setCleanMsg(null);
     try {
-      const d = await postJSON<{ total_rows?: number }>(
-        `/api/maintenance/cleanup?days=${retentionDays}&dry_run=false`,
-        undefined,
-      );
+      const d = await cleanupHistory(retentionDays);
       setCleanMsg({ kind: 'ok', text: `历史清理完成: ${d.total_rows || 0} 条` });
       await loadData();
     } catch { setCleanMsg({ kind: 'bad', text: '清理请求失败' }); }
@@ -129,7 +129,7 @@ export function DatabaseMaintenance() {
     setCacheClearing(true);
     setCacheMsg(null);
     try {
-      const d = await postJSON<{ status?: string }>('/api/cache/clear', undefined);
+      const d = await clearCache();
       setCacheMsg(d.status === 'ok' ? { kind: 'ok', text: '缓存已清除' } : { kind: 'bad', text: '清除失败' });
     } catch { setCacheMsg({ kind: 'bad', text: '清除请求失败' }); }
     finally { setCacheClearing(false); }

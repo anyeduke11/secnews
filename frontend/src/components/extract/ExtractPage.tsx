@@ -7,10 +7,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon';
-import { ApiError, postJSON } from '../../lib/api';
-
-// 本组件专用端点 (常量化, Batch 5 裸 fetch 清扫)
-const EXTRACT_PREVIEW_URL = '/api/extract/preview';
+import { ApiError } from '../../lib/api';
+import { previewExtractTags, runTagExtraction } from '../../api/knowledge';
 
 interface TagSuggestion {
   id?: string;
@@ -46,7 +44,7 @@ export function ExtractPage({ onBack }: { onBack?: () => void }) {
     setPreviewError(null);
     setPreviewTags(null);
     try {
-      const d = await postJSON<{ items?: TagSuggestion[] }>(EXTRACT_PREVIEW_URL, {
+      const d = await previewExtractTags<{ items?: TagSuggestion[] }>({
         title: title.trim(),
         text: text.trim(),
         category: category.trim(),
@@ -67,9 +65,9 @@ export function ExtractPage({ onBack }: { onBack?: () => void }) {
     setExtracting(kind);
     setExtractMsg(null);
     try {
-      const d = await postJSON<{ attached?: TagSuggestion[]; tags?: TagSuggestion[] }>(
-        `/api/extract/${kind}/${encodeURIComponent(id)}`,
-        undefined,
+      const d = await runTagExtraction<{ attached?: TagSuggestion[]; tags?: TagSuggestion[] }>(
+        kind,
+        id,
       );
       const tags: string[] = (d.attached ?? d.tags ?? []).map(tagLabel);
       setExtractMsg({ kind: 'ok', text: `已提取并关联 ${tags.length} 个标签: ${tags.slice(0, 8).join(', ')}${tags.length > 8 ? '…' : ''}` });

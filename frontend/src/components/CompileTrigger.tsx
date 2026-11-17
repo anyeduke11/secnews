@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CompilePreview } from '../types';
-import { apiFetch, getJSON } from '../lib/api';
+import { getKnowledgeCompilePreview, triggerKnowledgeCompile } from '../api/knowledge';
 
 interface CompileTriggerProps {
   onTaskCreated?: (task_id: number) => void;
@@ -19,7 +19,7 @@ export function CompileTrigger({ onTaskCreated }: CompileTriggerProps) {
   const handleClick = () => {
     if (busy) return;
     setBusy(true);
-    getJSON<CompilePreview>('/api/knowledge/compile/preview')
+    getKnowledgeCompilePreview<CompilePreview>()
       .then((data: CompilePreview) => {
         setPreview(data);
         setBusy(false);
@@ -32,7 +32,7 @@ export function CompileTrigger({ onTaskCreated }: CompileTriggerProps) {
 
   const handleConfirm = () => {
     setBusy(true);
-    apiFetch<{ task_id?: number; id?: number }>('/api/knowledge/compile', { method: 'POST' })
+    triggerKnowledgeCompile<{ task_id?: number; id?: number }>()
       .then((data: { task_id?: number; id?: number }) => {
         const tid = data.task_id ?? data.id ?? 0;
         flashToast(`✓ 编译任务已创建 (task_id: ${tid})`, true);

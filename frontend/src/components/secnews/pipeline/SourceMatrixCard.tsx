@@ -13,7 +13,7 @@
  * bid (招投标) 类目不参与本矩阵展示 (用户裁决 2026-09-18)。
  */
 import { useEffect, useMemo, useState } from 'react';
-import { getJSON } from '../../../lib/api';
+import { getSourceHealth } from '../../../api/sources';
 import { Stamp } from '../../shared/editorial/Stamp';
 import { EmptyState } from '../../EmptyState';
 import '../../../components/shared/editorial/pages.css';
@@ -53,8 +53,8 @@ export function SourceMatrixCard() {
 
   useEffect(() => {
     let alive = true;
-    getJSON<{ sources?: SourceRow[] }>('/api/sources/health')
-      .then(d => { if (alive) setRows(d.sources ?? []); })
+    getSourceHealth()
+      .then(d => { if (alive) setRows((d.sources as SourceRow[] | undefined) ?? []); })
       .catch(e => {
         if (!alive) return;
         setRows([]);

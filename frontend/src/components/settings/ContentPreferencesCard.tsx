@@ -13,29 +13,15 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
-import { apiFetch } from '../../lib/api';
+import { getContentPreferences, getContentSuggestions, patchContentPreferences } from '../../api/settings';
+import type {
+  ContentPrefAxis as Axis,
+  ContentPrefLevel as Level,
+  ContentPrefTable as PrefTable,
+  ContentPrefs as Prefs,
+  ContentSuggestionsResponse as SuggestionsResponse,
+} from '../../api/settings';
 import { CATEGORIES } from '../../types';
-
-type Level = 'more' | 'normal' | 'less';
-type Axis = 'categories' | 'sources';
-type PrefTable = Record<string, Level>;
-interface Prefs { categories: PrefTable; sources: PrefTable }
-
-interface ContentPrefsResponse {
-  preferences: Partial<Prefs>;
-  auto_preferences: Partial<Prefs>;
-  valid_categories: string[];
-  available_sources: { source: string; count: number }[];
-  levels: Level[];
-}
-
-interface SuggestionsResponse {
-  categories: Record<string, 'more' | 'less'>;
-  sources: Record<string, 'more' | 'less'>;
-  reasons: Record<string, string>;
-  cached_at: string | null;
-  note: string;
-}
 
 const LEVELS: Level[] = ['more', 'normal', 'less'];
 const VISIBLE_SOURCES = 40;
@@ -117,7 +103,7 @@ export function ContentPreferencesCard() {
 
   const loadRecs = useCallback((force: boolean) => {
     if (force) setRecsRefreshing(true);
-    apiFetch<SuggestionsResponse>(`/api/interest/content-prefs/recommendations${force ? '?force=1' : ''}`)
+    getContentSuggestions(force)
       .then(setRecs)
       .catch(() => {})
       .finally(() => { if (force) setRecsRefreshing(false); });
@@ -125,7 +111,7 @@ export function ContentPreferencesCard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    apiFetch<ContentPrefsResponse>('/api/settings/content-preferences', { signal: controller.signal })
+    getContentPreferences({ signal: controller.signal })
       .then((data) => {
         setPrefs({
           categories: data.preferences?.categories || {},
@@ -146,14 +132,10 @@ export function ContentPreferencesCard() {
     (next: Prefs, after?: () => void) => {
       setSaving(true);
       setError(false);
-      apiFetch<ContentPrefsResponse>('/api/settings/content-preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categories: next.categories, sources: next.sources }),
-      })
+      patchContentPreferences(next)
         .then((r) => {
           // PATCH 响应只回 preferences; 重读一次刷新自动/生效展示 (成本小, 保持单一数据路径)
-          return apiFetch<ContentPrefsResponse>('/api/settings/content-preferences').then((fresh) => {
+          return getContentPreferences().then((fresh) => {
             setAutoPrefs(fresh.auto_preferences || {});
             setSavedFlash(true);
             window.setTimeout(() => setSavedFlash(false), 1500);

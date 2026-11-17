@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
+import { unlockSecretsWithOAuth } from '../api/settings';
 
 export function OAuthCallbackPage() {
   const [params] = useSearchParams();
@@ -41,10 +41,7 @@ export function OAuthCallbackPage() {
       // 把 code 当 token 传给后端 /api/secrets/unlock-with-oauth
       try {
         // apiFetch 非 ok 抛错 (message = 后端 detail / HTTP 状态; 原实现拼接 status + 原始响应体文本)
-        await apiFetch('/api/secrets/unlock-with-oauth', {
-          method: 'POST',
-          body: JSON.stringify({ token: code, role: 'admin' }),
-        });
+        await unlockSecretsWithOAuth(code);
         setStatus('ok');
         // 短暂显示成功信息后跳转
         setTimeout(() => navigate('/secnews/settings', { replace: true }), 1500);

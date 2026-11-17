@@ -1,10 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
-import { getJSON, postJSON, apiFetch } from '../lib/api';
+import {
+  createAnnotation,
+  deleteAnnotation,
+  listAnnotations,
+  updateAnnotation,
+} from '../api/knowledge';
+import type { Annotation } from '../api/knowledge';
 
 /**
  * v1.7 Phase 2 — 笔记 CRUD Hook
  *
- * 对接后端:
+ * 对接后端 (经 api/knowledge.ts 强类型函数):
  *  - GET    /api/annotations?entity_type=&entity_id=   列表
  *  - POST   /api/annotations                           新建
  *  - GET    /api/annotations/{id}                      查看
@@ -13,22 +19,9 @@ import { getJSON, postJSON, apiFetch } from '../lib/api';
  *
  * 按 entity (entity_type + entity_id) 加载笔记列表;
  * 提供 add / update / remove 操作, 操作后自动重载列表.
- *
- * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
  */
 
-const ANNOTATIONS_URL = '/api/annotations';
-
-export interface Annotation {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  content: string;
-  range_start: number | null;
-  range_end: number | null;
-  created_at: string;
-  updated_at: string;
-}
+export type { Annotation };
 
 export interface UseAnnotationsReturn {
   items: Annotation[];
@@ -62,8 +55,7 @@ export function useAnnotations(): UseAnnotationsReturn {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ entity_type: entityType, entity_id: entityId });
-      const data = await getJSON<{ items?: Annotation[] }>(`${ANNOTATIONS_URL}?${params}`);
+      const data = await listAnnotations(entityType, entityId);
       // 仅当仍为当前 entity 时才更新 (避免竞态)
       if (
         currentEntityRef.current?.type === entityType &&
@@ -91,7 +83,7 @@ export function useAnnotations(): UseAnnotationsReturn {
       rangeStart?: number,
       rangeEnd?: number
     ): Promise<Annotation> => {
-      const data = await postJSON<{ item: Annotation }>(ANNOTATIONS_URL, {
+      const data = await createAnnotation({
         entity_type: entityType,
         entity_id: entityId,
         content,
@@ -115,10 +107,7 @@ export function useAnnotations(): UseAnnotationsReturn {
       const body: Record<string, unknown> = { content };
       if (rangeStart !== undefined) body.range_start = rangeStart;
       if (rangeEnd !== undefined) body.range_end = rangeEnd;
-      const data = await apiFetch<{ item: Annotation }>(
-        `${ANNOTATIONS_URL}/${encodeURIComponent(annotationId)}`,
-        { method: 'PUT', body: JSON.stringify(body) },
-      );
+      const data = await updateAnnotation(annotationId, body);
       const item = data.item;
       await reload();
       return item;
@@ -128,9 +117,7 @@ export function useAnnotations(): UseAnnotationsReturn {
 
   const remove = useCallback(
     async (annotationId: string): Promise<void> => {
-      await apiFetch<void>(`${ANNOTATIONS_URL}/${encodeURIComponent(annotationId)}`, {
-        method: 'DELETE',
-      });
+      await deleteAnnotation(annotationId);
       await reload();
     },
     [reload]

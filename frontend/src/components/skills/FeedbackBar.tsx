@@ -7,8 +7,7 @@
  * 提交成功后锁定为已反馈态, 不允许重复打分。
  */
 import { useState } from 'react';
-import { postJSON } from '../../lib/api';
-import { SkillFeedback } from '../../types/skill';
+import { submitSkillFeedback } from '../../api/skills';
 
 interface FeedbackBarProps {
   runId: string;
@@ -26,10 +25,7 @@ export function FeedbackBar({ runId, onDone }: FeedbackBarProps) {
     setSubmitting(true);
     setError(null);
     try {
-      await postJSON<SkillFeedback>(
-        `/api/skill-registry/runs/${encodeURIComponent(runId)}/feedback`,
-        { score, comment: '' }
-      );
+      await submitSkillFeedback(runId, score);
       setSubmitted(score);
       onDone?.(score);
     } catch (err) {

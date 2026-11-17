@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
-import { getJSON, postJSON } from '../../lib/api';
+import { listDueReviews, submitReviewGrade } from '../../api/action';
 import { getKnowledgeItem } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { OnboardingHint } from '../layout/OnboardingHint';
@@ -40,12 +40,6 @@ interface KnowledgeDetail {
   concepts: string[];
   mastered: number;
   content?: string;
-}
-
-interface DueResponse {
-  version: string;
-  count: number;
-  items: ReviewRecord[];
 }
 
 interface GradeResponse {
@@ -103,7 +97,7 @@ export function ReviewMode() {
     setCompleted(false);
 
     try {
-      const dueData = await getJSON<DueResponse>('/api/reviews/due?limit=50');
+      const dueData = await listDueReviews<ReviewRecord>(50);
       if (dead.current) return;
       const items = dueData.items || [];
       setReviews(items);
@@ -152,9 +146,10 @@ export function ReviewMode() {
     setSubmitting(true);
     try {
       // 非 2xx 由 apiFetch 抛 ApiError, message 经 getApiErrorMessage 友好化
-      const data = await postJSON<GradeResponse>(
-        `/api/reviews/${encodeURIComponent(review.entity_type)}/${encodeURIComponent(review.entity_id)}/grade`,
-        { grade },
+      const data = await submitReviewGrade<GradeResponse>(
+        review.entity_type,
+        review.entity_id,
+        grade,
       );
       if (dead.current) return;
       if (data.status !== 'ok') throw new Error('评分提交失败');

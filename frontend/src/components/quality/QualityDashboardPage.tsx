@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getJSON } from '../../lib/api';
+import { getQualitySummary, listInfoFilterRules } from '../../api/secnews';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
 import '../shared/editorial/pages.css';
@@ -52,8 +52,8 @@ export function QualityDashboardPage() {
 
   useEffect(() => {
     let alive = true;
-    getJSON<QualitySummaryShape>('/api/quality/summary').then(d => { if (alive) setSummary(d); }).catch(() => { /* 显示 … */ });
-    getJSON<{ rules?: FilterRule[] }>('/api/info-filter/rules')
+    getQualitySummary<QualitySummaryShape>().then(d => { if (alive) setSummary(d); }).catch(() => { /* 显示 … */ });
+    listInfoFilterRules<FilterRule>()
       .then(d => { if (alive) setRules(d.rules ?? []); })
       .catch(e => {
         if (!alive) return;

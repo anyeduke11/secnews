@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ContentDraft } from '../types';
-import { apiFetch, getJSON, postJSON } from '../lib/api';
+import {
+  createContentDraft,
+  deleteContentDraft,
+  getContentDraftContent,
+  listContentDrafts,
+} from '../api/shared';
 import { useAbortGuard } from '../hooks/useAbortGuard';
 import { PublishDialog } from './PublishDialog';
 import { PublishHistory } from './PublishHistory';
@@ -22,7 +27,7 @@ export function ContentDraftList() {
   const loadDrafts = useCallback(() => {
     setLoading(true);
     setError(null);
-    getJSON<{ drafts?: ContentDraft[] }>('/api/content/drafts')
+    listContentDrafts<ContentDraft>()
       .then(data => {
         if (dead.current) return;
         setDrafts(data.drafts || []);
@@ -46,7 +51,7 @@ export function ContentDraftList() {
     }
     setExpandedId(id);
     setLoadingContent(true);
-    getJSON<{ content?: string }>(`/api/content/drafts/${id}`)
+    getContentDraftContent(id)
       .then(data => {
         if (dead.current) return;
         setExpandedContent(data.content || '');
@@ -61,7 +66,7 @@ export function ContentDraftList() {
 
   const handleCreate = () => {
     if (!form.title.trim()) return;
-    postJSON('/api/content/drafts', { title: form.title.trim(), content: form.content })
+    createContentDraft({ title: form.title.trim(), content: form.content })
       .then(() => {
         if (dead.current) return;
         setForm({ title: '', content: '' });
@@ -75,7 +80,7 @@ export function ContentDraftList() {
   };
 
   const handleDelete = (id: number) => {
-    apiFetch<void>(`/api/content/drafts/${id}`, { method: 'DELETE' })
+    deleteContentDraft(id)
       .then(() => {
         if (dead.current) return;
         if (expandedId === id) setExpandedId(null);

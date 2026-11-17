@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { LayerTable, type LayerTableColumn } from '../layout/LayerTable';
-import { getJSON } from '../../lib/api';
+import { getOpsRuns } from '../../api/settings';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 
 interface RunRow {
@@ -61,9 +61,7 @@ export function OpsRunsPanel() {
 
   const reload = useCallback(async (f: FilterKey) => {
     try {
-      const d = await getJSON<OpsRunsResponse>(
-        `/api/ops/runs?hours=24&limit=50&status=${encodeURIComponent(f)}`,
-      );
+      const d = await getOpsRuns<OpsRunsResponse>(f);
       if (dead.current) return;
       setData(d);
     } catch {

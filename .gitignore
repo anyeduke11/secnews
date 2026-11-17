@@ -20,6 +20,7 @@ server.log
 .pytest_cache/
 .coverage
 htmlcov/
+frontend/coverage/
 
 # Export (Phase 7: hotspot.db → dsh-SecNews 数据迁移旁路)
 # 由 scripts/export_for_dsh.py 运行时生成

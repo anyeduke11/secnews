@@ -4,18 +4,14 @@
  * 展示知识库条目统计 + 生命周期分布 + Inbox 扫描入库 (S1-5)。
  */
 import { useState, useEffect, useCallback } from 'react';
-import { ApiError, getJSON } from '../../../lib/api';
+import { ApiError } from '../../../lib/api';
+import { getSecNewsKnowledge } from '../../../api/secnews';
+import type { KnowledgeStats } from '../../../api/secnews';
 import { SecNewsHeader } from '../layout/SecNewsHeader';
 import { InboxScanner } from './InboxScanner';
 import { WikiItemBrowser } from './WikiItemBrowser';
 import { useI18n } from '../../../contexts/I18nContext';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
-
-interface KnowledgeStats {
-  items: number;
-  concepts: number;
-  stage_distribution: Record<string, number>;
-}
 
 export function WikiBrowser() {
   const { t } = useI18n();
@@ -28,7 +24,7 @@ export function WikiBrowser() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJSON<KnowledgeStats>('/api/secnews/knowledge');
+      const data = await getSecNewsKnowledge();
       if (dead.current) return;
       setStats(data);
     } catch (e) {

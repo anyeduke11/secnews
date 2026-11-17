@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { SkillConfig, SecretItem } from '../types';
-import { apiFetch } from '../lib/api';
+import { getSecrets } from '../api/settings';
+import { updateKnowledgeSkill } from '../api/skills';
 import { listKnowledgeSkills } from '../api/knowledge';
 import { Icon } from './Icon';
 
@@ -63,7 +64,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
 
     Promise.all([
       listKnowledgeSkills(),
-      apiFetch<{ items?: SecretItem[] }>('/api/secrets'),
+      getSecrets<{ items?: SecretItem[] }>(),
     ])
       .then(([skillsData, secretsData]) => {
         const found: SkillConfig | undefined = (skillsData.skills || []).find(
@@ -102,10 +103,7 @@ export function SkillConfigDialog({ skill_id, onClose, onSaved }: SkillConfigDia
       model_override: modelOverride.trim() || null,
       enabled,
     };
-    apiFetch(`/api/knowledge/skills/${skill_id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
+    updateKnowledgeSkill(skill_id, body)
       .then(() => {
         showToast('ok', '已保存');
         onSaved?.();

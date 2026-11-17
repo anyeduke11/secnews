@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../contexts/I18nContext';
 import { PRACTICE_DOMAIN_LABELS } from '../../types';
-import { apiFetch } from '../../lib/api';
+import { getPriorityDigest } from '../../api/action';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { useReactions } from '../../hooks/useReactions';
 import { ReactionButtons, useReactionAction } from './ReactionButtons';
@@ -43,7 +43,7 @@ export function PriorityDigestCard() {
   const load = useCallback((force = false) => {
     setLoading(true);
     setError(false);
-    apiFetch<PriorityResponse>(`/api/digests/priority${force ? '?force=true' : ''}`)
+    getPriorityDigest<PriorityResponse>(force)
       .then((d) => { if (dead.current) return; setData(d); })
       .catch(() => { if (dead.current) return; setError(true); })
       .finally(() => { if (!dead.current) setLoading(false); });

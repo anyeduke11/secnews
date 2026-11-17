@@ -1,0 +1,208 @@
+# Hotspot 前端重构 V1 · 契约文档
+
+> **日期**: 2026-11-17
+> **状态**: 已获 owner 裁决，进入 B0 执行
+> **权威关系**: 本文是**实施契约**（怎么改、分批边界、验收口径）；产品能力与验收条件仍以 [`HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`](HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md) 为准，路由/接口一致性仍以 [`v0.8.5/V0.8.5_PLAN.md`](v0.8.5/V0.8.5_PLAN.md) §5/§6/§10 为准。三者冲突时：PRD > V0.8.5_PLAN > 本文。
+> **视觉条款取代关系**: 本文 §3 取代 `design/UI_UX_CONTRACT.md` 的视觉 token 与组件密度条款（该文件壳层条款已于 2026-09-08 superseded）。
+
+---
+
+## 0. 决策记录（owner 2026-11-17）
+
+| # | 决策项 | 裁决 | 说明 |
+|---|---|---|---|
+| D1 | 重构范围 | **全量重写** | 用户明确选择"全量重写"，包含页面 JSX 与三份手写 CSS；契约层（类型/词条/路由语义/SSE/错误模型）按 §2.1 保留 |
+| D2 | 性能口径 | **桌面端** | 暂不考虑移动端；首屏 ≥20% 的具体算法见 §7.1 |
+| D3 | 视觉授权 | **允许完全重新设计** | 不受现有 Sentinel 视觉 token 约束；新视觉方向见 §3 |
+| D4 | 迁移纪律 | **绞杀者模式（强制）** | 新架构与旧页面并存，路由逐域切换，**任何 commit 点仓库必须可构建、可部署、可回滚**。禁止"先删后建" |
+| D5 | 壳数量 | **恒为 1** | 原地替换 `SentinelShell`，不新建并行壳（AGENTS.md 硬规则：禁止新一级入口/新壳） |
+
+---
+
+## 1. 现状基线（实测 2026-11-17）
+
+| 指标 | 数值 | 采集方式 |
+|---|---|---|
+| 非测试源码 | 267 文件 / 50,385 行 | `find frontend/src -name '*.ts*'` 排除 `*.test.*` |
+| 测试 | 99 文件 / 15,375 行 | 同上，仅 `*.test.ts(x)` |
+| 生产包 | 577,813 B gzip | `npm run build` 后 `dist/assets` 求和 |
+| 手写 CSS | 1,070（`index.css`）+ 1,260（`sentinel/*.css`）= 2,330 行 | 行数统计 |
+| 超 500 行文件 | 7 个 | `SentinelHomePage` 808 / `SentinelGraphPage` 762 / `CaseDetail` 784 / `SentinelActionPage` 573 / `ReviewOverlay` 573 / `SkillBuilder` 558 / `I18nContext` 957 |
+| 组件域 | 20 个子域 + 约 40 个根目录散件 | 目录清点 |
+| 数据调用 | 54 处组件直调 `getJSON`，仅 8 个域 API 模块 | grep |
+| 三态渲染 | 54 处各自手写 loading/empty/error | grep |
+| 原生 table | 17 套各自实现 | grep |
+
+### 1.1 必须治好的五个结构病灶
+
+| # | 病灶 | 证据 | 治标方案 |
+|---|---|---|---|
+| P1 | **God 组件** | `SentinelHomePage.tsx` 808 行 / 15 个 `useState`；`SentinelGraphPage.tsx` 762 行 / 13 个 | 拆为「容器（取数/状态编排）+ 区块（纯展示）」，单文件 ≤300 行 |
+| P2 | **数据层碎片化** | 54 处直调 `getJSON`，无统一 key/缓存/失效 | §5 `useQuery` 工厂 + 域 API 模块收口 |
+| P3 | **状态三态重复** | 54 处手写、17 套 table | §4 `AsyncState` + `DataTable` 原子 |
+| P4 | **双套样式体系** | `index.css` 与 `sentinel.css` 各一套 token，`--sn-*` 二次别名 | §3 单一 token 源，`--sn-*` 仅迁移期别名 |
+| P5 | **主题三轨同步** | CSS `data-theme` + `theme-changed` 事件 + localStorage | 单一 `ThemeProvider` 写 `<html data-theme>`，取消自定义事件 |
+
+---
+
+## 2. 目标架构
+
+### 2.1 分层与依赖方向
+
+```
+L4  pages/        组装层：路由页面，唯一持有路由参数与跨区块状态
+     ↓ 只允许向下
+L3  domains/      业务域：useXxxQuery / useXxxMutation + 域组件
+     ↓
+L2  shell/        唯一壳：四菜单 + 管道心跳条 + 主题 + 全局 Toast
+     ↓
+L1  primitives/   无业务原子：StatusBadge / Panel / DataTable / AsyncState / PageHeader / Toolbar
+     ↓
+L0  tokens        纯 CSS 变量（三态主题），零 JS
+```
+
+**硬规则**
+1. 依赖只能向下，禁止反向 import（`primitives` 不得 import `domains`）。
+2. 跨域 import 必须经 `domains/<x>/index.ts` 公开出口，禁止深层路径。
+3. 单个非测试文件 ≤300 行；超出即拆区块。
+4. `echarts` 只允许在 `primitives/EChart.tsx` 内 import（v0.8.9 M-4 成果，守卫测试保留）。
+5. 禁止新增一级菜单或并行壳；新能力只能作为四菜单内的区块挂入。
+
+### 2.2 目录规范
+
+```
+frontend/src/
+├── tokens/            # L0: tokens.css（唯一 token 源）+ 三态主题
+├── primitives/        # L1: 无业务原子（含 colocated test）
+├── shell/             # L2: AppShell / MenuNav / PipeBar / ThemeProvider / ToastHost
+├── domains/           # L3: 按菜单分域
+│   ├── feed/          # 资讯（原 secnews + sentinel 首页区块）
+│   ├── knowledge/     # 知识
+│   ├── action/        # 行动
+│   ├── settings/      # 设置
+│   └── shared/        # 跨域复用（仅当 ≥2 域真实使用）
+├── pages/             # L4: 路由页面（薄）
+├── routes/            # 路由表（语义不变）+ lazy 表
+├── hooks/             # 跨域 hook（useQuery 工厂、useSSE）
+├── types/             # 契约类型（保留）
+├── lib/               # fetch 封装、工具（保留）
+└── contexts/          # I18n（保留）
+```
+
+### 2.3 保留物（不重写）
+
+`api/v1.ts` 全部契约类型 · `types/index.ts` 领域类型与 CATEGORIES · `contexts/I18nContext.tsx` 词条 · `lib/api.ts` 错误契约 · `hooks/realtime.ts` SSE 事件名与 `collect_done` 契约 · `routes/index.tsx` 全部路由语义与重定向 · `EmptyState/Toast/ErrorBoundary/Icon` 四原子（移入 `primitives/` 后语义不变）· `generate_meta.py` 门禁相关无涉。
+
+---
+
+## 3. 视觉语言（重新设计）
+
+**方向**: 安全运维终端 × 编辑器式工作台——高信息密度、等宽数字、细边框分区、零装饰。不做 Hero、不做嵌套大卡片、不做渐变营销风。
+
+| 项 | 取值 |
+|---|---|
+| 字体 | 正文 `ui-sans-serif, -apple-system, "PingFang SC", "Microsoft YaHei"`；等宽/数字 `ui-monospace, "SF Mono", Menlo` + `font-variant-numeric: tabular-nums` |
+| 字号阶 | 11 / 12 / 13 / 15 / 18 / 24 / 32 px（固定值，不用 vw） |
+| 行高 | 正文 1.55；数据行 1.35 |
+| 间距 | 4px 网格：4 / 8 / 12 / 16 / 24 / 32 / 48 |
+| 栅格 | 桌面 12 列，内容区最大宽 1440px；断点 640 / 820 / 1080 / 1240 / 1440（沿用 `breakpoints.css` 变量） |
+| 圆角 | 控件 3px / 容器 5px；不嵌套卡片 |
+| 边框 | `1px solid var(--line)` 分区，不用阴影分层 |
+| 状态色 | 需处理 amber / 风险 red / 已确认 green / 进行中 blue / 中性 gray，**全部带文字标签**，不靠颜色单独传义 |
+| 密度 | 表格行 40px（原 44–48 收紧）/ 工具栏 40px / 输入 32px |
+| 动效 | 120–180ms `ease-out` 过渡；尊重 `prefers-reduced-motion`；无滚动劫持 |
+| 对比度 | 正文 ≥4.5:1，大字 ≥3:1 |
+| 主题 | `light` / `dark` / `paper` 三态，全部经 `<html data-theme>` 驱动 |
+
+**禁止清单**: emoji 图标 · 巨幅标题/欢迎区 · 卡片套卡片 · hover 改变布局尺寸 · 只靠颜色表达状态 · 深色模式用纯黑底（用 `#141414` 系）。
+
+---
+
+## 4. 组件原子（L1）
+
+| 原子 | 职责 | 替换掉 |
+|---|---|---|
+| `StatusBadge` | 5 种语义状态，含文字 | 各页散落 badge |
+| `Panel` | 带标题 / 操作区 / 空态插槽的容器 | 各页自拼卡片 |
+| `DataTable` | 粘性表头、稳定列宽、数字右对齐、行 hover 仅变色 | 17 套原生 table |
+| `AsyncState` | loading 骨架 / empty / error / stale 四态统一 | 54 处手写三态 |
+| `PageHeader` | 标题 + 面包屑 + 主操作 + 元信息行 | 各页页头 |
+| `Toolbar` | 筛选/搜索/视图切换的等距栏 | 各页工具条 |
+| `SplitPane` | 主从两栏，可折叠辅助栏，窄屏降级为抽屉 | 手工 grid |
+| `Inspector` | 右侧详情抽屉 | 各页 aside |
+
+---
+
+## 5. 数据层规范
+
+- 单一入口：`lib/api.ts`（保留现有 `ApiError` / `apiFetch` 契约）。
+- 域模块：`domains/<d>/api.ts` 导出强类型函数，**组件不得直接调 `getJSON`**。
+- 查询工厂：`hooks/useQuery.ts`（`useState + 缓存 Map + useSyncExternalStore`），提供 `{data, state, refetch}`；`state ∈ loading|success|empty|error`。
+- 失效：沿用 `hooks/realtime.ts` 的 SSE 事件名，`collect_done` → 对应域 `invalidate(key)`。
+- 页面上每个数据区块最多一个加载态，`partial` 用区块级 `AsyncState` 表达，不允许整页空白。
+
+---
+
+## 6. 分批计划与退出条件
+
+> 每批独立可发布；批内不跨域改动。
+
+| 批 | 内容 | 退出条件 |
+|---|---|---|
+| **B0** | 覆盖率基线实测（`vitest run --coverage` 存档）；首屏 JS gzip 基线；目录骨架；本文档冻结 | 基线数字入档 `docs/audit/FRONTEND_REWRITE_BASELINE_2026-11-17.md`；`tsc` 绿；包体积不变 |
+| **B1** | `tokens.css` 建立（全局 token 单一源，`index.css` 以 `@import` 引入，视觉零变化）+ L1 primitives 八件 + colocated 测试 | 每原子 ≥1 测试；无业务依赖；token 重复定义归零 |
+| **B2** | `shell/AppShell` 原地替换 `SentinelShell`（四菜单 + 心跳条 + 主题 + 全局 Toast 提到根） | `nav4_shell` 守卫测试改造后绿；三态主题可切换；旧页在 `--sn-*` 别名下正常渲染 |
+| **B3** | `hooks/useQuery` + 域 API 模块；54 处直调收敛 | 直调计数降为 0（grep 断言）；无回归 |
+| **B4** | 资讯域 `/` 重写（拆 God 组件 + 密度重排） | 首屏区块全保留；单文件 ≤300 行；包体积不增 |
+| **B5** | 知识域 `/knowledge` + 行动域 `/action` 重写 | 同上 |
+| **B6** | 设置域 `/settings` + 工具页容器统一 + 旧三份 CSS 删除 + 性能对比 + 验证报告 | §7 全部指标达标；旧代码零残留 |
+
+**回滚**: 每批一个 commit（可含 1–3 个配套 commit），回滚 = `git revert` 单批，不依赖跨批状态。
+
+**批次进度**（随批更新；证据统一在 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md`）:
+
+| 批 | 状态 | 完成日 | 证据 |
+|---|---|---|---|
+| B0 | ✅ | 2026-11-17 | 基线存档 §1–§3；DEV-0391 |
+| B1 | ✅ | 2026-11-17 | 验证报告 §2；DEV-0392 |
+| B2 | ✅ | 2026-11-17 | 验证报告 §3；DEV-0393（缺口见 §4） |
+| B3 | ✅ | 2026-11-17 | 验证报告 §5；DEV-0394（缺口 G5/G6 见 §4，偏差 D1–D5 见 §5.5） |
+| B4–B6 | ⏳ 未开始 | — | — |
+
+---
+
+## 7. 验收口径
+
+### 7.1 首屏性能 ≥20%（D2 桌面端口径）
+
+- **环境**: 生产构建 `npm run build` + `vite preview`，桌面视口 1440×900，Chromium 冷缓存，同一数据夹具（后端固定响应）。
+- **指标（两者都需达标，取 min）**:
+  1. 首屏路由 JS 传输体积（gzip）≤ 基线的 80%；
+  2. LCP ≤ 基线的 80%（3 次取中位数）。
+- **基线**: B0 实测存档至 `docs/audit/FRONTEND_REWRITE_BASELINE_2026-11-17.md`。
+
+### 7.2 测试覆盖率不低于现有
+
+- **基线来源**: B0 实测（当前 `vite.config.ts` 无 coverage 配置，故"现有水平"必须由 B0 建立，不得凭估算）。
+- **门禁**: B1 起在 `vite.config.ts` 增加 `coverage.thresholds`，逐域下限 = B0 全局值；任一批不得低于基线。
+
+### 7.3 功能覆盖
+
+- `routes/ROUTE_REGISTRY.md` 全部路由与重定向逐条保留（含 `/judge`→`/`、`/cases`→`/action`、`v1` 四入口 query 透传）。
+- PRD 92 条能力覆盖地图（`design/_research/prd-capabilities.md`）逐条可定位到新页面区块；**四向映射基线已产出于 [`audit/PRD_CAPABILITY_MAP_2026-11-18.md`](audit/PRD_CAPABILITY_MAP_2026-11-18.md)**（92 条：已定位 68 / 未定位 24 / 有测试 47），B4–B6 按该表逐域勾选。
+- 实现侧不自评 PASS；验收证据写入测试报告，由 owner 复核。
+
+### 7.4 交付物
+
+重构代码 · 变更说明（`docs/CHANGELOG.md` 条目 + DEV_LOG）· 测试验证报告（`docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md`，随各批更新）。
+
+---
+
+## 8. 风险
+
+| 风险 | 缓解 |
+|---|---|
+| 全量重写击穿 Token 预算 | 严格分批，每批独立交付；预算按 Rule 6 repo-wide 档执行，达 70% 报数并设 checkpoint |
+| 旧页在新壳下样式错乱 | 迁移期保留 `--sn-*` → 全局 token 别名，B6 才删除 |
+| 守卫测试（源码结构断言）误伤 | `nav4_shell` 在 B2 改造为路由/菜单行为断言，而不是源码字符串匹配 |
+| 功能静默丢失 | §7.3 路由与能力双清单逐条勾选；任何未承接项必须在报告中标注为缺口（不隐藏） |

@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { apiFetch, getJSON, postJSON } from '../../lib/api';
+import { createAnnotation, deleteAnnotation, listAnnotations, readWikiDoc } from '../../api/knowledge';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
 import '../shared/editorial/pages.css';
@@ -300,7 +300,7 @@ export function DeepReaderPage() {
     setDoc(null);
     // wiki_tools 白名单: [子目录/]name.md, 条目默认走 items/ 命名空间
     const path = id.endsWith('.md') ? id : `items/${id}.md`;
-    getJSON<WikiReadResult>(`/api/wiki/read?path=${encodeURIComponent(path)}`)
+    readWikiDoc<WikiReadResult>(path)
       .then(d => { if (alive) setDoc(d); })
       .catch(e => { if (alive) setError(e instanceof Error ? e.message : String(e)); })
       .finally(() => { if (alive) setLoading(false); });
@@ -309,9 +309,7 @@ export function DeepReaderPage() {
 
   const loadAnns = useCallback(() => {
     if (!id) return;
-    getJSON<{ items?: AnnotationRow[]; count?: number }>(
-      `/api/annotations?entity_type=wiki_item&entity_id=${encodeURIComponent(id)}`,
-    )
+    listAnnotations<AnnotationRow>('wiki_item', id)
       .then(d => { setAnnRows(d.items ?? []); })
       .catch(() => { setAnnRows([]); });
   }, [id]);
@@ -348,7 +346,7 @@ export function DeepReaderPage() {
       const start = hits.length > 0
         ? hits[0]
         : Math.floor(doc.content.length * 0.1);
-      await postJSON('/api/annotations', {
+      await createAnnotation({
         entity_type: 'wiki_item',
         entity_id: id,
         content: noteText.trim(),
@@ -371,7 +369,7 @@ export function DeepReaderPage() {
 
   async function deleteAnn(annId: string) {
     try {
-      await apiFetch(`/api/annotations/${encodeURIComponent(annId)}`, { method: 'DELETE' });
+      await deleteAnnotation(annId);
       loadAnns();
     } catch (e) {
       setNotice({ kind: 'err', text: `删除失败: ${e instanceof Error ? e.message : String(e)}` });

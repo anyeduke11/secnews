@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getJSON, postJSON, apiFetch } from '../lib/api';
+import {
+  createSkillItem,
+  deleteSkillItem,
+  getSkillCountsBySource,
+  listSkills,
+  updateSkillItem,
+} from '../api/skills';
 import {
   SkillItem,
   SkillListResponse,
@@ -17,10 +23,8 @@ import {
  *  - count_by_source 统计
  *  - CRUD: add / update / remove
  *
- * 端点为单一 hook 专用 → 常量化于此, 走 lib/api 统一封装。
+ * 端点收敛到 api/skills.ts (/api/skills CRUD)。
  */
-
-const SKILLS_URL = '/api/skills';
 
 export interface UseSkillsReturn {
   items: SkillItem[];
@@ -73,7 +77,7 @@ export function useSkills(): UseSkillsReturn {
         if (currentTag) params.set('tag', currentTag);
         if (currentKeyword.trim()) params.set('keyword', currentKeyword.trim());
 
-        const data: SkillListResponse = await getJSON<SkillListResponse>(`${SKILLS_URL}?${params}`, {
+        const data: SkillListResponse = await listSkills<SkillListResponse>(params, {
           signal: controller.signal,
         });
         setItems(data.items || []);
@@ -92,7 +96,7 @@ export function useSkills(): UseSkillsReturn {
 
   const fetchCounts = useCallback(async () => {
     try {
-      const data = await getJSON<SkillCountBySourceResponse>(`${SKILLS_URL}/count_by_source`);
+      const data = await getSkillCountsBySource<SkillCountBySourceResponse>();
       setCountsBySource(data.counts || {});
     } catch {
       // 静默
@@ -124,7 +128,7 @@ export function useSkills(): UseSkillsReturn {
 
   const add = useCallback(
     async (req: SkillCreateRequest): Promise<SkillItem> => {
-      const data = await postJSON<{ item: SkillItem }>(SKILLS_URL, req);
+      const data = await createSkillItem<SkillItem, SkillCreateRequest>(req);
       const item = data.item;
       setItems(prev => [item, ...prev]);
       setTotal(prev => prev + 1);
@@ -136,10 +140,7 @@ export function useSkills(): UseSkillsReturn {
 
   const update = useCallback(
     async (id: number, req: SkillUpdateRequest): Promise<SkillItem> => {
-      const data = await apiFetch<{ item: SkillItem }>(`${SKILLS_URL}/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(req),
-      });
+      const data = await updateSkillItem<SkillItem, SkillUpdateRequest>(id, req);
       const item = data.item;
       setItems(prev => prev.map(p => (p.id === id ? item : p)));
       await fetchCounts();
@@ -150,7 +151,7 @@ export function useSkills(): UseSkillsReturn {
 
   const remove = useCallback(
     async (id: number): Promise<void> => {
-      await apiFetch<void>(`${SKILLS_URL}/${id}`, { method: 'DELETE' });
+      await deleteSkillItem(id);
       setItems(prev => prev.filter(p => p.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
       await fetchCounts();

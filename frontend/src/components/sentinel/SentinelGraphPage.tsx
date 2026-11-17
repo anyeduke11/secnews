@@ -21,8 +21,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealtimeInvalidation } from '../../hooks/realtime';
 import { listHotspots } from '../../api/hotspots';
-import { getJSON } from '../../lib/api';
-import { getKnowledgeConceptDetail, getKnowledgeGraph, KnowledgeApiError } from '../../api/knowledge';
+import {
+  getKnowledgeConceptDetail,
+  getKnowledgeGraph,
+  KnowledgeApiError,
+  listKnowledgeConcepts,
+} from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
 import { InfiniteCanvas } from '../shared/editorial/InfiniteCanvas';
@@ -238,7 +242,7 @@ export function SentinelGraphPage() {
       const [g, c, h] = await Promise.all([
         // apiFetch 非 ok 抛错 (message 经 getApiErrorMessage 友好化; 原实现为「图谱请求失败 (status)」)
         getKnowledgeGraph(),
-        getJSON<{ concepts?: ConceptMeta[] }>('/api/knowledge/concepts')
+        listKnowledgeConcepts<ConceptMeta>()
           .catch(() => ({ concepts: [] as ConceptMeta[] })),
         // 今日收录口径: 只取 total, 给心跳条用
         listHotspots({ category: 'all', time_range: '24h', limit: 1 })

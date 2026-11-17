@@ -157,6 +157,14 @@ async def _run_startup(app: FastAPI) -> None:
         # Phase 8: scheduler 注册到 app.state（替代模块级 singleton）
         app.state.scheduler = sched
 
+    # C6-2: 知识回流事件直连 — v1_case_closed → 复盘提案 (人主律只起草)
+    try:
+        from backend.services.outbox_dispatcher import get_dispatcher
+        from backend.services.retrospective_service import register as _register_retrospective
+        _register_retrospective(get_dispatcher())
+    except Exception as e:
+        log.warning(f"retrospective handler registration failed (ignored): {e}")
+
     # C11 R18: outbox dispatcher — 业务 outbox 行 → SSE 广播
     try:
         from backend.services.outbox_dispatcher import get_dispatcher

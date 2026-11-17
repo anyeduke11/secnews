@@ -68,6 +68,15 @@ class ProposalRepository:
         ).fetchall()
         return [self._row_to_dict(r) for r in rows], total
 
+    def exists_for_case(self, case_id: str, *, kind: str | None = None) -> bool:
+        """case 上是否已有提案 (C6-2 复盘订阅的幂等判据)。"""
+        sql = "SELECT 1 FROM v1_proposals WHERE case_id = ?"
+        params: list[Any] = [case_id]
+        if kind:
+            sql += " AND kind = ?"
+            params.append(kind)
+        return self._c().execute(sql + " LIMIT 1", params).fetchone() is not None
+
     def update_decision(
         self, proposal_id: str, status: str, *,
         reviewed_by: str | None = None, reviewed_at: str | None = None,

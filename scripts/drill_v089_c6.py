@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -218,8 +219,35 @@ def _main() -> int:
     accepted = ar_svc.accept(artifact["id"], accepted_by="drill",
                              accepted_note="演练⑤ 落盘 hash 一致")
 
+    # ── 7.5 绑定证据材料 (C6-2 前置: 复盘起草要求 case 有证据) ──────────
+    def step_bind_evidence():
+        from backend.repository.v1_evidence_repo import V1EvidenceRepository
+
+        src = (ROOT / WS / "src" / "input.txt").read_bytes()
+        mid = f"mat-{RUN_TAG}-{os.getpid()}"
+        h = hashlib.sha256(src).hexdigest()
+        V1EvidenceRepository().insert_material(
+            {"id": mid, "source_kind": "file",
+             "url": f"file://{ROOT / WS / 'src' / 'input.txt'}",
+             "title": "CVE-2024-0000 暴露面基线材料",
+             "content_hash": h, "content_length": len(src),
+             "content_ref": str(ROOT / WS / "src" / "input.txt"),
+             "summary": "演练⑤ 证据材料"},
+            entity_id=mid, body_hash=h,
+        )
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR IGNORE INTO v1_case_materials (case_id, material_id) VALUES (?, ?)",
+            (case_id, mid),
+        )
+        conn.commit()
+        return {"material_id": mid, "content_hash": h}
+
+    step("7.5-绑定证据材料", step_bind_evidence)
+
     # ── 8. case close → 四守卫全过 ─────────────────────────────────────
     closed = CaseService().close_case(case_id, expected_revision=_case_revision(case_id))
+    t_close = time.monotonic()  # 演练⑥ 计时起点: 关闭 → 复盘提案出现
 
     # ── 9. 对账 ───────────────────────────────────────────────────────
     outbox = get_connection().execute(
@@ -227,6 +255,98 @@ def _main() -> int:
         "AND aggregate_id IN (?, ?, ?) GROUP BY event_type",
         (run_id, artifact["id"], action["id"]),
     ).fetchall()
+
+    # ── 10. 演练⑥ C6-2: v1_case_closed → 复盘提案 (事件直连) ────────────
+    def step_case_closed_event():
+        n = get_connection().execute(
+            "SELECT COUNT(*) FROM v1_outbox "
+            "WHERE event_type = 'v1_case_closed' AND aggregate_id = ?",
+            (case_id,),
+        ).fetchone()[0]
+        if n != 1:
+            raise AssertionError(f"expected 1 v1_case_closed event, got {n}")
+        return {"events": n}
+
+    def _stub_drafter(context: dict) -> dict:
+        """演练桩: 不依赖 dsh/ai_hub, 只验证 glue 链 (人主律不变)。"""
+        return {
+            "title": "复盘: CVE-2024-0000 暴露面收敛",
+            "summary": "边界内只读汇总成功, 暴露面已按 plan 收敛。",
+            "lessons": ["先收敛暴露面, 再复核依赖面"],
+            "next_actions": ["下季度复测该边界"],
+            "evidence_refs": [str(m.get("id")) for m in context.get("evidence") or []],
+        }
+
+    def step_retro_dispatch():
+        import asyncio
+
+        from backend.services.outbox_dispatcher import OutboxDispatcher
+        from backend.services.retrospective_service import register as register_retro
+
+        disp = OutboxDispatcher()
+        register_retro(disp, drafter=_stub_drafter)
+
+        async def _pump() -> int:
+            n = await disp.flush_once()
+            await asyncio.gather(*list(disp._handler_tasks), return_exceptions=True)
+            return n
+
+        broadcast = asyncio.run(_pump())
+        row = get_connection().execute(
+            "SELECT id, status, kind, source, created_at FROM v1_proposals "
+            "WHERE case_id = ? ORDER BY created_at DESC LIMIT 1",
+            (case_id,),
+        ).fetchone()
+        if row is None:
+            raise AssertionError("no retrospective proposal created")
+        latency = time.monotonic() - t_close
+        return {"broadcast": broadcast, "proposal_id": row["id"], "status": row["status"],
+                "kind": row["kind"], "source": row["source"],
+                "latency_sec": round(latency, 3)}
+
+    def step_approve_draft():
+        pid = _step_of("C6-2-复盘提案")["proposal_id"]
+        from backend.services.run_ledger_service import RunLedgerService
+
+        RunLedgerService().approve_proposal(pid, reviewed_by="drill-human")
+        frow = get_connection().execute(
+            "SELECT status, outcome FROM v1_runs WHERE idempotency_key = ?",
+            (f"proposal:{pid}",),
+        ).fetchone()
+        krow = get_connection().execute(
+            "SELECT id, status, kind, title FROM v1_knowledge "
+            "ORDER BY created_at DESC LIMIT 1",
+        ).fetchone()
+        if krow is None:
+            raise AssertionError("no v1_knowledge draft materialized")
+        return {"fork_run": dict(frow) if frow else {}, "knowledge_id": krow["id"],
+                "status": krow["status"], "kind": krow["kind"], "title": krow["title"]}
+
+    def step_publish_recall():
+        kid = _step_of("C6-2-批准→知识草案")["knowledge_id"]
+        from backend.services.knowledge_reuse import auto_recall_for_case
+        from backend.services.knowledge_service import KnowledgeService
+
+        pub = KnowledgeService().publish(kid, expected_revision=1)
+        hits = auto_recall_for_case(
+            {"title": "CVE-2024-0000 暴露面复测", "question": "同类暴露面是否复发?"},
+            limit=5,
+        )
+        recalled = [h["id"] for h in hits]
+        if kid not in recalled:
+            raise AssertionError(f"knowledge {kid} not recalled; hits={recalled}")
+        return {"publish_status": pub.get("status"), "recall_hits": recalled}
+
+    def _step_of(name: str) -> dict:
+        for s in report["steps"]:
+            if s.get("name") == name:
+                return s
+        raise AssertionError(f"step {name} not found")
+
+    step("C6-2-关闭事件落账", step_case_closed_event)
+    step("C6-2-复盘提案", step_retro_dispatch)
+    step("C6-2-批准→知识草案", step_approve_draft)
+    step("C6-2-发布→同类召回", step_publish_recall)
 
     # ── N3: 无 published judgment 的 case → 守卫 (d) 必须拦 ─────────────
     # 无 action → 守卫 (c) 跳过, 前置 (a)(b) 天然通过, 直抵 (d)。
@@ -289,6 +409,11 @@ def _main() -> int:
     step("N3-守卫d拦截", step_guard_d)
     step("N4-守卫b拦截", step_guard_b)
 
+    c62 = {s["name"]: s for s in report["steps"] if s["name"].startswith("C6-2-")}
+    draft = c62["C6-2-复盘提案"]
+    kb = c62["C6-2-批准→知识草案"]
+    pub = c62["C6-2-发布→同类召回"]
+
     report["entities"] = {
         "case_id": case_id, "case_status": closed.status,
         "judgment_id": judgment_id, "judgment_status": judgment_status,
@@ -297,17 +422,30 @@ def _main() -> int:
         "content_hash": artifact["content_hash"], "disk_sha256": eff_hash,
         "hash_match": artifact["content_hash"] == eff_hash,
         "outbox": {r[0]: r[1] for r in outbox},
+        "c6_2": {
+            "closed_event": c62["C6-2-关闭事件落账"]["events"],
+            "proposal_id": draft["proposal_id"], "proposal_status": draft["status"],
+            "latency_sec": draft["latency_sec"],
+            "knowledge_id": kb["knowledge_id"], "knowledge_status": kb["status"],
+            "knowledge_kind": kb["kind"],
+            "publish_status": pub["publish_status"],
+            "recalled": kb["knowledge_id"] in pub["recall_hits"],
+        },
     }
-    print("\n=== 演练⑤ 汇总 ===")
+    print("\n=== 演练⑤⑥ 汇总 ===")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
-    guards = {s["name"]: bool(s.get("blocked")) for s in report["steps"]}
+    guards = {s["name"]: bool(s.get("blocked"))
+              for s in report["steps"] if s["name"].startswith("N")}
     ok = (
         closed.status == "closed"
         and run_row.get("outcome") == "done"
         and accepted["status"] == "accepted"
         and artifact["content_hash"] == eff_hash
         and all(guards.values()) and len(guards) == 4
+        # 演练⑥ 三断言: 30s 内起草 · 人批准产 draft · publish 后同类可召回
+        and draft["status"] == "draft" and draft["latency_sec"] < 30
+        and kb["status"] == "draft" and pub["publish_status"] == "published"
     )
     print(f"\nRESULT: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1

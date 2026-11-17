@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import random
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -458,6 +458,66 @@ class RunLedgerService:
             artifact_ids=[artifact["id"]],
         )
         self.runs.update_outcome(run_id, "done")
+        self._materialize_knowledge_draft(
+            run_id=run_id, proposal=proposal, payload=payload, evidence=evidence,
+        )
+
+    def _materialize_knowledge_draft(
+        self, *, run_id: str, proposal: dict[str, Any],
+        payload: dict[str, Any], evidence: list[dict[str, Any]],
+    ) -> None:
+        """C6-2: 复盘类报告批准 → v1_knowledge draft (走既有 publish/review/adoption).
+
+        人批准 = 允许生成草案; 知识对外生效仍需走既有 publish 审核 (CAS + wiki-first)。
+        草案是派生副产物: 失败只 error 留痕, 不改 Run 终判 (run/artifact 已成功,
+        不能因下游派生失败伪造失败)。
+        """
+        kind = payload.get("knowledge_kind")
+        if not kind and proposal.get("kind") == "report":
+            kind = "playbook"  # SK-04 / 复盘报告 → 经验 playbook
+        if not kind:
+            return
+        case_id = proposal.get("case_id") or ""
+        source = payload.get("source") or {}
+        lessons = payload.get("lessons") or []
+        next_actions = payload.get("next_actions") or []
+        parts = [str(payload.get("summary") or "")]
+        if lessons:
+            parts.append("## 经验教训\n" + "\n".join(f"- {x}" for x in lessons))
+        if next_actions:
+            parts.append("## 后续行动\n" + "\n".join(f"- {x}" for x in next_actions))
+        evidence_refs = [
+            {"material_id": str(m["id"]), "hash": str(m.get("content_hash") or "")}
+            for m in evidence if m.get("content_hash")
+        ]
+        review_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
+        try:
+            from backend.services.knowledge_service import KnowledgeService
+            KnowledgeService()._insert_draft(
+                case_id=case_id,
+                kind=kind,
+                parsed={
+                    "title": str(payload.get("title") or ""),
+                    "body": "\n\n".join(p for p in parts if p),
+                    "prerequisites": list(payload.get("prerequisites") or []),
+                    "counter_examples": list(payload.get("counter_examples") or []),
+                    "evidence_refs": evidence_refs,
+                    "review_at": review_at,
+                    "expiry_at": payload.get("expiry_at"),
+                },
+                submitted_by="proposal-approval",
+                source_judgment_id=str(source.get("judgment_id") or ""),
+                source_action_id=str(source.get("action_id") or ""),
+            )
+            logger.info(
+                f"v1_knowledge draft materialized run={run_id} case={case_id} kind={kind} "
+                f"evidence={len(evidence_refs)}"
+            )
+        except Exception as e:
+            logger.error(
+                f"v1_knowledge draft write failed run={run_id} case={case_id}: "
+                f"{type(e).__name__}: {e}"
+            )
 
     # ── 内部 ─────────────────────────────────────────────────────────
     def _get_or_raise(self, proposal_id: str) -> dict[str, Any]:

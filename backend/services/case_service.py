@@ -573,4 +573,25 @@ class CaseService:
                 current_revision=cur.revision if cur else None,
                 current_status=cur.status if cur else None,
             )
+        self._publish_case_closed_event(updated)
+
         return self._record_to_case(updated, reason="closed")
+
+    def _publish_case_closed_event(self, rec: CaseRecord) -> None:
+        """C6-2: closed 事件写 v1_outbox (retrospective_service 订阅 → 复盘草案).
+
+        CAS 已落库, 事件是派生流: enqueue 失败只 debug 留痕, 不阻断关闭。
+        """
+        try:
+            from backend.observability import get_trace_id
+            from backend.repository.outbox_repo import OutboxRepo
+            OutboxRepo().enqueue(
+                event_type="v1_case_closed",
+                aggregate_type="case",
+                aggregate_id=rec.id,
+                revision=rec.revision,
+                payload={"id": rec.id, "status": rec.status, "title": rec.title},
+                trace_id=get_trace_id() or "no-trace",
+            )
+        except Exception as e:
+            logger.debug(f"v1_case_closed outbox enqueue skipped: {e}")

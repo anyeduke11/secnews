@@ -5,6 +5,8 @@
 - 后台 task 每 1s 轮询 v1_outbox (delivered_at IS NULL), 取未广播段
 - 调 events.publish_event(event_type, payload, outbox_id=row['id']) 广播
 - 全部成功 → mark_delivered(ids); 失败保留 NULL (下次重试)
+- C6-2: add_handler 注册的业务订阅钩子在广播成功后 fire-and-forget 执行
+  (独立线程, 失败不回收 delivered 语义)
 - 启动入口: main.py lifespan
 - 关闭: cancel task + 等待最后一批 flush
 """
@@ -12,6 +14,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("hotspot.outbox_dispatcher")
 
@@ -27,6 +31,17 @@ class OutboxDispatcher:
         self._batch_size = int(batch_size)
         self._task: asyncio.Task | None = None
         self._stop = False
+        self._handlers: dict[str, list[Callable[[dict], Any]]] = {}
+        self._handler_tasks: set[asyncio.Task] = set()
+
+    def add_handler(self, event_type: str, handler: Callable[[dict], Any]) -> None:
+        """C6-2: 订阅钩子 — 该 event_type 广播成功后异步跑 handler(row)。
+
+        handler 在独立线程执行 (同步 DB/LLM 不阻塞 SSE 广播), fire-and-forget:
+        失败只 warning 留痕, 不改 delivered 语义; 幂等由 handler 自己保证
+        (同一 outbox 行可能因重启重放)。
+        """
+        self._handlers.setdefault(event_type, []).append(handler)
 
     async def start(self) -> None:
         """启动后台轮询 task; 重复调用幂等."""
@@ -46,6 +61,9 @@ class OutboxDispatcher:
             except asyncio.CancelledError:
                 pass
             self._task = None
+        for t in list(self._handler_tasks):
+            t.cancel()
+        self._handler_tasks.clear()
         logger.info("outbox dispatcher stopped")
 
     async def flush_once(self) -> int:
@@ -67,12 +85,33 @@ class OutboxDispatcher:
                     row["event_type"], row["payload"], outbox_id=row["id"],
                 )
                 delivered_ids.append(row["id"])
+                self._schedule_handlers(row)
             except Exception as e:
                 # Mimosa 禁 silent, 但 dispatcher 自身不能因单条失败整体停
                 logger.warning(f"outbox broadcast failed for id={row['id']}: {e}")
         if delivered_ids:
             repo.mark_delivered(delivered_ids)
         return len(delivered_ids)
+
+    def _schedule_handlers(self, row: dict) -> None:
+        handlers = self._handlers.get(row.get("event_type"))
+        if not handlers:
+            return
+        for handler in handlers:
+            task = asyncio.create_task(
+                asyncio.to_thread(handler, row),
+                name=f"outbox-handler-{row['id']}",
+            )
+            self._handler_tasks.add(task)
+            task.add_done_callback(self._on_handler_done)
+
+    def _on_handler_done(self, task: asyncio.Task) -> None:
+        self._handler_tasks.discard(task)
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.warning(f"outbox handler failed: {exc}")
 
     async def _run_loop(self) -> None:
         """主循环: 每 poll_interval 拉一批, 永不抛."""

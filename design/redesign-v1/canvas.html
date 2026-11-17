@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotspot 无限画布 · 全站地图（Sentinel Press × Security Terminal）</title>
+<style>
+/* ---- 自包含：token 三态（与 demo style.css 同源） ---- */
+:root {
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --font-serif: 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', Georgia, serif;
+}
+:root, :root[data-theme='light'] {
+  --bg:#edf1f7; --card:#fff; --ink:#14294a; --ink2:#45597c; --ink3:#7188a8;
+  --line:rgba(22,43,80,.13); --linex:rgba(22,43,80,.28);
+  --mint:#04785c; --amber:#a86314; --red:#cc3d50; --info:#0e7490; --accent:#04785c;
+  --dot:rgba(22,43,80,.16); color-scheme:light;
+}
+:root[data-theme='dark'] {
+  --bg:#0a1628; --card:#0f2140; --ink:#eef3fa; --ink2:#9db0c9; --ink3:#5f7492;
+  --line:rgba(148,180,220,.14); --linex:rgba(148,180,220,.3);
+  --mint:#00e5a0; --amber:#ffab5e; --red:#ff6470; --info:#4dd6e2; --accent:#00e5a0;
+  --dot:rgba(148,180,220,.14); color-scheme:dark;
+}
+:root[data-theme='paper'] {
+  --bg:#F7F4EE; --card:#fdf8ec; --ink:#1C1917; --ink2:#5a4a36; --ink3:#8a7659;
+  --line:#E4DED2; --linex:#cfc6b4;
+  --mint:#2E6B4F; --amber:#A0691F; --red:#BE3426; --info:#3B5B78; --accent:#BE3426;
+  --dot:rgba(90,74,54,.22); color-scheme:light;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; overflow:hidden; }
+body { background:var(--bg); color:var(--ink); font:13px/1.6 var(--font-mono); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---- 顶栏（报头式） ---- */
+.top {
+  position:fixed; inset:0 0 auto 0; height:52px; z-index:50;
+  display:flex; align-items:center; gap:16px; padding:0 20px;
+  background:var(--card); border-bottom:1px solid var(--linex);
+}
+.top .tt { font-family:var(--font-serif); font-weight:900; font-size:19px; letter-spacing:-0.02em; }
+.top .sub { font-size:9.5px; letter-spacing:.14em; color:var(--ink3); text-transform:uppercase; }
+.top .legend { margin-left:auto; display:flex; gap:12px; font-size:10.5px; color:var(--ink2); align-items:center; flex-wrap:wrap; }
+.top .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px; vertical-align:-1px; }
+.zc { display:flex; gap:6px; }
+.zc button {
+  border:1px solid var(--linex); background:var(--card); color:var(--ink);
+  width:30px; height:26px; border-radius:6px; cursor:pointer; font:600 13px var(--font-mono);
+}
+.zc button:hover { background:var(--card); filter:brightness(.97); }
+.zc .zv { font-size:11px; color:var(--ink3); align-self:center; min-width:44px; text-align:center; }
+.statusbar {
+  position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:10.5px; color:var(--ink3); background:var(--card); border:1px solid var(--linex);
+  border-radius:999px; padding:4px 14px; white-space:nowrap;
+}
+
+/* ---- 画布视口 + 世界平面 ---- */
+#vp { position:absolute; inset:52px 0 0 0; overflow:hidden; cursor:grab; }
+#vp.drag { cursor:grabbing; }
+#world { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform;
+  background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size:24px 24px; }
+
+/* ---- 流程链（飞轮主干） ---- */
+.chain { position:absolute; display:flex; align-items:center; gap:0; }
+.chain .cn {
+  background:var(--card); border:1px solid var(--linex); border-radius:8px;
+  padding:10px 16px; text-align:center; min-width:118px;
+}
+.chain .cn b { display:block; font-family:var(--font-sans); font-size:12.5px; }
+.chain .cn span { font-size:9.5px; color:var(--ink3); letter-spacing:.08em; }
+.chain .ar { color:var(--ink3); padding:0 6px; font-size:12px; }
+.chain .back { color:var(--accent); font-size:10px; letter-spacing:.08em; padding:0 10px; }
+
+/* ---- 域区块 ---- */
+.region {
+  position:absolute; border:1.5px solid var(--linex); border-radius:12px;
+  background:transparent; padding:14px;
+}
+.region .rg-head { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; border-bottom:1px solid var(--linex); padding-bottom:8px; }
+.region .rg-t { font-family:var(--font-sans); font-weight:800; font-size:15px; }
+.region .rg-en { font-size:9px; letter-spacing:.18em; color:var(--ink3); text-transform:uppercase; }
+.region .rg-n { margin-left:auto; font-size:10.5px; color:var(--ink3); }
+.pg-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.pg {
+  display:block; background:var(--card); border:1px solid var(--line); border-radius:8px;
+  padding:8px 10px; font-size:11px; color:var(--ink2); text-decoration:none;
+  transition:all 120ms cubic-bezier(0.16,1,0.3,1);
+}
+.pg:hover { border-color:var(--accent); color:var(--ink); transform:translateY(-1px); }
+.pg b { display:block; color:var(--ink); font-family:var(--font-sans); font-size:11.5px; margin-bottom:2px; font-weight:600; }
+.pg .p { font-size:9.5px; color:var(--ink3); font-family:var(--font-mono); }
+.pg .st { float:right; width:7px; height:7px; border-radius:50%; margin-top:4px; }
+.st.ok { background:var(--mint); } .st.part { background:var(--info); }
+.st.none { background:transparent; border:1.5px dashed var(--amber); }
+.pg.gap { border-style:dashed; border-color:var(--amber); background:transparent; }
+.pg.gap b { color:var(--amber); }
+.pg.aux { border-style:dotted; border-color:var(--info); }
+.pg.aux b { color:var(--info); }
+.note {
+  position:absolute; max-width:230px; border:1.5px dashed var(--amber); border-radius:10px;
+  background:transparent; padding:10px 12px; font-size:10.5px; color:var(--ink2);
+}
+.note b { color:var(--amber); display:block; margin-bottom:3px; font-family:var(--font-sans); font-size:11px; }
+.note.info { border-color:var(--info); } .note.info b { color:var(--info); }
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="tt">Hotspot 全站地图</span>
+  <span class="sub">Infinite Canvas · Sentinel Press × Security Terminal</span>
+  <div class="legend">
+    <span><i style="background:var(--mint)"></i>✅ 已上线</span>
+    <span><i style="background:var(--info)"></i>◐ 部分/后端就绪</span>
+    <span><i style="border:1.5px dashed var(--amber)"></i>○ 未实现</span>
+    <span><i style="border:1.5px dotted var(--info)"></i>演示辅助/画布</span>
+  </div>
+  <div class="zc">
+    <button id="z-out" title="缩小">−</button>
+    <span class="zv num" id="z-val">85%</span>
+    <button id="z-in" title="放大">+</button>
+    <button id="z-fit" title="双击画布亦可重置">⌂</button>
+    <button id="z-theme" title="三态主题">◐</button>
+  </div>
+</div>
+
+<div id="vp">
+  <div id="world">
+    <svg id="edges" style="position:absolute;top:0;left:0;pointer-events:none" width="2600" height="2100"></svg>
+    <!-- JS 注入节点 -->
+  </div>
+</div>
+
+<div class="statusbar num">拖拽平移 · ctrl/⌘+滚轮 光标锚定缩放 · 滚轮/触控板横滚 平移 · 双击重置 · 卡片点击进入 demo 对应视图</div>
+
+<script src="assets/js/registry.js"></script>
+<script>
+(function () {
+  'use strict';
+  var HS = window.HS;
+  var W = 2600, H = 2100;
+  var world = document.getElementById('world');
+  var vp = document.getElementById('vp');
+
+  /* ---------- 飞轮主干链（九对象账本） ---------- */
+  var chain = { x: 620, y: 70 };
+  var chainItems = [
+    ['Material', '原始资料'], ['Signal', '门禁后信号'], ['Case', '事项容器'],
+    ['Judgment', '有证据判断'], ['Action', '待执行行动'], ['Run', '执行记录'],
+    ['Artifact', '成果'], ['Knowledge', '条件化经验']
+  ];
+  var html = '<div class="chain" style="left:' + chain.x + 'px;top:' + chain.y + 'px">' +
+    chainItems.map(function (c, i) {
+      return (i ? '<span class="ar">→</span>' : '') + '<div class="cn"><b>' + c[0] + '</b><span>' + c[1] + '</span></div>';
+    }).join('') + '<span class="ar">→</span><span class="back">↺ 复利：SK-05 自动召回 + adoption 回执</span></div>' +
+    '<div class="note info" style="left:160px;top:96px"><b>◈ 纪律：人主律 + receipt</b>Agent 产出提案、人负责审批；三类 receipt（证据/修订/采用）一等公民；写路径 CAS 幂等，重复终态 409。</div>' +
+    '<div class="note" style="left:2120px;top:96px"><b>○ 未实现（PRD §2.5）</b>MP-3 L1 漏洞绑 CVE（未启动）· MP-4 L3 双向关联（Stub）。安全底线八条中：L3 沙箱仅 macOS、内存上限未实现。</div>';
+
+  /* ---------- 四域区块（数据驱动：全部 44 页面 + 缺口） ---------- */
+  var regions = {
+    data:      { x: 140, y: 250, w: 900,  t: '资讯', en: 'DATA · 资讯流 / 门禁 / 校对' },
+    knowledge: { x: 1460, y: 250, w: 1000, t: '知识', en: 'KNOWLEDGE · 知识复利 / 能力包' },
+    action:    { x: 140, y: 1180, w: 1060, t: '行动', en: 'ACTION · 指挥台 / 审批 / 案件' },
+    settings:  { x: 1460, y: 1180, w: 1000, t: '设置', en: 'SETTINGS · 配置 / 运维 / 扩展域' }
+  };
+  var capsById = {}; HS.CAPS.forEach(function (c) { capsById[c.id] = c; });
+  function demoPath(p) {
+    return p.replace(':caseId', 'case-0117').replace(':skillId', 'SK-01')
+      .replace(':type/:id', 'hotspot/hs-1001').replace(':id', 'k-503').replace(':cat', 'security');
+  }
+  /* 页面 → 挂接的缺口/部分能力（与 registry ROUTES.caps 对齐，另补 MP-3/4） */
+  var extraGaps = {
+    '/': ['DATA-8', 'DATA-9', 'DATA-10'],
+    '/knowledge': ['KNOW-6', 'KNOW-13'],
+    '/action': ['ACT-13', 'ACT-14', 'ACT-17'],
+    '/codegarden': ['ACT-15'],
+    '/knowledge/graph': ['MP3', 'MP4']
+  };
+  var gapName = {
+    'DATA-8': '非安全内容偏好通道', 'DATA-9': 'SK-01 摘要补原文/动作', 'DATA-10': '摘要降级可见性',
+    'KNOW-6': '知识跨案复用验证', 'KNOW-13': '旧库 3800 行迁移',
+    'ACT-13': '五类标准事项模板', 'ACT-14': '自定义事项类型', 'ACT-15': 'CodeGarden CP-1~4', 'ACT-17': '完整事项队列可达性',
+    'MP3': 'MP-3 L1 漏洞绑 CVE', 'MP4': 'MP-4 L3 双向关联'
+  };
+  function stOf(route) { return 'ok'; /* 44 页面组件全部实测存在；缺口以独立 ○ 卡呈现 */ }
+
+  Object.keys(regions).forEach(function (menu) {
+    var rg = regions[menu];
+    var routes = HS.ROUTES.filter(function (r) { return r.m === menu; });
+    var gaps = [];
+    routes.forEach(function (r) { (extraGaps[r.p] || []).forEach(function (g) { if (g.indexOf('MP') !== 0) gaps.push(g); }); });
+    if (menu === 'knowledge') gaps.push('MP3', 'MP4');
+    if (menu === 'settings') { gaps.push('X25'); }
+    var aux = menu === 'settings';
+    html += '<div class="region" style="left:' + rg.x + 'px;top:' + rg.y + 'px;width:' + rg.w + 'px">' +
+      '<div class="rg-head"><span class="rg-t">' + rg.t + '</span><span class="rg-en">' + rg.en + '</span>' +
+      '<span class="rg-n num">' + routes.length + ' 页面 · ' + gaps.length + ' 缺口</span></div><div class="pg-grid">' +
+      routes.map(function (r) {
+        var isRich = !!r.v;
+        return '<a class="pg" href="index.html#' + demoPath(r.p) + '" title="' + r.c + ' · ' + r.api.join(' ') + '">' +
+          '<span class="st ok"></span><b>' + r.t + (isRich ? ' ◆' : '') + '</b><span class="p">' + r.p + '</span></a>';
+      }).join('') +
+      gaps.map(function (g) {
+        var nm = gapName[g] || '出站诚实声明（本地≠不出域）';
+        return '<span class="pg gap"><span class="st none"></span><b>○ ' + nm + '</b><span class="p">' + (g === 'X25' ? 'XF-25' : g) + ' · 未实现/规划</span></span>';
+      }).join('') +
+      (menu === 'settings' ? '<a class="pg aux" href="index.html#/coverage"><span class="st part"></span><b>覆盖地图 ◆</b><span class="p">demo 辅助页</span></a>' : '') +
+      '</div></div>';
+  });
+
+  /* ◐ 后端就绪前端未接（4 域） */
+  html += '<div class="note info" style="left:140px;top:1730px;width:420px"><b>◐ 后端就绪 · 前端未接（4 API 域）</b>' +
+    HS.UNCONSUMED.map(function (u) { return '<span class="p">' + u.api + '</span> '; }).join(' ') +
+    '——调用方反查待做（设计意图或待下线）。</div>';
+  /* 主链位置说明 */
+  html += '<div class="note" style="left:1460px;top:1730px;width:420px"><b>◆ 富视图（12 页）</b>index.html 中为完整交互视图（四段指挥台 / 审批收件箱 / 案件工作区 / 设置 7 cat / 画布开关…）；其余页面为目标形态档案视图（wireframe + 状态 + API + 依据）。</div>';
+
+  /* 域间连线（业务流贯通） */
+  var svg = document.getElementById('edges');
+  function regionCenter(m) { var r = regions[m]; return [r.x + r.w / 2, r.y]; }
+  var cData = regionCenter('data'), cKnow = regionCenter('knowledge'), cAct = regionCenter('action'), cSet = regionCenter('settings');
+  svg.innerHTML =
+    '<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" style="fill:var(--ink3)"/></marker></defs>' +
+    /* 资讯 → 行动（建案流） */
+    '<path d="M ' + (cData[0] - 200) + ' ' + (cData[1] + 330) + ' C ' + (cData[0] - 320) + ' 900, ' + (cAct[0] - 200) + ' 900, ' + (cAct[0] - 140) + ' ' + cAct[1] + '" style="fill:none;stroke:var(--linex);stroke-width:1.5;stroke-dasharray:6 5" marker-end="url(#ah)"/>' +
+    /* 行动 → 知识（沉淀流） */
+    '<path d="M ' + (cAct[0] + 620) + ' ' + (cAct[1] + 300) + ' C ' + (cAct[0] + 900) + ' 900, ' + (cKnow[0] - 100) + ' 900, ' + (cKnow[0] - 240) + ' ' + cKnow[1] + '" style="fill:none;stroke:var(--linex);stroke-width:1.5;stroke-dasharray:6 5" marker-end="url(#ah)"/>' +
+    /* 资讯 ↔ 知识（深读/回流） */
+    '<path d="M ' + (cData[0] + 460) + ' ' + cData[1] + ' C ' + (cData[0] + 560) + ' 140, ' + (cKnow[0] - 220) + ' 140, ' + (cKnow[0] - 320) + ' ' + cKnow[1] + '" style="fill:none;stroke:var(--linex);stroke-width:1.5;stroke-dasharray:2 5" marker-end="url(#ah)"/>' +
+    /* 设置（治理贯穿） */
+    '<path d="M ' + cSet[0] + ' ' + (cSet[1] + 20) + ' C ' + (cSet[0] - 200) + ' 1120, ' + (cData[0] + 300) + ' 1100, ' + (cAct[0] + 520) + ' ' + (cAct[1] + 8) + '" style="fill:none;stroke:var(--linex);stroke-width:1;stroke-dasharray:1 6" marker-end="url(#ah)"/>';
+  svg.style.width = W + 'px'; svg.style.height = H + 'px';
+
+  world.innerHTML = html;
+
+  /* ---------- 无限画布交互（DEV-0184 范式） ---------- */
+  var k = 0.85, px = 0, py = 0, dragging = false, lx = 0, ly = 0, moved = 0;
+  var FITK = 0.85;
+  function clampK(v) { return Math.max(0.18, Math.min(2.6, v)); }
+  function apply() {
+    world.style.transform = 'translate(' + px + 'px,' + py + 'px) scale(' + k + ')';
+    document.getElementById('z-val').textContent = Math.round(k * 100) + '%';
+  }
+  function zoomAt(cx, cy, factor) {
+    var nk = clampK(k * factor);
+    var wx = (cx - px) / k, wy = (cy - py) / k;
+    px = cx - wx * nk; py = cy - wy * nk; k = nk; apply();
+  }
+  vp.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('a')) return; /* 链接可点 */
+    dragging = true; moved = 0; lx = e.clientX; ly = e.clientY;
+    vp.classList.add('drag'); vp.setPointerCapture(e.pointerId);
+  });
+  vp.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - lx, dy = e.clientY - ly;
+    moved += Math.abs(dx) + Math.abs(dy);
+    px += dx; py += dy; lx = e.clientX; ly = e.clientY; apply();
+  });
+  vp.addEventListener('pointerup', function (e) { dragging = false; vp.classList.remove('drag'); });
+  vp.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      var f = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      var rect = vp.getBoundingClientRect();
+      zoomAt(e.clientX - rect.left, e.clientY - rect.top, f);
+    } else {
+      px -= e.deltaX; py -= e.deltaY; apply(); /* 触控板横滚平移 */
+    }
+  }, { passive: false });
+  vp.addEventListener('dblclick', function (e) {
+    if (e.target.closest('a')) return;
+    k = FITK; px = 10; py = 10; apply();
+  });
+  document.getElementById('z-in').onclick = function () { var r = vp.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1.25); };
+  document.getElementById('z-out').onclick = function () { var r = vp.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 0.8); };
+  document.getElementById('z-fit').onclick = function () { k = FITK; px = 10; py = 10; apply(); };
+  document.getElementById('z-theme').onclick = function () {
+    var order = ['light', 'dark', 'paper'];
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', order[(order.indexOf(cur) + 1) % 3]);
+  };
+  apply();
+})();
+</script>
+</body>
+</html>

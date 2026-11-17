@@ -1,6 +1,6 @@
 # PROGRESS.md — 执行进度台账（仅活跃段）
 
-> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），P7 收口待观测窗满窗（t0=2026-11-14 → 2026-12-14）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**留白待 owner**: `v0.8.8` tag 打点（前置 T8 三主题人工走查 + M-4 裁决，见 `docs/audit/V088_RELEASE_GATE_2026-11-14.md`）。**当前版本**: v0.8.9 立项 = 主干流量专项（pi 执行体 + Case 关闭闭环；依据 v1_runs=0 / v1_artifacts=0），PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`。
+> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），**P7 收口 C7-1 已交付**（版本 **0.8.9** 置位 + 全链版本对齐 + CHANGELOG + 权威 PRD 回写 G1~G5 分档）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + v0.8.8 两项遗留裁决，预审见 `docs/audit/V089_RELEASE_GATE_2026-11-17.md`）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**当前版本**: v0.8.9（主干流量专项；PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`）。
 > 接手顺序: 根 `AGENTS.md` → `PROJECT.md` → 本文件活跃段。历史完整段见 `docs/progress-archive/`，docs/ 全景见 `docs/README.md`。
 
 ## 历史索引
@@ -98,6 +98,17 @@
 - **门禁**: ruff clean（7 文件）· `pytest -k "outbox or case_service or run_ledger or proposal or retrospective"` **78 passed** · `generate_meta.py --check` OK（services **155**）· 演练 `RESULT: PASS`。
 - **文档联动**: 实施计划 §7 状态行 + C6-2 状态行 + §0 阶段表 + §11 · 演练留档（追加演练⑥）· DEV_LOG。
 - **剩余**: P7 收口（version 0.8.9 + CHANGELOG + 权威 PRD 回写 + tag）须待观测窗 2026-12-14 满窗判定。
+
+### 2026-11-17 v0.8.9 P7 C7-1 收口 — 版本 0.8.9 置位 + 全链对齐 + G1~G5 分档（DEV-0389）
+
+- **C7-1 交付**: `backend/version.py::APP_VERSION` 0.8.8 → **0.8.9**（v0.8.9 段落说明）；全链对齐 = AGENTS.md 头部版本门 + CLAUDE.md + PROJECT.md + README.md 中英版本表/main 动态 + `frontend/package.json` + `assets/readme/{hero,roadmap,architecture}.svg` + `docs/CHANGELOG.md` v0.8.9 条目。`generate_meta.py --check` 版本一致性 7/7 通过（56 jobs / 19 collectors / 99 routers / **155 services** / 67 core_routers）。
+- **G1~G5 分档（如实，不宣称未达项）**: G2 ✅ / G3 ✅ / G4 ✅ · **G1 ◐ 观测中**（活体 runs=4 / artifacts=3，目标 ≥10 / ≥5，窗口仅过 3 天）· **G5 ◐ 部分**（口径已修 yield=1.0 + `v1_run` 事件 12 条；M-9 七段 p95 / M-10 埋点开销需 2026-12-14 满窗）。
+- **全量门禁抓出的真实回归（C6-2 遗留）**: `run_ledger_service` 引 `knowledge_service` facade + facade 反向引 `run_ledger_service` → **services 域依赖环**（`test_service_cycle_guard` 2 failed；定向测试未覆盖该守卫）。修复 = `_insert_draft` 落库逻辑提取为 `knowledge_evidence_bridge.insert_knowledge_draft()` module 级入口（mixin 方法改委托，公开 API 不变），`run_ledger_service` 改引 mixin 模块（计划 §C6-2 本就写明复用该 mixin）→ 单向无环；**新增哨兵** `test_run_ledger_does_not_import_knowledge_facade` 锁死（WHY: 误引 facade 即成环）。
+- **演练⑥ 重跑 PASS**（解环后，全新隔离目录 `/tmp/v089_drill8*`）: 事件 1 条 → 提案 draft **0.008s** → 人批准 → 知识 draft(playbook) → publish → 同类召回命中；四守卫 N1~N4 全拦。
+- **门禁全绿**: 全量 pytest **5,463 passed / 7 skipped / 0 failed** (1052.79s) · 前端 tsc 0 / vitest **713 passed** / build OK · ruff clean · `generate_meta.py --check` exit 0（版本门 7/7）· `harness_analyze.py --check` exit 0。
+- **顺带纠偏**: README MCP 工具数 19 → **23**（16 读 + 7 写，与 PRD §6.1 权威口径一致；正文表格原为 v0.8.7 前旧账）；roadmap 脚注数字同步（99 routers / 155 services / 56 jobs / 133 migrations / 14 tags）。
+- **发布门预审留档**: `docs/audit/V089_RELEASE_GATE_2026-11-17.md`（G1~G5 分档 + 10 项发布门 + owner 授权清单）。
+- **剩余（C7-2，待 owner）**: `git tag v0.8.9` + 发布说明 —— 须待观测窗 2026-12-14 满窗判定 + G1 计数达标 + v0.8.8 两项遗留（M-4 包体 / T8 三主题走查）裁决。
 
 ### 下一版本指针
 

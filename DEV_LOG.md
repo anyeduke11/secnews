@@ -1,4 +1,24 @@
 
+## [DEV-0389] chore(release): v0.8.9 P7 C7-1 — 版本 0.8.9 置位 + 全链版本对齐 + G1~G5 达成情况回写（tag 待 owner）
+- **时间**: 2026-11-17
+- **类型**: 发布收口（C7-1 版本与文档；C7-2 tag 🔶 待 owner）
+- **关联文件**:
+  - `backend/version.py`（`APP_VERSION` 0.8.8 → **0.8.9** + v0.8.9 段落说明：P0~P6 七阶段交付账）
+  - `frontend/package.json`（version 0.8.9；`test_c03_startup_health` 断言前后端一致）
+  - `AGENTS.md`（头部版本门 2026-11-14 v0.8.8 → 2026-11-17 v0.8.9 + P7 状态句）/ `CLAUDE.md` / `PROJECT.md`（一句话描述版本）
+  - `README.md`（中英双语版本表各加 v0.8.9 行 + hero/roadmap alt + main 分支动态；**MCP 工具数 19→23 纠偏**——正文表格仍是 v0.8.7 前旧账，与 PRD §6.1 权威口径 23（16 读 + 7 写）冲突）
+  - `assets/readme/{hero,roadmap,architecture}.svg`（版本串 + roadmap 节点改为 v0.8.9「主干流量执行链」+ 脚注数字同步 99 routers / 155 services / 56 jobs / 133 migrations / 14 tags）
+  - `docs/CHANGELOG.md`（v0.8.9 条目：P0~P6 阶段账 + 验证 + 遗留「观测中」声明）
+  - `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`（2026-11-17 P7 条目：版本置位 + Run 消费缺口闭合 + **G1~G5 分档** + 发布门结论 + v0.8.8 遗留不继承宣称）
+  - `docs/v0.8.9/V0.8.9_PRD.md`（§8 发布计划 P6/P7 状态行）+ `V0.8.9_IMPLEMENTATION_PLAN.md`（§0 阶段表 / §8 状态块 + C7-1/C7-2 状态列 / §11 步骤表 / 头部状态行 + 基线数字 153→155 services）
+  - `docs/audit/V089_RELEASE_GATE_2026-11-17.md`（新建：C7-2 打点前逐项预审，G1~G5 分档 + 10 项发布门 + owner 授权清单）
+  - `backend/services/knowledge_evidence_bridge.py` + `backend/services/run_ledger_service.py` + `backend/tests/test_service_cycle_guard.py`（**全量门禁抓出的 C6-2 回归修复**，见下）
+- **G1~G5 达成情况（如实分档，不宣称未达项）**: G2 ✅ / G3 ✅ / G4 ✅ / **G1 ◐ 观测中**（活体 runs=4 / artifacts=3，目标 ≥10 / ≥5，窗口仅过 3 天）/ **G5 ◐ 部分**（口径已修 yield=1.0 + `v1_run` 事件 12 条，但 M-9/M-10 需 2026-12-14 满窗）
+- **顺带修复的真实回归（全量 pytest 抓出）**: C6-2 在 `run_ledger_service` 里引 `knowledge_service` facade，而 `knowledge_service.create_with_dsh` 反向引 `run_ledger_service` → **构成 services 域依赖环**，`test_service_cycle_guard` 2 failed（定向测试未覆盖该守卫）。修复 = 把 `_insert_draft` 落库逻辑提取为 `knowledge_evidence_bridge.insert_knowledge_draft()` module 级入口（mixin 方法改为委托，公开 API 不变），`run_ledger_service` 改引 mixin 模块（计划 §C6-2 本就写明「复用 `knowledge_evidence_bridge._insert_draft`」）→ 单向无环；**新增定向哨兵** `test_run_ledger_does_not_import_knowledge_facade` 锁死该不变量（WHY: facade 反向依赖 run_ledger，误引即成环）
+- **演练⑥ 重跑验证**（解环后，全新隔离目录 `/tmp/v089_drill8*`）: `RESULT: PASS` —— 事件 1 条 / 提案 draft **0.008s** / 知识 draft(kind=playbook) / publish=published / 同类召回命中；四守卫 N1~N4 全拦；hash_match=true
+- **测试验证**: `pytest backend/tests/` → **5,463 passed / 7 skipped / 0 failed** (1052.79s)；前端 tsc 0 / vitest **713 passed** (98 文件) / vite build OK；`ruff check backend/ scripts/` clean；`generate_meta.py --check` exit 0（版本门 7/7 通过）；`harness_analyze.py --check` exit 0 (0 errors)；演练脚本 `RESULT: PASS`
+- **未完成（留待 owner）**: C7-2 `git tag v0.8.9` + 发布说明 —— 须待观测窗 2026-12-14 满窗 + G1 计数达标 + v0.8.8 两项遗留（M-4 包体 / T8 走查）裁决
+
 ## [DEV-0388] feat(v089): P6 C6-2 — 知识回流 glue（case_closed 事件直连 → 复盘草案 → 知识 draft → 发布召回，演练⑥ PASS）
 - **时间**: 2026-11-17
 - **类型**: 功能开发（P6 C6-2，D8 裁决 = 事件直连；人主律不破）

@@ -1,7 +1,7 @@
 # SecNews · AI + 安全 知识工作站
 
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews v0.8.8 — 单人本地 AI Native 证据工作台: Sentinel 四菜单壳 (资讯/知识/行动/设置) + 19 MCP 工具">
+  <img src="./assets/readme/hero.svg" width="100%" alt="SecNews v0.8.9 — 单人本地 AI Native 证据工作台: Sentinel 四菜单壳 (资讯/知识/行动/设置) + 23 MCP 工具">
 </p>
 
 > **SecNews**（开发代号 `hotspot`）是面向 **AI + 安全从业者** 的**单机 AI Native 证据工作台**。
@@ -47,7 +47,7 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 | **项目管理** | CodeGarden 项目生命周期 + 服务网格 + 资源中枢 |
 | **安全图谱** | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
 | **证据账本** | Run 账本 · 提案通道 · 证据回执 · 失败显式可归因 |
-| **AI 协作** | 19 MCP 工具 · 外部 AI Agent 零改造接入 |
+| **AI 协作** | 23 MCP 工具 · 外部 AI Agent 零改造接入 |
 | **单机部署** | SQLite + 单进程 · 零外部依赖 · git clone 即跑 |
 
 ## NAV4 — 四菜单壳（v0.8.5 起，v0.8.6 AI Native 主干）
@@ -70,16 +70,16 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 ## 架构
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (99 routers / 155 services / 56 jobs / 19 collectors / 19 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="NAV4 四菜单壳 + 三层架构: 浏览器 / AI Agent 在最上, FastAPI 单进程在中间 (99 routers / 155 services / 56 jobs / 19 collectors / 23 MCP 工具), SQLite + llm-wiki-2.0 md 真源在底层">
 </p>
 
-## MCP Server — 19 个工具
+## MCP Server — 23 个工具
 
-> 11 读 + 8 写，外部 AI Agent 零改造接入（`/api/mcp` SSE 通道 + `python -m backend.mcp_stdio_main` stdio 通道双暴露）。
+> 16 读 + 7 写，外部 AI Agent 零改造接入（`/api/mcp` SSE 通道 + `python -m backend.mcp_stdio_main` stdio 通道双暴露）。
 
-| 读 (11) | 写 (8) |
+| 读 (16) | 写 (7) |
 |---------|--------|
-| `search_hotspots` · `get_hotspot` · `list_favorites` · `search_knowledge` · `get_personal_profile` · `wiki_search` · `wiki_read` · `wiki_graph` · `db_trace` · `kl_status` · `dsh_analyze` | `add_favorite` · `remove_favorite` · `add_annotation` · `update_knowledge_item` · `wiki_write` · `kl_enqueue` · `kl_retry` · `dsh_summarize` |
+| `search_hotspots` · `get_hotspot` · `list_favorites` · `search_knowledge` · `get_personal_profile` · `wiki_search` · `wiki_read` · `wiki_graph` · `db_trace` · `kl_status` · `dsh_analyze` · `dsh_session` · `list_proposals` · `list_runs` · `list_artifacts` · `list_cases` | `add_favorite` · `remove_favorite` · `add_annotation` · `update_knowledge_item` · `wiki_write` · `kl_enqueue` · `kl_retry` |
 
 stdio 配置（粘到你的 AI Agent 配置）：
 
@@ -126,7 +126,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 ## 路线图
 
 <p align="center">
-  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台 → v0.8.7 公开仓库交付收口 → v0.8.8 质量版重构收口, v1.0 规划中">
+  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台 → v0.8.7 公开仓库交付收口 → v0.8.8 质量版重构收口 → v0.8.9 主干流量专项, v1.0 规划中">
 </p>
 
 ## 历史版本（GitHub Releases）
@@ -136,6 +136,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 | 版本 | 发布日期 | 关键里程碑 | 源码归档 |
 |------|----------|------------|----------|
 | **v0.8.7** | 2026-10-14 | 公开仓库交付收口：PII 卫生清理（本机路径/个人标识中性化）+ 版本/文档/资产全链对齐（v0.8.6 主干零改动） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.7) |
+| **v0.8.9** | 2026-11-17 | 主干流量专项：P1 人工回执闭环（首个 closed case）+ P2 观测口径修复 + P3 边界协议 + P4 pi 执行 + P5 L3 沙箱加固 + P6 Case 闭环与知识回流（演练①~⑥ 全 PASS） | _(本地 main, tag 待 owner 打点)_ |
 | **v0.8.8** | 2026-11-14 | 质量版重构收口：P3 零消费链路退役 + P2.5 数据热冷分层（794→111MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 | _(本地 main, tag 待打)_ |
 | **v0.8.6** | 2026-10-14 | AI Native 换主干：全链证据账本（资讯→Signal→Case→Claim→Run→Artifact→Knowledge）+ 提案通道 + 对话式命令栏 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.6) |
 | **v0.8.5** | 2026-09-08 | 反向收敛：v0.8 三层 Sentinel 唯一壳恢复 + v1.0 九领域对象降级为能力区块 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.5) |
@@ -149,7 +150,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5 阶段 · md 真源 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.5.0) |
 | v0.4.3 | 2026-08-19 | 软分层 / Feature Gates · core/exec 边界 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.4.3) |
 
-> **main 分支动态**：v0.8.8 质量版已在 main 收口（tag 待 owner 打点）；上一发布 = tag `v0.8.7`。
+> **main 分支动态**：v0.8.9 主干流量专项已在 main 收口（tag 待 owner 打点，30 天观测窗 2026-11-14 → 2026-12-14 观测中）；上一发布 = tag `v0.8.7`。
 
 ## 测试
 
@@ -220,7 +221,7 @@ A: 走前端 `/settings` 一键启停（gate `dsh=true`），
 **SecNews** (codename `hotspot`) is a **single-user local workstation for AI + security practitioners**.
 The whole app is unified into the **NAV4 4-tab shell**:
 **Feed → Knowledge → Action → Settings**, with a persistent pipeline heartbeat bar.
-It exposes **19 MCP tools** (11 read + 8 write) to external AI Agents — Cursor, Claude Desktop, Trae, Claude Code — with zero modifications.
+It exposes **23 MCP tools** (16 read + 7 write) to external AI Agents — Cursor, Claude Desktop, Trae, Claude Code — with zero modifications.
 
 > One person · one machine · zero external services.
 
@@ -257,6 +258,7 @@ Copy `proxy_config.example.json` → `proxy_config.json` first; the real file is
 | ------- | ---- | --------- |
 | v0.8.7 | 2026-10-14 | Public-repo delivery closeout: PII hygiene sweep (machine-local paths / personal identifiers neutralized) + version/doc/asset alignment (v0.8.6 trunk unchanged) |
 | v0.8.8 | 2026-11-14 | Quality release: zero-consumer chain retirement + hot/cold data tiering (794→111MB) + trunk tracing & idempotency semantics + four-stage action console & orphan cleanup |
+| v0.8.9 | 2026-11-17 | Main-trunk traffic release: P1 manual receipt loop (first closed case) + P2 observability metric fix + P3 boundary protocol + P4 pi execution + P5 L3 sandbox hardening + P6 case closeout & knowledge feedback (drills ①~⑥ all PASS) |
 | v0.8.6 | 2026-10-14 | AI Native main-trunk swap: end-to-end evidence ledger (Feed → Signal → Case → Claim → Run → Artifact → Knowledge) + proposal channel + command bar |
 | v0.8.5 | 2026-09-08 | Reverse convergence: v0.8 three-layer Sentinel as the only shell + v1.0 domain objects demoted to embedded capability blocks |
 | v0.8.2 | 2026-09-05 | Governance batch: global concurrency single source of truth + config hot-reload (gate 5s TTL) |
@@ -269,7 +271,7 @@ Copy `proxy_config.example.json` → `proxy_config.json` first; the real file is
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5-stage · md as source of truth |
 | v0.4.3 | 2026-08-19 | Soft core/exec partitioning · Feature Gates (TOML) |
 
-> **main branch**: v0.8.8 (quality release) closed on main (tag pending owner); previous release = tag `v0.8.7`.
+> **main branch**: v0.8.9 (main-trunk traffic release) closed on main (tag pending owner; 30-day observation window 2026-11-14 → 2026-12-14 in progress); previous release = tag `v0.8.7`.
 
 ### License
 

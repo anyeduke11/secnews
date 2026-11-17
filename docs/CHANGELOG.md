@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.8.9 (2026-11-17) — 主干流量专项: 执行链从断点到可运营 (tag 待 owner 打点)
+
+**版本性质**: v0.8.8 是重构版 (零新业务能力), 本版是**主干流量版** —— 补齐 v0.8.6 遗留的执行链六断点, 让"资讯→Signal→Case→Claim→Run→Artifact→Knowledge"全链真实流动。P0~P6 七阶段 18 commit 全交付。版本族文档 = `docs/v0.8.9/V0.8.9_PRD.md` + `V0.8.9_IMPLEMENTATION_PLAN.md`。
+
+### P0 执行链勘察 (DEV-0367~0369)
+- 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
+- **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现
+
+### P1 人工回执最小闭环 (DEV-0367~0374)
+- Run 四端点 `claim/start/finish/cancel` (CAS 状态机) + Action 收口端点 + 四段指挥台 Run 段接线; direct 协议 = 人是执行者 (D4)
+- 试点演练① 达成**首个运营型 case 真实关闭** (G2)
+
+### P2 观测收口 (DEV-0375)
+- `artifact_yield` 口径修复 (分母 `status='done'` → `outcome='done'`), 活体 yield_ratio=**1.0** (修复前恒 None)
+- run 生命周期事件入 `v1_outbox` (`v1_run_claimed/started/finished/failed`, 带 trace_id)
+
+### P3 边界协议 (DEV-0376~0379)
+- `ExecutionPlan` schema/状态机 + 审批 API/UI (`run_plan_api.py` 5 端点) + plan 生成 (dsh 可达走 ai_hub / 不可达人工兜底)
+- 不变式 = **默认拒绝 + approve 即冻结 + 仅 queued/claimed 可操作** (plan = 建议非放行)
+
+### P4 pi 执行 (DEV-0380~0382)
+- enforcer 编译器 (静态白名单 ∩ plan.commands 动态子集, 更严不放松) + 确定性 argv 执行体 + 终态回写 / Artifact 自动登记 (R08 守卫, 空 stdout → `E_ARTIFACT_EMPTY` 收口 failed)
+- `pi_executor_enabled` **默认关**, 生产开启须 owner 授权
+- 演练② 边界内执行产出 artifact (落盘 sha256 == content_hash); 演练③ `curl` → `E_ARGV_NOT_ALLOWED` 在 **spawn 前**拦截, 熔断未触发
+
+### P5 L3 系统层加固 (DEV-0386)
+- macOS `sandbox-exec` per-plan profile (文件读写隔离 + 凭据载体禁读 + 出网全禁) + ulimit (经 exec launcher 施加, 避开 `preexec_fn` fork 死锁) + `executor.boundary_violation` 告警 (level=critical, 按 run 去重)
+- 演练④ 6 步全达成 (写越界 / 读凭据 / 出网 / CPU 限额 SIGXCPU / 总预算超时 / 基线正常)
+- **边界如实**: 非 macOS 降级为"仅 ulimit" (audit_log 留痕 `sandbox=unavailable`, 不假装有沙箱) · Seatbelt 不可表达 host 级出网白名单 (`plan.network` 非空仍全禁) · macOS 内核拒绝收紧 `RLIMIT_AS`
+
+### P6 Case 闭环 + 知识回流 (DEV-0387~0388)
+- **C6-1 运营型 case 关闭**: 四守卫 (无 active action / 无 active run / 须 accepted artifact / 须 published judgment) 正反双向取证, 演练⑤ N1~N4 全拦
+- **C6-2 知识回流 glue** (D8 = 事件直连): `close_case` → outbox `v1_case_closed` → `OutboxDispatcher` 新增订阅钩子 (广播语义不变, handler fire-and-forget) → `retrospective_service` 起草复盘提案 (**人主律: 只起草, 不发布**) → 人批准 → `v1_knowledge` draft → 既有 publish/review/adoption 链 (CAS + wiki-first 不变) → 同类 case 召回
+- 演练⑥ 实测: 关闭事件 1 条 / 提案 draft 延迟 **0.015s** (<30s 门槛) / 知识 draft (kind=playbook) / publish=published / 同类召回命中
+
+### 验证 (2026-11-17)
+- 后端全量 pytest **5,463 passed / 7 skipped / 0 failed** (1052.79s) · 前端 tsc 0 / vitest **713 passed** (98 文件) / build OK · `ruff check backend/` clean · `generate_meta.py --check` exit 0 (56 jobs / 19 collectors / 99 routers / 155 services / 67 core_routers) · `harness_analyze.py --check` exit 0 (0 errors)
+- 试点演练①~⑥ 全 PASS, 留档 `docs/audit/V089_PILOT_DRILL_2026-11-14.md`
+- **遗留 (如实标"观测中", 不宣称达标)**: 30 天观测窗 t0=2026-11-14 → **2026-12-14 满窗后**判定 M-9 (七段 p95) / M-10 (埋点开销); G1 计数 (runs ≥10 / artifacts ≥5) 观测窗内继续累计, 当前活体 runs=4 / artifacts=3
+
 ## v0.8.8 (2026-11-14) — 质量版: 重构/去冗余/核心链路强化 (tag 待 owner 打点)
 
 **版本性质**: 零新业务能力 (四硬约束: 壳冻结 C-1 / 主干冻结 C-2 / ai_hub 红线 C-3 / 存储哲学 C-4)。版本族文档 = `docs/v0.8.8/V0.8.8_REFACTOR_PRD.md` + `V0.8.8_IMPLEMENTATION_PLAN.md` (plan.8)。

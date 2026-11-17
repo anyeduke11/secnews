@@ -1,4 +1,20 @@
 
+## [DEV-0388] feat(v089): P6 C6-2 — 知识回流 glue（case_closed 事件直连 → 复盘草案 → 知识 draft → 发布召回，演练⑥ PASS）
+- **时间**: 2026-11-17
+- **类型**: 功能开发（P6 C6-2，D8 裁决 = 事件直连；人主律不破）
+- **关联文件**:
+  - `backend/services/case_service.py`（`close_case` CAS 成功后 `_publish_case_closed_event` → outbox `v1_case_closed`；失败只 debug 不阻断关闭）
+  - `backend/services/outbox_dispatcher.py`（新增 `add_handler(event_type, handler)` 订阅钩子：广播后 `asyncio.to_thread` fire-and-forget，`_handler_tasks` 持有引用、异常落 warning、`stop()` 取消；**SSE 广播语义与 `delivered_at` 语义不变**）
+  - `backend/services/retrospective_service.py`（新建：订阅 `v1_case_closed` → `exists_for_case` 幂等 → `RunLedgerService.copilot_draft("report")` 只起草；可注入 drafter 供演练/测试）
+  - `backend/services/run_ledger_service.py`（`_materialize_artifact` 尾部补 `_materialize_knowledge_draft`：report → kind=playbook，body 由 summary + 经验教训 + 后续行动合成，evidence_refs 取 case 绑定材料 `{material_id, hash}`，review_at=+90d → `KnowledgeService._insert_draft`；失败只 `logger.error`，不改 Run 终判）
+  - `backend/repository/proposal_repo.py`（新增 `exists_for_case(case_id, *, kind)` 幂等判据）
+  - `backend/main.py`（lifespan 注册 retrospective handler，独立 try 不拖累 dispatcher 启动）
+  - `scripts/drill_v089_c6.py`（追加演练⑥ 四步 + 7.5 证据绑定步；`ok` 判定并入 ⑥ 三断言）
+  - `docs/audit/V089_PILOT_DRILL_2026-11-14.md`（追加演练⑥）+ `docs/v0.8.9/V0.8.9_IMPLEMENTATION_PLAN.md`（P6/C6-2 状态行 + §11）
+- **演练⑥ 结果**（隔离 DB/数据/临时 wiki）: `RESULT: PASS` —— ① 关闭后 outbox `v1_case_closed` 恰 1 条；② 提案 `draft` 延迟 **0.015s**（<30s）；③ 人批准 → Run(`proposal:{pid}`) done → `v1_knowledge` **draft**（kind=playbook）；④ `publish` → `auto_recall_for_case` 命中该知识。演练⑤ 四守卫 N1~N4 同脚本同时全过。
+- **首次实跑失败留痕（未伪造通过）**: ② 首跑 `no retrospective proposal created` —— 根因 `copilot_draft` 契约要求 case 有绑定证据材料，而演练⑤ 只把路径写进 judgment 的 `evidence_refs` 自由字符串。处置 = 主链补「7.5 绑定证据材料」真实前置，而非放宽产品契约。
+- **测试验证**: `ruff check` clean（7 文件）; `pytest -k "outbox or case_service or run_ledger or proposal or retrospective"` **78 passed**; `generate_meta.py --check` exit 0（services 155）；演练脚本 `RESULT: PASS`。
+
 ## [DEV-0387] v0.8.9 P6 C6-1 — 运营型 case 关闭演练⑤（四守卫正向+反向全取证）+ L3 声明被忽略留痕
 - **时间**: 2026-11-16
 - **类型**: 试点演练 + 观测留痕补丁（零新业务能力）

@@ -1,6 +1,6 @@
 # PROGRESS.md — 执行进度台账（仅活跃段）
 
-> **当前阶段 (2026-11-16)**: **v0.8.9 主干流量专项 P0~P3 已交付**（人工回执闭环 + 观测收口 + 边界协议；首个 closed case 达成，artifact_yield 活体 1.0），P4 pi 执行为下一段。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**留白待 owner**: `v0.8.8` tag 打点（前置 T8 三主题人工走查 + M-4 裁决，见 `docs/audit/V088_RELEASE_GATE_2026-11-14.md`）。**当前版本**: v0.8.9 立项 = 主干流量专项（pi 执行体 + Case 关闭闭环；依据 v1_runs=0 / v1_artifacts=0），PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`。
+> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），P7 收口待观测窗满窗（t0=2026-11-14 → 2026-12-14）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**留白待 owner**: `v0.8.8` tag 打点（前置 T8 三主题人工走查 + M-4 裁决，见 `docs/audit/V088_RELEASE_GATE_2026-11-14.md`）。**当前版本**: v0.8.9 立项 = 主干流量专项（pi 执行体 + Case 关闭闭环；依据 v1_runs=0 / v1_artifacts=0），PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`。
 > 接手顺序: 根 `AGENTS.md` → `PROJECT.md` → 本文件活跃段。历史完整段见 `docs/progress-archive/`，docs/ 全景见 `docs/README.md`。
 
 ## 历史索引
@@ -89,6 +89,15 @@
 - **演练⑤ PASS**: 运营型全链（case→judgment→published→action→run→artifact）经服务层合法通道关闭；`content_hash` 与落盘 sha256 一致（`8389dbca…beb9`）。
 - **四守卫反向各自取证**（不是「结构性通过」）: (a) N1 action running 拦 · (b) N4 action cancelled × run queued 拦（`cancel` 不级联 run 是唯一可行组合）· (c) N2 artifact 仍 pending 拦 · (d) N3 无 judgment 的 case 拦。脚手架 `scripts/drill_v089_c6.py` 可复跑，留档 `docs/audit/V089_PILOT_DRILL_2026-11-14.md#演练⑤`。
 - **C6-2 输入**: 演练实测 close **无 outbox 事件**（action/artifact/run 均有，case 无）→ `close_case` 需补 `v1_case_closed` 生产者，复盘提案才可能有触发源。
+
+### 2026-11-17 v0.8.9 P6 C6-2 知识回流 glue — 事件直连全链 + 演练⑥（DEV-0388）
+
+- **三处断点修复**: ① `CaseService.close_case` CAS 成功后 enqueue `v1_case_closed`（失败只 debug，不阻断关闭）② `OutboxDispatcher.add_handler` 新增订阅钩子（广播后 `asyncio.to_thread` fire-and-forget，`delivered_at`/SSE 语义不变）+ 新建 `retrospective_service`（订阅 → `copilot_draft("report")` **只起草**，`exists_for_case` 幂等）③ `_materialize_artifact` 尾部补 `_materialize_knowledge_draft`（report → `v1_knowledge` draft kind=playbook，evidence_refs 取 case 绑定材料，失败只 error 不改 Run 终判）。
+- **演练⑥ PASS**（与演练⑤ 同一脚本、同一主链，隔离 DB + 临时 wiki）: 关闭后事件恰 1 条 → 提案 draft **0.015s** → 人批准 → 知识 draft(playbook) → publish → `auto_recall_for_case` 命中。人主律不破：起草、批准、发布三段各自独立。
+- **首跑失败留痕（未伪造通过）**: 提案未产生 —— `copilot_draft` 契约要求 case 有绑定证据材料，演练⑤ 只把路径塞进 judgment 的自由字符串 `evidence_refs`。处置 = 主链补「7.5 绑定证据材料」（`insert_material` + `v1_case_materials`，hash 取真实文件 sha256），不放宽产品契约。
+- **门禁**: ruff clean（7 文件）· `pytest -k "outbox or case_service or run_ledger or proposal or retrospective"` **78 passed** · `generate_meta.py --check` OK（services **155**）· 演练 `RESULT: PASS`。
+- **文档联动**: 实施计划 §7 状态行 + C6-2 状态行 + §0 阶段表 + §11 · 演练留档（追加演练⑥）· DEV_LOG。
+- **剩余**: P7 收口（version 0.8.9 + CHANGELOG + 权威 PRD 回写 + tag）须待观测窗 2026-12-14 满窗判定。
 
 ### 下一版本指针
 

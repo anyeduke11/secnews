@@ -27,7 +27,7 @@ Frontend :8898 (React SPA, 路由全 lazy, 真源 routes/index.tsx, 速查 ROUTE
         │ HTTP/JSON/SSE
 FastAPI :8000
   ├─ 99 routers (69 core 白名单, 扩展按 feature gate 条件注册, lazy include)
-  ├─ 154 services / 13 包 — v0.8 Skills: trigger_gate · skill_registry(20 内置) · agent_loop ·
+  ├─ 155 services / 13 包 — v0.8 Skills: trigger_gate · skill_registry(20 内置) · agent_loop ·
   │   agent_memory · skill_runner · playbook_engine · skill_builder · skill_eval (gate 已通电)
   ├─ 19 collectors · 56 jobs (APScheduler) · MCP server (19 tools, config.feature_mcp 默认关)
   └─ ai_hub (LLM 单出口, 5 providers 四级链 env>kv>router>yaml) · dsh (Brain, 受管子进程
@@ -44,7 +44,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | API 路由 | `backend/api/` | 99 router, ≤150 行, lazy import, `_registry.py` 按 gate 注册 | 已完成 |
-| 服务层 | `backend/services/` | 154 services / 13 包; 依赖方向: 禁 `import backend.api` | 已完成 |
+| 服务层 | `backend/services/` | 155 services / 13 包; 依赖方向: 禁 `import backend.api` | 已完成 |
 | — ai_hub | `backend/services/ai_hub/` (12 文件 3717 行) | LLM 单出口: gateway/_try_order + service/_resolve_provider 四级链 + scenarios (deep/light/image) | 已完成 |
 | — dsh | `backend/services/dsh/` (7 文件) | Brain: `runtime.resolve_effective` 三态 + ProcessSupervisor + bridge | 已完成 (真子进程未实测) |
 | — v0.8 Skills | `backend/services/{trigger_gate,skill_registry,agent_loop,agent_memory,skill_runner,playbook_engine,skill_builder,skill_eval}/` | 触发门(限流+队列) / 20 内置 skill / 五阶段状态机 / 记忆 / 分流 / YAML 编排 / 自建 / 评测 | 已完成, gate 已通电 |

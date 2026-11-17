@@ -107,8 +107,29 @@ v0.8.8 (2026-11-14): 质量版 + 前端结构优化 — 重构/去冗余/核心�
 详见 docs/v0.8.8/V0.8.8_REFACTOR_PRD.md; 权威 PRD =
 docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md。
 
+v0.8.9 (2026-11-17): 主干流量专项 — 执行链从断点到可运营 (P0~P6 七阶段全交付, 18 commit)。
+v0.8.8 是重构版 (零新业务能力), 本版是**主干流量版**: 让"资讯→Signal→Case→Claim→
+Run→Artifact→Knowledge"全链真实流动, 补齐 v0.8.6 遗留的执行链六断点。
+- P0 执行链勘察: 六断点 file:line 核准清单落档 (docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md),
+  D1~D8 裁决 (D3 后于 2026-11-16 改判为确定性 argv 执行, 留偏差注②);
+- P1 人工回执最小闭环: Run claim/start/finish/cancel 四端点 + Action 收口 + 四段指挥台接线
+  (人是执行者, D4 采纳) → 试点演练① 达成**首个 closed case**;
+- P2 观测收口: artifact_yield 口径修复 (status='done' → outcome='done'), 活体 yield_ratio=1.0;
+  run 生命周期事件入 v1_outbox (v1_run_*);
+- P3 边界协议: ExecutionPlan schema/状态机 + 审批 API/UI — 不变式 = **默认拒绝 + approve 即冻结 +
+  仅 queued/claimed 可操作** (plan = 建议非放行);
+- P4 pi 执行: enforcer 编译器 + 确定性 argv 执行体 + 终态回写/Artifact 自动登记
+  (pi_executor_enabled 默认关) + 越界演练 (plan 外命令 spawn 前拦截);
+- P5 L3 系统层加固: macOS sandbox-exec per-plan profile + ulimit (exec launcher 施加) +
+  executor.boundary_violation 告警 (按 run 去重); 红线演练④ 6 步全达成;
+- P6 Case 闭环 + 知识回流: close_case 发 v1_case_closed 事件 → retrospective_service 起草复盘
+  提案 (人主律只起草) → 人批准 → v1_knowledge draft → 既有 publish/review/adoption 链 → 同类召回.
+- 试点演练①~⑥ 全 PASS, 留档 docs/audit/V089_PILOT_DRILL_2026-11-14.md.
+版本族文档 = docs/v0.8.9/V0.8.9_PRD.md + V0.8.9_IMPLEMENTATION_PLAN.md; 权威 PRD =
+docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md。
+
 
 """
 
-APP_VERSION = "0.8.8"
+APP_VERSION = "0.8.9"
 

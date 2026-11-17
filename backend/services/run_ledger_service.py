@@ -492,8 +492,11 @@ class RunLedgerService:
         ]
         review_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
         try:
-            from backend.services.knowledge_service import KnowledgeService
-            KnowledgeService()._insert_draft(
+            # 引 mixin 模块而非 knowledge_service facade — facade 反向依赖
+            # run_ledger_service (create_with_dsh 起草提案), 引 facade 会构成
+            # knowledge_service ⇄ run_ledger_service 依赖环 (test_service_cycle_guard)。
+            from backend.services.knowledge_evidence_bridge import insert_knowledge_draft
+            insert_knowledge_draft(
                 case_id=case_id,
                 kind=kind,
                 parsed={

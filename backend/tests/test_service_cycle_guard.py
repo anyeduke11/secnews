@@ -214,6 +214,23 @@ def test_action_run_cycle_does_not_reappear() -> None:
     assert _FORBIDDEN_CYCLES.isdisjoint(_ALLOWED_CYCLES)
 
 
+def test_run_ledger_does_not_import_knowledge_facade() -> None:
+    """C6-2 引入环的定向哨兵 — run_ledger 不得引 knowledge_service facade.
+
+    WHY: knowledge_service.create_with_dsh 反向依赖 run_ledger_service
+    (起草提案)。C6-2 知识回流若在 run_ledger_service 里引 facade, 两者互指即
+    成环 (test_services_dependency_graph_has_no_cycles_beyond_whitelist 会
+    报出)。正解 = 引 mixin 模块 knowledge_evidence_bridge 的 module 级入口
+    insert_knowledge_draft, 单向无环。
+    """
+    src = (_SERVICES_DIR / "run_ledger_service.py").read_text(encoding="utf-8")
+    assert "from backend.services.knowledge_service import" not in src, (
+        "run_ledger_service 不得 import knowledge_service facade — "
+        "改用 backend.services.knowledge_evidence_bridge.insert_knowledge_draft "
+        "(facade ⇄ run_ledger_service 会构成依赖环)"
+    )
+
+
 def test_whitelist_is_empty_and_graph_has_zero_cycles() -> None:
     """白名单收缩哨兵 — 机制保留, 当前**零条目** (全域必须零环)。
 

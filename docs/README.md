@@ -42,6 +42,14 @@
 - `code-wiki/` — **历史快照**：冻结于 v0.7.4-cleanup (2026-09-01)，6 个分章文件（含 V0.8.1 版）。架构数字与路由清单均已过时，**勿用于理解现行系统**；现行以 `ARCHITECTURE.md` + `generate_meta.py --check` 为准
 - 其余更早归档（v0.5/v0.6 计划分片、旧 ACCEPTANCE/AGENTS 等）
 
+## 设计资产（design/，root）
+
+- `UI_UX_CONTRACT.md` — v1.0.0 视觉契约（**壳层条款已 superseded**，指向 `v0.8.5/V0.8.5_PLAN.md`；视觉 token / 状态语义 / 组件密度条款继续有效）
+- `_research/` — **2026-11-17 现状实测盘点**：`routes-status.md`（44 页面路由 + 16 重定向 + 4 个 ◐ API 域 + 16 gate）· `prd-capabilities.md`（PRD 92 条能力覆盖地图，分布 61/19/7/5）· `frontend-visual.md`（三态 token 实测值 hex）
+- `redesign-v1/` — 基于上述底账的可视化 demo（纯静态零依赖，`index.html` file:// 直开 / `canvas.html` 画布视图）。**原型参考，非生产代码**
+
+> 零生产依赖：全仓无 import / CI 门 / 构建步骤引用这些文件。
+
 ## 台账（root，不在 docs/）
 
 - `PROGRESS.md` / `DEV_LOG.md` / `CHECK_LOG.md` — 执行/开发/检查台账（只追加）

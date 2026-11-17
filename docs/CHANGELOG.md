@@ -36,9 +36,10 @@
 - 演练⑥ 实测: 关闭事件 1 条 / 提案 draft 延迟 **0.015s** (<30s 门槛) / 知识 draft (kind=playbook) / publish=published / 同类召回命中
 
 ### 验证 (2026-11-17)
-- 后端全量 pytest **5,463 passed / 7 skipped / 0 failed** (1052.79s) · 前端 tsc 0 / vitest **713 passed** (98 文件) / build OK · `ruff check backend/` clean · `generate_meta.py --check` exit 0 (56 jobs / 19 collectors / 99 routers / 155 services / 67 core_routers) · `harness_analyze.py --check` exit 0 (0 errors)
+- 后端全量 pytest **5,463 passed / 7 skipped / 0 failed** (1052.79s) · 前端 tsc 0 / vitest **717 passed** (99 文件) / build OK · `ruff check backend/` clean · `generate_meta.py --check` exit 0 (56 jobs / 19 collectors / 99 routers / 155 services / 67 core_routers) · `harness_analyze.py --check` exit 0 (0 errors)
 - 试点演练①~⑥ 全 PASS, 留档 `docs/audit/V089_PILOT_DRILL_2026-11-14.md`
-- **遗留 (如实标"观测中", 不宣称达标)**: 30 天观测窗 t0=2026-11-14 → **2026-12-14 满窗后**判定 M-9 (七段 p95) / M-10 (埋点开销); G1 计数 (runs ≥10 / artifacts ≥5) 观测窗内继续累计, 当前活体 runs=4 / artifacts=3
+- **M-4 包体修复（关闭 v0.8.8 发布门门 13）**: echarts 改 tree-shaking 入口 (`echarts/core` + 按需 `use()`) → 生产包 gzip 总量 **745,356 → 577,813 B**（−23.6% vs 基线 756,187 B，目标 ≤733,501 B）。根因 = `echarts-for-react` 默认入口硬编码整包 echarts（gzip 384KB = 全包 52%），而全仓仅 3 处用图、实际只用 4 种 chart。**零业务能力变更**（图表 option/事件/样式逐字未动）。防回归：注册面守卫测试（消融验证有效）+ 真 Chromium 加载生产产物验证。留档 `docs/audit/V089_M4_BUNDLE_FIX_2026-11-17.md`
+- **遗留 (如实标"观测中", 不宣称达标)**: 30 天观测窗 t0=2026-11-14 → **2026-12-14 满窗后**判定 M-9 (七段 p95) / M-10 (埋点开销); G1 计数 (runs ≥10 / artifacts ≥5) 观测窗内继续累计, 当前活体 runs=4 / artifacts=3; T8 三主题人工走查待 owner 目视
 
 ## v0.8.8 (2026-11-14) — 质量版: 重构/去冗余/核心链路强化 (tag 待 owner 打点)
 

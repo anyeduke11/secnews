@@ -47,6 +47,13 @@
   python scripts/check_devlog_coverage.py      # DEV_LOG ↔ git 提交差集 (退出 1 = 提交未落台账)
   python scripts/check_router_fragmentation.py # backend/api 碎化体检 (只报告, 恒 exit 0)
   ```
+- **前端产物验证脚本**(node, 非常驻):
+  ```bash
+  node scripts/verify_echarts_bundle.mjs   # 需先 frontend/ 内 vite build
+  ```
+  真 Chromium 加载 `frontend/dist/` 生产产物, 验证 tree-shaking 后的 echarts
+  注册面完整 + canvas 真的绘制 (防「build 通过但运行时白屏」)。一次性验收脚本,
+  **不接 CI** (需 build 产物 + 浏览器, 成本高于收益)。
 - **数据修复脚本**(cleanup / fix / backfill):
   ```bash
   python scripts/<name>.py --dry-run    # 必须先跑,确认输出

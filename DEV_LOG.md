@@ -1,4 +1,25 @@
 
+## [DEV-0390] fix(fe): M-4 包体未达标修复 — echarts tree-shaking 入口（745,356 → 577,813 B，关闭 v0.8.8 发布门门 13）
+- **时间**: 2026-11-17
+- **类型**: 性能/体积修复（零业务能力变更；关闭 v0.8.8 发布门门 13 的 ❌）
+- **关联文件**:
+  - `frontend/src/components/shared/EChart.tsx`（新建：tree-shaken echarts 入口，`echarts/core` + 按需 `use([BarChart, GaugeChart, GraphChart, LineChart, GridComponent, LegendComponent, TitleComponent, TooltipComponent, LabelLayout, CanvasRenderer])`；引 `echarts-for-react/lib/core`（不引全量 echarts，官方 README「按需引入」组合））
+  - `frontend/src/components/MasteryGauge.tsx` · `components/KnowledgeGraph.tsx` · `components/knowledge/KnowledgeCompoundingDashboard.tsx`（三处消费方改引 `EChart`，option/事件/样式逐字未动）
+  - `frontend/vite.config.ts`（`manualChunks` pin 跟随实际 import 改为 `echarts/core|charts|components|features|renderers` —— 按模块 id 前缀匹配，不改会把 echarts 拆散进多个 async chunk）
+  - `frontend/src/components/shared/EChart.test.tsx`（新建守卫：4 用例，捕获 `console.error` 断言三类生产 option 无缺件 + 组件接线）
+  - `frontend/src/components/KnowledgeGraph.test.tsx` · `components/knowledge/Phase13Dashboard.test.tsx`（mock 目标从 `echarts-for-react` 改为新入口）
+  - `scripts/verify_echarts_bundle.mjs`（新建：真 Chromium 加载 `frontend/dist/` **生产产物**验证注册面 + canvas 真绘制）
+  - `scripts/AGENTS.md`（脚本入口登记）
+  - `docs/audit/V089_M4_BUNDLE_FIX_2026-11-17.md`（新建：根因/修复/消融/门禁/遗留全记录）
+  - `docs/audit/P45_ACCEPTANCE_TAIL_2026-11-14.md` · `docs/audit/V088_RELEASE_GATE_2026-11-14.md` · `docs/audit/V089_RELEASE_GATE_2026-11-17.md`（门 13 / 门 10 状态回写）
+- **实测结果**: **745,356 → 577,813 B**（75 产物 gzip 总和，同口径 `vite build` 后逐文件 gzip）= **−23.63%** vs 基线 756,187 B（目标 ≤733,501 B，余量 155,688 B）；vendor-echarts chunk 384,512 → 213,513 B
+- **根因修正（v0.8.8 当时归因不完整）**: C5-7 归因为「R-15 四段指挥台新增量对冲删除量」——**只对了一半**。真实杠杆是 **echarts 整包进 vendor chunk（gzip 384KB = 全包 52%）**：`echarts-for-react` 默认入口硬编码 `import * as echarts from 'echarts'`，而全仓仅 3 处用图、实际只用 4 种 chart + 4 个 component。此前多轮「删文件减包体」减的都是长尾（单组件几千字节），头部 384KB 从未被触碰。
+- **走「修」不「改口径」路线**: 未改 M-4 目标定义、未减任何业务能力面（图表功能/选项/交互全保留），且达标幅度远超目标（−23.6% vs 要求 −3%）
+- **消融验证（证测试非空转）**: 去掉 `GaugeChart` 注册 → 守卫测试**如期失败**（捕获到 `Series gauge is used but not imported`）；恢复 → 通过。**首版守卫用 `not.toThrow()` 消融时照样通过**（echarts 缺件是 `console.error` + 静默跳过 series，不抛异常）→ 改为捕获 `console.error` 后消融才有效（此坑如实留痕）
+- **生产产物验证**: 真 Chromium 加载 `frontend/dist/` → 三类图（gauge / graph / line+bar）**canvas 均已绘制=true**（排除 tree-shaking 的头号风险「build 通过但运行时白屏」）
+- **门禁**: `tsc --noEmit` exit 0 · `vitest run` **99 文件 / 717 passed**（原 713 + 新 4）· `vite build` OK · `verify_echarts_bundle.mjs` `RESULT: PASS` · `generate_meta.py --check` exit 0（架构数字未变，未增删 router/service/job）· **零后端改动 → 未重跑后端 pytest**（上一轮全量 5,463 passed / 0 failed 仍有效）
+- **遗留（如实登记）**: ① echarts chunk 内仍含未用图表类型约 213KB gzip（`echarts/charts` 桶文件 + echarts `sideEffects` 含 `lib/chart/*.js` → Rollup 摇不掉）；再压需绕过公开 API 直引 `echarts/lib/chart/*/install.js`（非公开路径、升级易碎），当前余量已远超目标 → 按「够用即止」不做，登记为可选后续项 ② **T8 三主题人工走查仍未闭**（与 M-4 无关，仍待 owner 目视）
+
 ## [DEV-0389] chore(release): v0.8.9 P7 C7-1 — 版本 0.8.9 置位 + 全链版本对齐 + G1~G5 达成情况回写（tag 待 owner）
 - **时间**: 2026-11-17
 - **类型**: 发布收口（C7-1 版本与文档；C7-2 tag 🔶 待 owner）

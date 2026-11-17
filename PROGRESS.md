@@ -1,6 +1,6 @@
 # PROGRESS.md — 执行进度台账（仅活跃段）
 
-> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），**P7 收口 C7-1 已交付**（版本 **0.8.9** 置位 + 全链版本对齐 + CHANGELOG + 权威 PRD 回写 G1~G5 分档）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + v0.8.8 两项遗留裁决，预审见 `docs/audit/V089_RELEASE_GATE_2026-11-17.md`）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**当前版本**: v0.8.9（主干流量专项；PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`）。
+> **当前阶段 (2026-11-17)**: **v0.8.9 主干流量专项 P0~P6 已交付**（人工回执闭环 + 观测收口 + 边界协议 + pi 执行 + L3 加固 + Case 闭环/知识回流；演练①~⑥ 全 PASS，artifact_yield 活体 1.0），**P7 收口 C7-1 已交付**（版本 **0.8.9** 置位 + 全链版本对齐 + CHANGELOG + 权威 PRD 回写 G1~G5 分档）+ **M-4 包体已修**（745,356 → 577,813 B，−23.6%，关闭 v0.8.8 门 13）；**C7-2 `git tag v0.8.9` 待 owner**（前置：观测窗 2026-12-14 满窗判定 M-9/M-10 + G1 计数达标 + T8 三主题人工走查归档，预审见 `docs/audit/V089_RELEASE_GATE_2026-11-17.md`）。**v0.8.8 全阶段已交付关闭**（P0~P5，约 31 commit，plan.9 终态对账完毕）——P3 零消费链路退役 + P2.5 数据热冷分层（主库 794→113MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 + P5 版本收口 0.8.8。**当前版本**: v0.8.9（主干流量专项；PRD 见 `docs/v0.8.9/V0.8.9_PRD.md`）。
 > 接手顺序: 根 `AGENTS.md` → `PROJECT.md` → 本文件活跃段。历史完整段见 `docs/progress-archive/`，docs/ 全景见 `docs/README.md`。
 
 ## 历史索引
@@ -108,7 +108,17 @@
 - **门禁全绿**: 全量 pytest **5,463 passed / 7 skipped / 0 failed** (1052.79s) · 前端 tsc 0 / vitest **713 passed** / build OK · ruff clean · `generate_meta.py --check` exit 0（版本门 7/7）· `harness_analyze.py --check` exit 0。
 - **顺带纠偏**: README MCP 工具数 19 → **23**（16 读 + 7 写，与 PRD §6.1 权威口径一致；正文表格原为 v0.8.7 前旧账）；roadmap 脚注数字同步（99 routers / 155 services / 56 jobs / 133 migrations / 14 tags）。
 - **发布门预审留档**: `docs/audit/V089_RELEASE_GATE_2026-11-17.md`（G1~G5 分档 + 10 项发布门 + owner 授权清单）。
-- **剩余（C7-2，待 owner）**: `git tag v0.8.9` + 发布说明 —— 须待观测窗 2026-12-14 满窗判定 + G1 计数达标 + v0.8.8 两项遗留（M-4 包体 / T8 三主题走查）裁决。
+- **剩余（C7-2，待 owner）**: `git tag v0.8.9` + 发布说明 —— 须待观测窗 2026-12-14 满窗判定 + G1 计数达标 + T8 三主题人工走查归档（M-4 包体遗留项已由 DEV-0390 修复，见下段）。
+
+### 2026-11-17 M-4 包体修复 — echarts tree-shaking（745,356 → 577,813 B，关闭 v0.8.8 门 13）（DEV-0390）
+
+- **实测**: **745,356 → 577,813 B**（75 产物 gzip 总和）= **−23.63%** vs 基线 756,187 B；M-4 目标 ≤733,501 B，**余量 155,688 B**；vendor-echarts chunk 384,512 → 213,513 B。
+- **根因修正（v0.8.8 C5-7 当时归因只对了一半）**: 当时归因「R-15 四段指挥台新增量对冲删除量」；真实杠杆是 **echarts 整包进 vendor chunk（gzip 384KB = 全包 52%）** —— `echarts-for-react` 默认入口硬编码 `import * as echarts from 'echarts'`，而全仓仅 3 处用图、实际只用 4 种 chart。此前多轮「删文件减包体」减的都是长尾，头部 384KB 从未被触碰。
+- **修复**: 新建统一入口 `frontend/src/components/shared/EChart.tsx`（`echarts/core` + 按需 `use([...])`，引 `echarts-for-react/lib/core` —— 官方 README「按需引入」组合）+ 三处消费方改引（option/事件/样式逐字未动）+ `vite.config.ts` `manualChunks` pin 跟随。**未改 M-4 目标定义、未减任何业务能力面**。
+- **守卫（防「新增图表忘注册 → 图表空白」）**: echarts 对未注册 series 是 `console.error` + **静默跳过**（不抛异常）→ 守卫改为捕获 `console.error`；**消融验证**：去掉 `GaugeChart` 注册 → 测试如期失败，恢复 → 通过。另建 `scripts/verify_echarts_bundle.mjs`（真 Chromium 加载生产 dist 产物，验 canvas 真绘制）。
+- **门禁**: tsc exit 0 · vitest **99 文件 / 717 passed**（+4）· build OK · 生产产物验证 `RESULT: PASS` · `generate_meta --check` exit 0 · 零后端改动（未重跑后端 pytest）。
+- **遗留**: ① echarts chunk 内仍含未用图表类型约 213KB gzip（桶文件 + `sideEffects` 限制，再压需绕过公开 API）→ 当前余量已远超目标，不做；② **T8 三主题人工走查仍待 owner 目视**（与 M-4 无关）。
+- **留档**: `docs/audit/V089_M4_BUNDLE_FIX_2026-11-17.md`。
 
 ### 下一版本指针
 

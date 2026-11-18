@@ -115,6 +115,16 @@
 - **显式声明**: `LayerCard` / `TodoItem` 在 `src/` 内已无实际 import，导出面保留但**未删除**（超范围，待定夺）
 - **留痕**: 验证报告 §14；契约 §6 批次进度表 B6 行；DEV-0402
 
+### 前端重构 V1 · B6-d 壳层 / 资讯域 CSS 拆分 (DEV-0403, 2026-11-19)
+- **病灶**: `sentinel.css` 607 行被 `AppShell.tsx` 全局 import → 设置域 / 工具页被迫加载全部资讯域样式（「壳层硬性」）
+- **拆分**: 新建 `shell/shell.css` **275 行**（壳层 + 全站共享原子：`--sn-*` 别名层 / 元素重置 / masthead / cmdbar / bandnav / pressbar / 空态骨架 / 心跳漏斗 / 壳层响应式）；`sentinel.css` **358 行**（仅资讯域，由资讯域三页 import）；`AppShell.tsx` 改 import `./shell.css`。607 → 633（+26 为文件头 16 + 拆分的 `@media` 副本 7 + 分节注释 3，逐行多重集比对已核）
+- **实测证据**: 构建产物 `index-*.css` 含 masthead 不含 headline / `sentinel-*.css` 反之 / `SettingsPage-*.css` 两者皆无 → 设置域不再加载资讯域样式
+- **守卫**: `nav4_shell.test.tsx` 改读两文件拼接文本，断言条目与强度不变，61 tests 全绿
+- **门禁**: `tsc` 0 · 110 文件 / **783 tests 全通过** · `vite build` 0 · `generate_meta --check` OK
+- **体积（观测项）**: 首屏 JS 口径 A **88,272 → 88,314 B（+42 B）**，较 B0 基线 92,998 累计 **−4,684 B**；全量 563,714 B / 76 chunk
+- **显式不做**: `--sn-*` 别名层保留 / `st-*` 去前缀不做（纯改名、零功能收益、高回归风险）/ `sentinel-action.css` 与 `sentinel-graph.css` 不搬目录（已页级 scoped）
+- **留痕**: 验证报告 §15；契约 §6 批次进度表 B6 行；DEV-0403
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

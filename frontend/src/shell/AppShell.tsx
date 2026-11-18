@@ -16,7 +16,7 @@ import { fetchIngested24h, PipeProvider } from './pipe';
 import { PipeBar } from './PipeBar';
 import { MenuNav } from './MenuNav';
 import type { SentinelLayer } from './types';
-import '../components/sentinel/sentinel.css';
+import './shell.css';
 
 export function SentinelShell({ layer, mode = 'brief', ingested, children }: {
   /** 四菜单高亮; null = 工具页 (由 menuOf(pathname) 自动推断归属) */

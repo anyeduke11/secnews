@@ -359,7 +359,7 @@
 }
 
 /* 正文基础排版抽成变量: 工具页在 SentinelShell 壳内 (.sentinel 15px/无衬线) 需按 body 口径复位,
-   见 sentinel.css 的 .sentinel .tool-main */
+   见 shell/shell.css 的 .sentinel .tool-main */
 :root { --body-fs: 13px; --body-lh: 1.65; }
 
 

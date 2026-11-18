@@ -20,7 +20,10 @@ const SHELL_FILES = ["types.ts", "menuOf.ts", "pipe.tsx", "PipeBar.tsx", "MenuNa
 const SHELL_TSX = SHELL_FILES
   .map(f => readFileSync(join(ROOT, "src/shell", f), "utf-8"))
   .join("\n");
-const SENTINEL_CSS = readFileSync(join(ROOT, "src/components/sentinel/sentinel.css"), "utf-8");
+// B6-d (2026-11-19): 壳层样式与资讯域样式已拆为两文件, 守卫按"拼接整体"断言 (条目与强度不变)
+const SHELL_CSS = readFileSync(join(ROOT, "src/shell/shell.css"), "utf-8");
+const SENTINEL_CSS_FILE = readFileSync(join(ROOT, "src/components/sentinel/sentinel.css"), "utf-8");
+const SENTINEL_CSS = `${SHELL_CSS}\n${SENTINEL_CSS_FILE}`;
 const THEME_CONTEXT = readFileSync(join(ROOT, "src/contexts/ThemeContext.tsx"), "utf-8");
 const INDEX_CSS = readFileSync(join(ROOT, "src/index.css"), "utf-8");
 // B1 (2026-11-17): :root 变量已迁至 tokens/tokens.css, 守卫按"全局 CSS"整体断言

@@ -735,7 +735,98 @@ python scripts/generate_meta.py --check          # OK (56/19/99/155, core_router
 
 ② `V1Prototype.tsx` 文件名与导出名 `KnowledgeV1Page` 不一致，属既有约定，本批**未改名**（改名会波及 `routes/lazy-imports.ts`，非拆分范畴）。
 
-③ B6 剩余子批：**c** 工具页容器统一 / **d** 旧三份 CSS 收尾 + 全站 `st-*` 原子去前缀 + 性能对比 + 终章。
+③ B6 剩余子批：**c** 工具页容器统一（**d 已由 §15 交付**）。
+
+---
+
+## 15. B6-d — 壳层 / 资讯域 CSS 拆分（DEV-0403 · 2026-11-19）
+
+**口径来源**：owner 裁决「旧三份 CSS 按照业务流和逻辑进行重构，打破壳层硬性，一切以业务流和逻辑为主」。
+
+**病灶（唯一物理依据）**：`components/sentinel/sentinel.css`（607 行）被 `shell/AppShell.tsx` 全局 import → 全站所有页面（含设置域、工具页）都加载资讯域样式。
+
+### 15.1 拆分归属表
+
+| 归属 | 文件 | 行数 | 内容 |
+|---|---|---|---|
+| L2 壳层（AppShell 全局 import） | `shell/shell.css`（新建） | 275 | `.sentinel{}` 容器块（`--sn-*` 别名转发 / `--sn-bandnav-h` / 字体背景行高）· `::selection` · `:where(.sentinel) a/button` 元素重置 · `.tool-main` · `:focus-visible` · `.mono`/`.num` · masthead（`.masthead` `.mh-*` `.nv*`）· cmdbar（`.cmdbar*` `.cmd-result` `.mh-meta` `.clock` `.iconbtn`）· bandnav（`.bandnav` `.bn-*` 收起态）· pressbar（`.pressbar` `.pipe-*` `.pulse` `@keyframes sn-pulse` `.beat-*`）· 空态/骨架原子（`.empty-panel` `.empty-ring` `.empty-cta` `.skel-line`）· 主题覆写壳层部分 · 心跳漏斗 `.pipe-funnel` 组 · 壳层响应式（1240/1080/820/640） |
+| L4 资讯域（资讯域三页 import） | `components/sentinel/sentinel.css` | 358 | `.controlbar` `.modes` `.mode-btn` `.channels` `.chip` · `.layout` `.maincol` `.story-top` `.meta-row` `.tag` `.src` `.time` `.headline` `.standfirst` `.heatbox` `.heat-cells` `.readmore` `.secondary` `.sub-item` `.flash-*` `.pick-*` · `.news-alert-list` `.na-*` `.abtn` · `.rail` `.src-list` `.judge-stats` `.act-*` `.endnote` · `.sentinel[data-mode=…]` 四态 · `.sn-oneline*` · 主题覆写资讯域部分 · `.sn-import*` · `.jd-eval*` · Phase 3 编辑部排版 · D7 收口 · 资讯域响应式 |
+
+行数对账：607 → 275 + 358 = 633（+26 = 文件头 16 + 两条 1080px 联合规则 `@media` 各留一份 7 + 分节注释 3）。**剥注释/空行后逐行多重集比对**，唯一差异是 `.pressbar,.bandnav` 与 `.controlbar` 的联合规则按归属拆成两条。
+
+归属零交叉（grep 实测）：`shell.css` 含 `.masthead{` / `.bandnav{` / `.pressbar{` 共 7 处，**不含** `.controlbar` / `.headline` / `.rail{` / `.news-alert-list`；`sentinel.css` 反之。三个资讯域页面（`SentinelHomePage` L39 / `SentinelActionPage` L55 / `SentinelGraphPage` L46）继续 `import './sentinel.css'`，共享原子（`.heat-cells` 等）仍可达。
+
+未搬动（显式）：`sentinel-action.css`（453 行）与 `sentinel-graph.css`（219 行）本就只被各自页面 import = 页级 scoped，不存在壳层硬性，按 Rule 2/3 不做零收益搬目录。
+
+### 15.2 守卫改造（断言条目与强度不变）
+
+`routes/__tests__/nav4_shell.test.tsx` 原以 `readFileSync` 直读单份 `sentinel.css` 做源码文本断言。改为两文件拼接后再断言（B2 先例同法）：
+
+```tsx
+const SHELL_CSS = readFileSync(join(ROOT, "src/shell/shell.css"), "utf-8");
+const SENTINEL_CSS_FILE = readFileSync(join(ROOT, "src/components/sentinel/sentinel.css"), "utf-8");
+const SENTINEL_CSS = `${SHELL_CSS}\n${SENTINEL_CSS_FILE}`;
+```
+
+断言条目、正则与强度一字未改；`nav4_shell.test.tsx` 61 tests 全通过。
+
+### 15.3 门禁
+
+| 项 | 结果 |
+|---|---|
+| `npx tsc --noEmit; echo $?` | exit 0（无管道，取真实退出码） |
+| `npx vitest run`（全量） | **110 文件 / 783 tests 全通过，0 失败** |
+| `npx vitest run src/routes/__tests__/nav4_shell.test.tsx` | 61 / 61 |
+| `npx vite build` | exit 0 |
+| `python scripts/generate_meta.py --check` | OK |
+
+### 15.4 构建产物分流证据（决定性）
+
+| CSS chunk | raw | gzip | 含 `masthead` | 含 `headline` |
+|---|---|---|---|---|
+| `index-*.css`（全局壳层） | 60,951 | 12,759 | ✅ | ❌ |
+| `sentinel-*.css`（资讯域） | 16,306 | 3,306 | ❌ | ✅ |
+| `SettingsPage-*.css` | 17,645 | 3,142 | ❌ | ❌ |
+| `SentinelActionPage-*.css` | 20,683 | 3,456 | ❌ | ❌ |
+| `SentinelGraphPage-*.css` | 11,404 | 2,470 | ❌ | ❌ |
+| `pages-*.css` | 5,526 | 1,361 | ❌ | ❌ |
+
+结论：壳层样式随入口 chunk 加载，资讯域样式只在进入资讯域时加载；**设置域与工具页不再加载资讯域样式**，「壳层硬性」已实测拆除。
+
+### 15.5 体积（观测项，口径 A = index + vendor-react + SentinelHomePage）
+
+| 项 | B6-a | B6-d | Δ |
+|---|---|---|---|
+| index（入口） | 23,201 | 23,225 | +24 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,255 | 11,273 | +18 |
+| **首屏 JS gzip** | 88,272 | **88,314** | **+42**（+0.05%） |
+| 全量 JS gzip / chunk | 563,571 / 76 | 563,714 / 76 | +143 |
+
+较 B0 基线 92,998 累计 **−4,684 B（−5.04%）**，仍低于基线，满足 R4「每批登记且不得高于基线」。本批为纯 CSS 归属搬移，JS 侧 +42 B 属 chunk 模块序位移，非新增代码。
+
+### 15.6 LCP 复测（R4 唯一判定指标）
+
+脚本 `perf/lcp_ab.mjs --runs=3`（生产 `dist` + `vite preview` 1440×900 冷缓存 + `perf/lcp-api-fixture.json` 固定回放）：
+
+| 组 | 三次采样 (ms) | 中位 | LCP 元素 |
+|---|---|---|---|
+| with_fonts | 116 / 124 / 168 | **124** | `h1.headline` |
+| no_fonts | 116 / 116 / 112 | **116** | `h1.headline` |
+
+基线 252 ms，目标 ≤ 201.6 ms（80%）→ **达标（124 ms，较基线 −50.8%）**。B5.5 的字体非阻塞改造在真实网络抖动下的收益保持稳定（带/不带字体仅差 8 ms）。
+
+### 15.7 未做与残留（显式声明）
+
+① **`--sn-*` 别名层保留不删**。它定义在 `.sentinel{}` 内、全部转发 `index.css` 全局 token，属 `.sentinel` 作用域内的语义转发层，与「壳层硬性」无关（后者已由代码分割解决）。删除需机械改写 4 份 CSS 中 1000+ 处 `var(--sn-*)`，零功能收益、高回归风险，违反 Rule 2 / Rule 3。契约 §8 风险表「B6 才删除」条目已按 Rule 7 改判并登记理由。
+
+② **全站 `st-*` 原子去前缀不做**。同属纯改名：`st-*` 实测无跨域碰撞（设置域 `settings-shell.css` 与 `shared/editorial/Stamp.tsx` 的 `st-*` 零重叠），去前缀不改变任何加载边界。
+
+③ `sentinel-action.css` / `sentinel-graph.css` **不搬目录**（理由见 §15.1）。
+
+④ B6 剩余子批 **c**（工具页容器统一）未做，待 owner 放行。
+
+⑤ LCP 采样为冷缓存 + 固定夹具口径，未覆盖弱网/低端机场景；本报告不据此声称移动端或弱网指标。
 
 
 

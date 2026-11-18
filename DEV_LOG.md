@@ -1,4 +1,17 @@
 
+## [DEV-0403] refactor(fe): 前端重构 V1 B6-d — 壳层 / 资讯域 CSS 拆分（打破壳层硬性）
+- **时间**: 2026-11-19
+- **类型**: 绞杀者 B6 子批 d（承接 B6-a；旧三份 CSS 按 owner 口径「按业务流和逻辑重构，打破壳层硬性」处置）
+- **病灶与解法**: `sentinel.css` 607 行被 `shell/AppShell.tsx` 全局 import → 设置域 / 工具页被迫加载全部资讯域样式。拆为两份：**新建 `shell/shell.css` 275 行**（壳层 + 全站共享原子：`--sn-*` 别名层 / 元素重置 / masthead / cmdbar / bandnav / pressbar / 空态骨架 / 心跳漏斗 / 壳层响应式），**`sentinel.css` 358 行**（仅资讯域：controlbar / headline / rail / flash / news-alert / data-mode 四态 / 资讯响应式）；`AppShell.tsx` 改 import `./shell.css`
+- **行数对账**: 607 → 275 + 358 = 633（+26 = 文件头 16 + 两条 1080px 联合规则 `@media` 各留一份 7 + 分节注释 3）。剥注释 / 空行后逐行多重集比对，唯一差异是 `.pressbar,.bandnav` 与 `.controlbar` 的联合规则按归属拆成两条
+- **归属零交叉（grep 实测）**: shell.css 含 `.masthead{` / `.bandnav{` / `.pressbar{` 共 7 处、**不含** `.controlbar` / `.headline` / `.rail{` / `.news-alert-list`；sentinel.css 反之
+- **守卫改造（强度不变）**: `nav4_shell.test.tsx` 原直读单份 CSS 源码 → 改读 `SHELL_CSS + SENTINEL_CSS_FILE` 拼接后断言，断言条目与强度一字未减；`nav4_shell` 61 tests 全绿
+- **代码分割证据**: 构建产物 `index-*.css` 60,951 B 含 `masthead` 不含 `headline`；`sentinel-*.css` 16,306 B 反之；`SettingsPage-*.css` 17,645 B **两者皆无** —— 设置域已不再加载资讯域样式（「壳层硬性」实测拆除）
+- **门禁**: `tsc` exit 0 · nav4 守卫 61/61 · 全量 **110 文件 / 783 tests 全通过** · `vite build` exit 0 · `generate_meta.py --check` OK
+- **体积（观测项，口径 A）**: 首屏 JS gzip **88,272 → 88,314 B**（+42 B / +0.05%；index 23,225 + vendor-react 53,816 + SentinelHomePage 11,273），较 B0 基线 92,998 累计 **−4,684 B**；全量 JS 563,714 B / 76 chunk（+143 B）；CSS 由单份资讯域样式拆为按域 3 份（index 12,759 / sentinel 3,306 / SettingsPage 3,142 gzip）
+- **未做（显式声明）**: ① `--sn-*` 别名层**保留不删** —— 它是 `.sentinel` 作用域内的语义转发层，与壳层硬性无关；删除需机械改写 1000+ 处 `var(--sn-*)` 且零功能收益，违反 Rule 2（简单优先）/ Rule 3（手术式改动）。契约 §8 风险表「B6 才删除」条目据此按 Rule 7 改判并登记；② 全站 `st-*` 原子去前缀**不做**（同属纯改名、零功能收益）；③ `sentinel-action.css`(453) / `sentinel-graph.css`(219) **不搬目录** —— 二者本就是页级 scoped（仅被行动页 / 图谱页 import），无壳层硬性，搬动属零收益 churn
+- **留痕**: 验证报告 §15（15.1 拆分归属 / 15.2 守卫改造 / 15.3 门禁 / 15.4 构建产物分流 / 15.5 未做与残留）；契约 §6 批次进度表 B6 行 + §8 风险表；CHANGELOG B6-d 小节
+
 ## [DEV-0402] refactor(fe): 前端重构 V1 B6-a — 组件层剩余 8 件超限文件拆分（全站组件层超限清零）
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B6 子批 a（承接 B6-b；8 件清单源自验证报告 §13.6 ③）

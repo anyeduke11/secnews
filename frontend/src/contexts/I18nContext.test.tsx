@@ -7,7 +7,7 @@
  *  - Skill/Playbook/Dashboard 三个域的 key 数量 ≥33 (覆盖原硬编码文案)
  *  - locale 切换触发 <html lang> 同步
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { I18nProvider, useI18n } from './I18nContext';
@@ -63,34 +63,42 @@ describe('i18n skill/playbook/dashboard namespaces', () => {
     expect(REQUIRED_KEYS.length).toBeGreaterThanOrEqual(33);
   });
 
-  it('renders English default for dashboard.title', () => {
+  it('renders English default for dashboard.title', async () => {
     render(
       <I18nProvider>
         <Probe k="dashboard.title" />
       </I18nProvider>
     );
-    expect(screen.getByTestId('probe').textContent).toBe('Skill Dashboard');
+    // B5.5: en-US 词条改为动态 import (独立 chunk) → 需等待异步到达。
+    // 断言目标文案不变 ('Skill Dashboard'), 只是读取时机改为等待。
+    await waitFor(() =>
+      expect(screen.getByTestId('probe').textContent).toBe('Skill Dashboard')
+    );
   });
 
-  it('renders English default for skill.store.title', () => {
+  it('renders English default for skill.store.title', async () => {
     render(
       <I18nProvider>
         <Probe k="skill.store.title" />
       </I18nProvider>
     );
-    expect(screen.getByTestId('probe').textContent).toBe('Skill Store');
+    await waitFor(() =>
+      expect(screen.getByTestId('probe').textContent).toBe('Skill Store')
+    );
   });
 
-  it('renders English default for skill.builder.title', () => {
+  it('renders English default for skill.builder.title', async () => {
     render(
       <I18nProvider>
         <Probe k="skill.builder.title" />
       </I18nProvider>
     );
-    expect(screen.getByTestId('probe').textContent).toBe('New Skill');
+    await waitFor(() =>
+      expect(screen.getByTestId('probe').textContent).toBe('New Skill')
+    );
   });
 
-  it('renders Chinese default for common.back', () => {
+  it('renders Chinese default for common.back', async () => {
     render(
       <I18nProvider>
         <Probe k="common.back" />
@@ -98,7 +106,9 @@ describe('i18n skill/playbook/dashboard namespaces', () => {
     );
     // 默认 locale 是 'en-US' (按 storage 决定), 测试环境无 storage → en-US
     // 这里只验证 key 存在 + 非空
-    expect(screen.getByTestId('probe').textContent).toMatch(/Back|返回/);
+    await waitFor(() =>
+      expect(screen.getByTestId('probe').textContent).toMatch(/Back|返回/)
+    );
   });
 
   it('returns key fallback for unknown key (fail loud contract)', () => {
@@ -110,7 +120,7 @@ describe('i18n skill/playbook/dashboard namespaces', () => {
     expect(screen.getByTestId('probe').textContent).toBe('unknown.key.path');
   });
 
-  it('locale toggle swaps language for same key', () => {
+  it('locale toggle swaps language for same key', async () => {
     function ToggleProbe() {
       const { locale, setLocale, t } = useI18n();
       return (
@@ -132,11 +142,20 @@ describe('i18n skill/playbook/dashboard namespaces', () => {
         <ToggleProbe />
       </I18nProvider>
     );
+    // B5.5: en-US messages now arrive via dynamic import -> wait for arrival;
+    // after switching to zh-CN messages are resident -> readable synchronously.
+    // Assertion semantics unchanged (text must differ after switching).
+    await waitFor(() =>
+      expect(screen.getByTestId('title').textContent).toBeTruthy()
+    );
     const initial = screen.getByTestId('title').textContent;
     expect(initial).toBeTruthy();
     act(() => {
       screen.getByTestId('toggle').click();
     });
+    await waitFor(() =>
+      expect(screen.getByTestId('title').textContent).not.toBe(initial)
+    );
     const swapped = screen.getByTestId('title').textContent;
     expect(swapped).not.toBe(initial);
   });

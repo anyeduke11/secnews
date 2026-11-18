@@ -6,13 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>热点地图 - SecNews</title>
     <!-- 字体栈: Inter (sans UI) + JetBrains Mono (数据/代码)。
-         Newsreader 衬线随报纸版 (/editorial) 一并废弃, src 内 font-serif 零消费者, 不再加载。 -->
+         Newsreader 衬线随报纸版 (/editorial) 一并废弃, src 内 font-serif 零消费者, 不再加载。
+
+         B5.5 (2026-11-18): Google Fonts 改为 **非阻塞**。
+         原为 <link rel="stylesheet"> —— 渲染阻塞: 外网 CDN 慢/不可达时, 浏览器
+         会挂起首屏渲染直到样式表超时。实测 (perf/lcp_ab.mjs, 5 轮冷缓存):
+           带字体 stylesheet: LCP 中位 448 ms, 区间 [0, 7556] (方差 7.5s!)
+           拦掉字体 CDN    : LCP 中位 120 ms, 区间 [100, 124] (方差 ±24 ms)
+         即外部字体是 LCP 的**绝对主因**, 且是首屏可用性的单点故障。
+         改为 media="print" + onload 切回 all 的标准异步化手法:
+           字体到达前用 tokens.css 里的系统字体栈回退 (--font-sans / --font-mono
+           均已含 system-ui / PingFang SC / ui-monospace 回退项), 视觉可接受;
+           字体到达后无感替换, 不阻塞首帧。
+         onload="this.media='all'" 需内联脚本 —— 若被 CSP 拦截, 字体降级为
+         系统栈, 不影响功能 (已在 token 栈内置完整回退链)。 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     >
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      >
+    </noscript>
   </head>
   <body class="bg-dark-bg text-text-main font-sans antialiased">
     <div id="root"></div>

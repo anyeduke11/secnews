@@ -86,6 +86,16 @@
 - **体积**：首屏 JS gzip **92,770 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,257）—— 较 B5 续拆批 **−6 B**，较 D7 收口累计 **+12 B / +0.013%**（D8 未扩大且本批回落）；全量 JS 559,813 B / 75 chunk
 - **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §11 + §1 批次表 + §10.4 关闭指向；契约 §0 R3 行 / §2.1 硬规则 3 脚注 / §6 批次表 B5.6 与 B6 行 / 批次进度表；DEV-0399
 
+### 前端重构 V1 · B5.5 首屏瘦身专项 (DEV-0400, 2026-11-18)
+- **触发**: owner 裁决「开始 B5.5 首屏瘦身专项」。性质 = 性能专项，非视觉重做、非结构拆分
+- **归因先行**: 三个工具入仓 —— `frontend/perf/chunk_attrib.mjs`（sourcemap VLQ + **genCol 区间**归因）· `lcp_ab.mjs`（LCP A/B）· `lcp_diag.mjs`（字体是否阻塞 load）。归因结论：入口 chunk 中 `I18nContext.tsx` 占 **43.8%**（33,937 raw），两份词条表 gzip 13,770 B ≈ 入口 chunk 一半；`vendor-react` 中 `react-dom` 占 **79.1%**
+- **字体非阻塞（LCP 主抓手）**: `frontend/index.html` 改 `media="print"` + `onload` + `<noscript>` 回退。A/B：留字体中位 448 ms / 区间 [0, **7,556**]（方差 7.5 s）；拦字体中位 120 ms。修复后 5 轮 `[124,136,148,128,108]` → **中位 128 ms**（基线 252 ms，目标 ≤201.6 ms **达标**），同时修掉「字体 CDN 慢则首屏挂起数秒」的生产级单点故障
+- **i18n 按 locale 动态加载**: `I18nContext.tsx` 957 → **131** 行，词条外移 `lib/i18n/`（zh-CN 390 keys 静态常驻 / en-US 389 keys 动态 `import()` 成独立 chunk 5,926 B）。等价性：779 key 的 key+value 逐条比对**全等 PASS**。测试 9 例改 async + `waitFor`（断言语义逐字不变，owner 裁决「接受异步」）
+- **R4 口径降级**: `vendor-react` 独占 53,816 B（72.3%）→ JS 侧 20% 结构性不可达（实测确认 R2 前置结论）。契约 §7.1 改为 **LCP 单指标唯一判定**，首屏 JS 降为观测项但须登记且不得高于基线
+- **门禁**: `tsc` 0 · 110 文件 / **783 tests 全通过** · 覆盖率 **58.75 / 77.67 / 59.95 / 58.75**（复测 58.73/77.64/60.00/58.73，抖动 ≤0.05 来自异步用例）· `vite build` 0 · `generate_meta --check` OK
+- **体积**: 首屏 JS **92,770 → 88,279 B（−4,491 / −4.8%）**，较 B0 基线 92,998 **累计 −4,719，首次低于基线**；全量 561,200 B / 76 chunk
+- **留痕**: 验证报告 §12；契约 §0 R4 + §7.1 + §6 批次表与进度表 B5.5 行；DEV-0400
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

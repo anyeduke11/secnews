@@ -1,4 +1,17 @@
 
+## [DEV-0400] perf(fe): 前端重构 V1 B5.5 — 首屏瘦身专项（归因工具入仓 + 字体非阻塞 LCP 128ms 达标 + i18n 按 locale 动态加载 + R4 口径降级）
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B5.5（owner 裁决「开始 B5.5 首屏瘦身专项」）= 性能专项，非视觉重做、非结构拆分
+- **方法（归因先行）**: 先建三个可复用工具再动手 —— `frontend/perf/chunk_attrib.mjs`（sourcemap VLQ + **genCol 区间**归因；产物 minify 后仅 1–3 行，行级归因会把整 chunk 记给首个 source，首跑即复现该错）、`lcp_ab.mjs`（LCP A/B）、`lcp_diag.mjs`（字体是否阻塞 load）。**归因结论**：入口 chunk 中 `I18nContext.tsx` 占 **43.8%**（33,937 raw），两份词条表 gzip 合计 13,770 B（zh 7,329 + en 6,441）≈ 入口 chunk 的一半；`vendor-react` 中 `react-dom` 占 **79.1%**（不可压缩）
+- **改动一 · Google Fonts 非阻塞（LCP 主抓手）**: `frontend/index.html` 字体 `<link rel="stylesheet">` 是渲染阻塞资源且指向外部 CDN。A/B 实测留字体中位 **448 ms**、区间 [0, **7,556**]（方差 7.5 s）；拦字体中位 **120 ms**、区间 [100,124]。改为 `media="print"` + `onload="this.media='all'"` + `<noscript>` 回退 → 5 轮 `[124,136,148,128,108]` **中位 128 ms**（基线 252 ms，目标 ≤201.6 ms，**达标**），方差收敛到 40 ms。附带修掉一个生产级单点故障：字体 CDN 慢时首屏不再挂起数秒
+- **改动二 · i18n 词条按 locale 动态加载**: `contexts/I18nContext.tsx` **957 → 131 行**，词条外移为 `lib/i18n/messages.zh-CN.ts`（426 行 / 390 keys，静态常驻 = 默认语种 + 跨语种 fallback 源）+ `messages.en-US.ts`（426 行 / 389 keys，动态 `import()`）+ `index.ts`（18 行）。en-US 成独立 chunk `messages.en-US-*.js` = **5,926 B gzip**，仅 locale=en-US 时请求。**等价性校验**：779 个 key 的 key + value 逐条比对**全等 PASS**（en 表本就少 1 条 key，未"修正"）
+- **测试改动（语义不变）**: **9 例**（`I18nContext.test.tsx` 5 + `dashboard/Dashboard.test.tsx` 4）全部为「加 `async` + `waitFor`」，断言目标文案逐字未改；根因是 jsdom `navigator.language='en-US'` 而 en 表改为异步到达，已由 owner 裁决「接受异步 + 改 await」
+- **R4 裁决（口径降级，写入契约 §0 + §7.1）**: 口径 A 目标 74,398 B 中 `vendor-react` 独占 53,816 B（72.3%），应用代码预算仅 20,582 B 而 B4 完成态 38,942 B（需再砍 47%）→ **JS 侧 20% 架构上结构性不可达**（与 R2 前置结论一致，经本批实测确认）。裁定 **LCP ≤ 基线 80% 为唯一判定指标**；首屏 JS 体积**降为观测项**但每批须登记且不得高于基线；并记录原 LCP 基线 252 ms 采于字体 CDN 恰好快响应的偶然条件，B6 复测须带/不带字体各测一组
+- **门禁**: `tsc` exit 0 · **110 文件 / 783 tests 全通过** · 覆盖率 **58.75 / 77.67 / 59.95 / 58.75**（复测 58.73 / 77.64 / 60.00 / 58.73，差异 ≤0.05 为异步用例时序抖动；均 ≥ B5.6 与 B0 基线，阈值未降）· `vite build` exit 0 · `generate_meta.py --check` OK
+- **体积**: 首屏 JS 口径 A **92,770 → 88,279 B**（**−4,491 B / −4.8%**；index 27,697→23,208 / vendor-react 53,816 不变 / SentinelHomePage 11,255）—— 较 B0 基线 92,998 **累计 −4,719 B，首次低于基线**；全量 JS 561,200 B / **76 chunk**（+1,387 B = en-US 独立 chunk 5,926 − 入口内词条 4,489）
+- **行为变更登记**: 英文用户**首帧**短暂显示 zh-CN 词条（约 1 帧），en-US chunk 到达后切换 —— owner 已裁决接受
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §12（§12.1 归因工具 / §12.2 字体 A/B / §12.3 i18n / §12.4 门禁 / §12.5 体积 / §12.6 残留）；契约 §0 R4 行 + §7.1 口径 + §6 批次表与进度表 B5.5 行；CHANGELOG B5.5 小节
+
 ## [DEV-0399] refactor(fe): 前端重构 V1 B5.6 — 剩余 7 个超限文件拆分 + R3 契约冲突裁决（§2.1 硬规则 3 vs §2.3 保留物）
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B5.6（owner 指令「先处理那 7 个超限文件和契约冲突的裁决」）= 7 文件拆分 + R3 口径落地

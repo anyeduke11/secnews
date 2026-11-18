@@ -502,7 +502,99 @@ python scripts/generate_meta.py --check          # OK · AGENTS 7/7
 
 ### 11.5 残留
 
-① 组件层 17 件超限归 B6（R3 组件层零豁免，已登记契约 §6）；② `api/settings.ts` G5 仍有效；③ LCP 仍未复测；④ `NoteEditor` 仍物理位于 `components/shared/`（消费方 `ReviewPage` 在知识域），迁移需改 import，本批未做。
+① 组件层 17 件超限归 B6（R3 组件层零豁免，已登记契约 §6）；② `api/settings.ts` G5 仍有效；③ LCP 仍未复测（**已由 B5.5 关闭，见 §12**）；④ `NoteEditor` 仍物理位于 `components/shared/`（消费方 `ReviewPage` 在知识域），迁移需改 import，本批未做。
+
+## 12. B5.5 首屏瘦身专项验证证据（2026-11-18）
+
+> owner 裁决「开始 B5.5 首屏瘦身专项」，并在过程中两项裁决：**i18n 按 locale 动态加载**、**口径降级为 LCP 单指标（R4）**。方法论：**归因先行**（R2 遗留的 JS 口径问题必须先量化到源文件，再决定动哪里）。
+
+### 12.1 归因工具入仓（先量化，后动手）
+
+| 工具 | 作用 | 关键实现 |
+|---|---|---|
+| `frontend/perf/chunk_attrib.mjs` | 把产物 chunk 字节归因到源文件 | 解析 sourcemap + VLQ 解码；**必须按 `genCol` 区间切分**——产物 minify 后整块只有 1–3 行，行级归因会把整个 chunk 记给第一个 source（首跑即复现该错误：入口 chunk 82,963 B 全记给 `react-jsx-runtime`） |
+| `frontend/perf/lcp_ab.mjs` | LCP A/B 对照（留字体 / 拦字体） | `PerformanceObserver` + `getEntries()`；`waitUntil: 'load'` + try/catch 容错（load 超时后仍读已发生的 LCP） |
+| `frontend/perf/lcp_diag.mjs` | 诊断 `load` 事件超时是否由外部字体 stylesheet 阻塞 | 路由拦截 `fonts.googleapis.com` 后对比 load 耗时 |
+
+三个脚本均入仓（可复用；B6 复测必须同脚本同夹具）。
+
+**归因结论（实测 raw 字节）**：
+
+| 项 | 字节 | 占比 |
+|---|---|---|
+| 入口 chunk `index-*.js` | 77,505 raw / 27,697 gzip | — |
+| └ `contexts/I18nContext.tsx` | **33,937 raw** | **入口 chunk 43.8%** |
+| └ 两份词条表 gzip 合计 | **13,770 B**（zh 7,329 + en 6,441） | 入口 chunk 的一半 |
+| `vendor-react-*.js` | 53,816 gzip | 其中 `react-dom` 占 **79.1%**（不可压缩运行时） |
+
+→ 首屏 JS 侧唯一可动的大项是 **en-US 词条表**（默认语种 zh-CN 必须常驻：既是默认语种又是跨语种 fallback 源）。
+
+### 12.2 改动一：Google Fonts 改非阻塞（LCP 主抓手）
+
+`frontend/index.html` 的字体 `<link rel="stylesheet">` 是**渲染阻塞资源**，且指向外部 CDN。A/B 实测（5 轮，同夹具同视口）：
+
+| 组 | LCP 样本（ms） | 中位 | 区间 |
+|---|---|---|---|
+| 留字体（原状） | 0 / 7,556 / 492 / 224 / 448 | **448** | [0, 7,556] —— **方差 7.5 s** |
+| 拦字体 | 120 / 120 / 124 / 116 / 100 | **120** | [100, 124] —— 方差 ±24 ms |
+
+`lcp_diag.mjs` 佐证：拦字体后 `load` 仅 16 ms，不拦 206 ms（另两次直接 30 s 超时）。
+
+**修复**：`media="print"` + `onload="this.media='all'"` + `<noscript>` 回退同步 `<link>`。字体不再阻塞首屏渲染，慢/不可达时退化为系统字体（同时修掉一个**生产级单点故障**：字体 CDN 慢时首屏会挂起数秒）。
+
+**修复后 5 轮实测**：`[124, 136, 148, 128, 108]` → **中位 128 ms**，区间 [108, 148]（方差 40 ms）。
+
+| 判定项（R4 后唯一指标） | 基线 | 目标 | 实测 | 结论 |
+|---|---|---|---|---|
+| LCP 中位数 | 252 ms | ≤ 201.6 ms（80%） | **128 ms** | **达标** |
+
+> 基线口径修订：原 252 ms 采于字体 CDN 恰好快响应的偶然条件，**不代表常态**（常态是 448 ms 中位、7.5 s 尾部）。已写入契约 §7.1，B6 复测须记录「带字体 / 不带字体」两组以区分代码回归与网络抖动。
+
+### 12.3 改动二：i18n 词条按 locale 动态加载
+
+`contexts/I18nContext.tsx` **957 → 131 行**，两份词条表外移：
+
+| 文件 | 行数 | keys |
+|---|---|---|
+| `lib/i18n/messages.zh-CN.ts` | 426 | 390 |
+| `lib/i18n/messages.en-US.ts` | 426 | 389（原文件本就少 1 条，**未"修正"**） |
+| `lib/i18n/index.ts` | 18 | 导出 zh 静态表 + `loadEnUSMessages()` 动态 `import()` |
+
+**等价性校验**：区间切分脚本逐条比对 **779 个 key 的 key + value，全等 PASS**（zh 390 + en 389）。zh-CN 静态常驻（默认语种 + 跨语种 fallback 源），en-US 拆成独立 chunk `messages.en-US-*.js` = **5,926 B gzip**，仅 locale=en-US 时发起请求。
+
+**行为变更登记（不隐藏）**：
+1. 英文用户**首帧**会短暂显示 zh-CN 词条（约 1 帧），en-US chunk 到达后切回 —— 已由 owner 裁决接受，测试改 `waitFor` 而非改语义。
+2. 测试改动共 **9 例**（`I18nContext.test.tsx` 5 + `Dashboard.test.tsx` 4），全部为「加 `async` + `waitFor`」，**断言目标文案逐字不变**（`'Skill Dashboard'` / `'14/14','12/20','0','OK'` / `'Enabled'` / `'Disabled'` / 切换后文案必须不同）。
+
+### 12.4 门禁实测
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0
+cd frontend && npx vitest run --coverage         # 110 文件 / 783 tests 全通过
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK · AGENTS 7/7
+```
+
+- 覆盖率（两次实测）**58.75 / 77.67 / 59.95 / 58.75** 与 **58.73 / 77.64 / 60.00 / 58.73**（Stmts/Branch/Funcs/Lines）—— 均高于 B5.6 的 58.64/77.50/59.97/58.64 与 B0 基线，阈值未下调；两次差异 ≤0.05 来自异步用例（`waitFor`）的时序抖动，非覆盖率回退。
+
+### 12.5 体积（观测项，R4 后不阻断但不得高于基线）
+
+| 指标 | B5.6 | **B5.5** | 变化 |
+|---|---|---|---|
+| 首屏 JS 口径 A | 92,770 B | **88,279 B** | **−4,491 B / −4.8%** |
+| 入口 chunk | 27,697 | 23,208 | −4,489 |
+| vendor-react | 53,816 | 53,816 | 0（不可压缩） |
+| SentinelHomePage | 11,257 | 11,255 | −2 |
+| 入口 CSS | 15,470 | 15,470 | 0 |
+| 全量 JS / chunk 数 | 559,813 / 75 | 561,200 / **76** | +1,387（= en-US 独立 chunk 5,926 − 入口内词条 4,489） |
+
+较 B0 基线 92,998 **累计 −4,719 B** —— **首次低于基线**（此前各批均在基线之上）。
+
+### 12.6 残留与后续
+
+① LCP 已达标但**基线口径本身不可信**（见 §12.2 注），B6 最终判定须带/不带字体各测一组；
+② `perf/lcp_*.mjs` 依赖 Playwright 与本地 `vite preview`，**未纳入 CI**（CI 无浏览器），为人工复测工具；
+③ en-US 首帧中文为中英双语用户的已知行为变更，若需消除可改为「首帧按 `navigator.language` 预判 + 阻塞首帧」，但会回退 LCP 收益，当前不做。
 
 
 

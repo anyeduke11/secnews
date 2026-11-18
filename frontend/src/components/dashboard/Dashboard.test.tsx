@@ -81,7 +81,9 @@ const SAMPLE_TIMELINE: TriggerTimelineItem[] = [
 // HealthCard
 // ---------------------------------------------------------------------------
 describe('HealthCard', () => {
-  it('renders all 4 metric rows', () => {
+  it('renders all 4 metric rows', async () => {
+    // B5.5: en-US messages arrive via dynamic import -> wait for arrival.
+    // Expected text unchanged ('OK'); only the read timing becomes async.
     renderWithI18n(
       <HealthCard
         snapshot={{
@@ -94,13 +96,15 @@ describe('HealthCard', () => {
         }}
       />
     );
+    await waitFor(() => {
+      const v = screen.getAllByTestId('health-row-value').map(n => n.textContent);
+      expect(v).toEqual(['14/14', '12/20', '0', 'OK']);
+    });
     const rows = screen.getAllByTestId('health-row');
     expect(rows.length).toBe(4);
-    const values = screen.getAllByTestId('health-row-value').map(n => n.textContent);
-    expect(values).toEqual(['14/14', '12/20', '0', 'OK']);
   });
 
-  it('maps throttle_state ok → caution → saturated colors', () => {
+  it('maps throttle_state ok → caution → saturated colors', async () => {
     const { rerender } = renderWithI18n(
       <HealthCard
         snapshot={{
@@ -113,8 +117,10 @@ describe('HealthCard', () => {
         }}
       />
     );
-    const firstRenderValues = screen.getAllByTestId('health-row-value').map(n => n.textContent);
-    expect(firstRenderValues[firstRenderValues.length - 1]).toBe('OK');
+    await waitFor(() => {
+      const v = screen.getAllByTestId('health-row-value').map(n => n.textContent);
+      expect(v[v.length - 1]).toBe('OK');
+    });
 
     rerender(
       <I18nProvider>
@@ -130,8 +136,10 @@ describe('HealthCard', () => {
         />
       </I18nProvider>
     );
-    const rows = screen.getAllByTestId('health-row-value');
-    expect(rows[rows.length - 1].textContent).toBe('Near Limit');
+    await waitFor(() => {
+      const rows = screen.getAllByTestId('health-row-value');
+      expect(rows[rows.length - 1].textContent).toBe('Near Limit');
+    });
 
     rerender(
       <I18nProvider>
@@ -147,8 +155,10 @@ describe('HealthCard', () => {
         />
       </I18nProvider>
     );
-    const lastRows = screen.getAllByTestId('health-row-value');
-    expect(lastRows[lastRows.length - 1].textContent).toBe('Saturated');
+    await waitFor(() => {
+      const lastRows = screen.getAllByTestId('health-row-value');
+      expect(lastRows[lastRows.length - 1].textContent).toBe('Saturated');
+    });
   });
 });
 
@@ -161,11 +171,13 @@ describe('SkillMatrix', () => {
     expect(screen.getByTestId('skill-matrix-empty')).toBeInTheDocument();
   });
 
-  it('renders one row per skill with enabled state', () => {
+  it('renders one row per skill with enabled state', async () => {
     renderWithI18n(<SkillMatrix skills={SAMPLE_SKILLS} />);
     expect(screen.getByTestId('skill-matrix-row-quality-patrol')).toBeInTheDocument();
     expect(screen.getByTestId('skill-matrix-row-source-health-scan')).toBeInTheDocument();
-    expect(screen.getByTestId('skill-matrix-enabled-quality-patrol').textContent).toContain('Enabled');
+    await waitFor(() => {
+      expect(screen.getByTestId('skill-matrix-enabled-quality-patrol').textContent).toContain('Enabled');
+    });
     expect(screen.getByTestId('skill-matrix-enabled-source-health-scan').textContent).toContain('Disabled');
   });
 
@@ -238,10 +250,12 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('skill-matrix-empty')).toBeInTheDocument();
   });
 
-  it('renders title and subtitle', () => {
+  it('renders title and subtitle', async () => {
     getJSONMock.mockReturnValue(new Promise(() => {}));
     renderWithI18n(<Dashboard />);
-    expect(screen.getByTestId('dashboard-title').textContent).toContain('Skill Dashboard');
+    await waitFor(() => {
+      expect(screen.getByTestId('dashboard-title').textContent).toContain('Skill Dashboard');
+    });
   });
 
   it('hides back button when onBack not provided', () => {

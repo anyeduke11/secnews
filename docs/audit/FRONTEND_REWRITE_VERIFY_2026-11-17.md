@@ -13,8 +13,9 @@
 | B2 | 壳原地替换 + 全局 Toast 提到根 | `nav4_shell` 改造后绿 / 三态主题可切换 / 旧页 `--sn-*` 正常渲染 | ✅ 2026-11-17（见 §3） |
 | B3 | `useQuery` + 域 API 模块 | 54 处直调降为 0 | ✅ 2026-11-17（见 §5） |
 | B4 | 资讯域 `/` 重写 | 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增 | ✅ 2026-11-18（见 §8；包体积于 §8.5 复测达标，D7 已关闭） |
-| B5 | 知识域 + 行动域重写（owner 裁决范围 = 12 个超限文件） | 同上 | ◐ 2026-11-18（见 §9 + §10；**点名的 12 文件全部达标**，两域内仍有 7 个超限未拆 → §10.4 残留，建议并入 B6） |
-| B6 | 设置域 + 工具页 + 旧 CSS 删除 + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ⏳ 未开始 |
+| B5 | 知识域 + 行动域重写（owner 裁决范围 = 12 个超限文件） | 同上 | ✅ 2026-11-18（见 §9 + §10 + **§11 B5.6**；12 + 7 = 19 个超限容器全部达标） |
+| B5.6 | 剩余 7 个超限文件拆分 + R3 契约冲突裁决 | 同上 + 豁免口径落地 | ✅ 2026-11-18（见 §11） |
+| B6 | 设置域 + 工具页 + 旧 CSS 删除 + **组件层剩余 17 件超限拆分** + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ⏳ 未开始 |
 
 ## 2. B1 验证证据
 
@@ -426,6 +427,82 @@ owner 裁决范围为「9 个续拆项」，已全部完成。但按契约 §6�
 | 知识 | `components/dashboard/Dashboard.tsx`（`/dashboard`） | 341 |
 | 归属待确认 | `components/shared/NoteEditor.tsx` | 334 |
 
+> **本表 7 项已于 2026-11-18 由 B5.6 全部拆分达标**（`NoteEditor` 归属确认为知识域 = 消费方 `ReviewPage` `/reviews`），证据见 §11.1；R3 契约冲突已裁决关闭，见 §11.3。
+
 另：契约 §2.3「保留物」里的契约层文件仍超长（`contexts/I18nContext.tsx` 957 / `types/index.ts` 907 / `api/settings.ts` 847（= G5）/ `api/v1.ts` 762 / `api/knowledge.ts` 572 / `types/codegarden.ts` 453 / `api/secnews.ts` 420 / `api/codegarden.ts` 375 / `hooks/realtime.ts` 315），这些属**类型与 API 契约层**，§2.1 的 ≤300 行规则与 §2.3 保留条款本身相冲突，需要 owner 明确豁免口径，不由实现侧自行决定。
+
+> **该冲突已于 2026-11-18 由 R3 裁决关闭**（见 §11.3），口径 = **按文件类别分层豁免，非全站豁免**。
+
+## 11. B5.6 验证证据（7 个剩余超限文件 + R3 契约冲突裁决，2026-11-18）
+
+> owner 裁决「先处理那 7 个超限文件和契约冲突的裁决」。同 §9/§10 性质：结构性拆分，DOM/class/`data-testid`/aria 逐字保留，取数原样搬运，未接 `useQuery`。3 路并行子任务，**所有数字由主会话在合并态统一复测**。
+
+### 11.1 改动面（28 新建 + 7 容器改写）
+
+| 原文件 | 原行数 | 现行数 | 拆出 |
+|---|---|---|---|
+| `skills/SkillBuilder.tsx` | 552 | **176** | `skills/` 8 件：SkillBuilderStep1Form 124 / SkillBuilderSchemaEditor 90 / skillBuilderModel 69 / SkillBuilderNavBar 61 / Step3Form 76 / Step2Form 58 / SkillBuilderStepper 42 / Step4Form 24 |
+| `reader/DeepReaderPage.tsx` | 495 | **202** | `reader/` 5 件：deepReaderModel 161 / DeepReaderMarkdown 113 / DeepReaderComposer 58 / DeepReaderRail 58 / DeepReaderArticle 41 |
+| `events/EventsReviewPage.tsx` | 341 | **216** | EventsReviewBlocks 223 / eventsReviewModel 37 |
+| `dashboard/Dashboard.tsx` | 341 | **110** | dashboardModel 83 / SkillMatrix 76 / HealthCard 59 / TriggerTimeline 55 |
+| `report/WeeklyReport.tsx` | 369 | **146** | WeeklyReportBlocks 212 / WeeklyReportHighlights 91 / sharedBlocks 90（周/月共用） |
+| `report/MonthlyReport.tsx` | 368 | **138** | MonthlyReportBlocks 222 / MonthlyReportHighlights 93 |
+| `shared/NoteEditor.tsx` | 334 | **155** | noteEditorModel 148（内联 style 常量）/ NoteEditorList 101 / NoteEditorComposer 44 |
+
+28 个新建非测试文件最大 **223** 行、7 个容器最大 **216** 行，全部 ≤300。导出名与文件路径全部不变（`WeeklyReportContent` / `MonthlyReport` / `DeepReaderPage` / `NoteEditor` / `SkillBuilder` / `Dashboard` / `EventsReviewPage`）。
+
+### 11.2 守卫保持（本批最高风险项）
+
+`nav4_shell.test.tsx` 有三条断言涉及本批文件，**守卫文件未改**，实测：
+
+| 守卫断言 | 实测 |
+|---|---|
+| 「5 个视图组件文件存在且带 colocated test」：`src/components/events/EventsReviewPage.tsx` + 同名 `.test.tsx`、`src/components/reader/DeepReaderPage.tsx` + 同名 `.test.tsx` 均可读 | ✅ 两个容器**原地保留为同名文件**，test 文件原位原名未动 |
+| 「5 视图不得自嵌 SentinelShell」：5 文件源码 `not.toContain("SentinelShell")` | ✅ `EventsReviewPage.tsx` / `DeepReaderPage.tsx` grep 计数 = **0** |
+| 「未实现端点 TODO 全部闭环」：`DeepReaderPage.tsx` `not.toContain("backend not implemented")` | ✅ grep 计数 = **0** |
+
+另：`EventsReviewPage` / `DeepReaderPage` / `NoteEditor` 的既有测试（`EventsReviewPage.test.tsx` / `DeepReaderPage.test.tsx` / `ReviewPage.test.tsx`）**一行未改**并通过；`SkillBuilder.test.tsx` / `Dashboard.test.tsx` 一行未改并通过。
+
+### 11.3 R3 裁决（§2.1 硬规则 3 与 §2.3 保留物冲突）—— 关闭
+
+**冲突事实**（实测，非印象）：
+
+| 文件 | 行数 | 内部结构（实测计数） |
+|---|---|---|
+| `contexts/I18nContext.tsx` | 957 | 词条表 + 3 个 interface；**长度来自声明式内容** |
+| `types/index.ts` | 907 | 81 个 interface/type，**569 行纯类型声明**，仅 7 个导出函数 |
+| `api/settings.ts` | 847 | 82 个端点函数（每函数 1 端点） |
+| `api/v1.ts` | 762 | 35 端点 + 56 interface |
+| `api/knowledge.ts` | 572 | 47 端点 + 17 interface |
+| `types/codegarden.ts` | 453 | 45 interface，**338 行纯类型** |
+| `api/secnews.ts` | 420 | 36 端点 + 22 interface |
+| `api/codegarden.ts` | 375 | 35 端点 + 14 interface |
+| `hooks/realtime.ts` | 315 | SSE 事件契约（§2.3 明列保留） |
+
+**裁决口径（§0 R3）**：**按文件类别分层豁免，非全站豁免**
+
+1. **契约层豁免**（`types/`、`api/`、`contexts/`、`lib/`、`hooks/realtime.ts`）：不适用 ≤300 行，改为**按文件职责拆分**。理由：这些文件的长度来自**声明式契约**（端点函数 1:1、类型声明），硬拆会把类型定义切碎、破坏 §2.3「契约层不重写」与 §2.1 硬规则 2（跨域 import 出口）。
+2. **组件层零豁免**：`components/` / `pages/` / `primitives/` / `shell/` 下的任何文件一律 ≤300 行。当前**组件层剩余 17 件全部归 B6 拆**，不得以「历史遗留」留存：
+   `MaintPage` 522 · `settings/DatabaseMaintenance` 470 · `ItemDetailDialog` 453 · `DeepReadPage` 428 · `settings/quality/SecretsPanel` 427 · `v1/V1Prototype` 411 · `HistoryPage` 407 · `layout/LayerCard` 385 · `TodoItem` 376 · `secnews/settings/InfoFilterCard` 375 · `settings/quality/CustomRulesPanel` 348 · `settings/ModelPoolPanel` 341 · `settings/ContentPreferencesCard` 335 · `settings/ProxySettings` 328 · `secrets/SecretsPage` 320 · `settings/SettingsDashboard` 311 · `secnews/settings/DshControlCard` 303。
+3. **豁免清单逐条可查**，已写入契约 §2.1 硬规则 3 脚注 + §0 R3 行，不静默绕过。
+
+**豁免的例外**：`api/settings.ts` 847 行虽在豁免目录，但它是 B3 新建而非历史契约，且已登记缺口 **G5**（§4）—— G5 仍有效，B6 设置域重写时按子域拆分，**不因 R3 豁免而关闭 G5**。
+
+### 11.4 门禁实测（合并态统一复测）
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0（全仓）
+cd frontend && npx vitest run --coverage         # 110 文件 / 783 tests 全通过
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK · AGENTS 7/7
+```
+
+- 覆盖率 **58.64 / 77.50 / 59.97 / 58.64**（Stmts/Branch/Funcs/Lines）—— 高于 B5 续拆批 58.61/77.58/59.59/58.61 与 B0 基线；阈值未下调。
+- 体积：首屏 JS 口径 A **92,770 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,257）—— 较 B5 续拆批 92,776 **−6 B**，较 D7 收口 92,758 累计 **+12 B / +0.013%**（D8 未扩大，且本批已回落 6 B）。入口 CSS 未变；全量 JS **559,813 B / 75 chunk**（+1,289 B，chunk 数持平）。
+
+### 11.5 残留
+
+① 组件层 17 件超限归 B6（R3 组件层零豁免，已登记契约 §6）；② `api/settings.ts` G5 仍有效；③ LCP 仍未复测；④ `NoteEditor` 仍物理位于 `components/shared/`（消费方 `ReviewPage` 在知识域），迁移需改 import，本批未做。
+
 
 

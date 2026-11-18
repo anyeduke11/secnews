@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import type { Annotation } from '../../hooks/useAnnotations';
+import { NoteEditorComposer } from './NoteEditorComposer';
+import { NoteEditorList } from './NoteEditorList';
+import {
+  countStyle,
+  errorStyle,
+  headerStyle,
+  mutedStyle,
+  titleStyle,
+  wrapperStyle,
+} from './noteEditorModel';
 
 /**
  * v1.7 Phase 2 — NoteEditor 笔记编辑器
@@ -15,6 +25,9 @@ import type { Annotation } from '../../hooks/useAnnotations';
  *  - 顶部输入框 + 添加按钮 (验收 3: 笔记 CRUD 正常)
  *  - 列表显示已有笔记, 每条可编辑/删除
  *  - 编辑模式: 点击编辑 → 文本框 + 保存/取消
+ *
+ * B5.6 拆分: 本文件只保留容器 (状态 + CRUD 编排); 展示区块见同目录
+ * NoteEditorComposer.tsx / NoteEditorList.tsx, 内联 style 常量见 noteEditorModel.ts。
  */
 
 export interface NoteEditorProps {
@@ -110,225 +123,33 @@ export function NoteEditor({
       </div>
 
       {/* 新建输入 */}
-      <div style={addRowStyle}>
-        <textarea
-          style={textareaStyle}
-          placeholder={`为 ${entityType}/${entityId} 添加笔记…`}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={2}
-          disabled={busy}
-        />
-        <button
-          type="button"
-          style={addBtnStyle}
-          onClick={handleAdd}
-          disabled={busy || !draft.trim()}
-        >
-          添加
-        </button>
-      </div>
+      <NoteEditorComposer
+        entityType={entityType}
+        entityId={entityId}
+        draft={draft}
+        busy={busy}
+        onDraftChange={setDraft}
+        onAdd={handleAdd}
+      />
 
       {error && <div style={errorStyle}>{error}</div>}
       {loading && <div style={mutedStyle}>加载中…</div>}
 
       {/* 笔记列表 */}
-      <div style={listStyle}>
-        {items.map((a) => (
-          <div key={a.id} style={noteItemStyle}>
-            {editingId === a.id ? (
-              <div style={editRowStyle}>
-                <textarea
-                  style={textareaStyle}
-                  value={editingContent}
-                  onChange={(e) => setEditingContent(e.target.value)}
-                  rows={2}
-                  disabled={busy}
-                />
-                <div style={editBtnRowStyle}>
-                  <button type="button" style={saveBtnStyle} onClick={saveEdit} disabled={busy}>
-                    保存
-                  </button>
-                  <button type="button" style={cancelBtnStyle} onClick={cancelEdit} disabled={busy}>
-                    取消
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={noteContentStyle}>{a.content}</div>
-                <div style={noteMetaStyle}>
-                  <span>{new Date(a.created_at).toLocaleString('zh-CN')}</span>
-                  <div style={noteActionsStyle}>
-                    <button
-                      type="button"
-                      style={actionBtnStyle}
-                      onClick={() => startEdit(a)}
-                      disabled={busy}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...actionBtnStyle, color: 'var(--color-error)' }}
-                      onClick={() => handleRemove(a.id)}
-                      disabled={busy}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-        {!loading && items.length === 0 && (
-          <div style={mutedStyle}>暂无笔记</div>
-        )}
-      </div>
+      <NoteEditorList
+        items={items}
+        loading={!!loading}
+        busy={busy}
+        editingId={editingId}
+        editingContent={editingContent}
+        onEditingContentChange={setEditingContent}
+        onStartEdit={startEdit}
+        onSaveEdit={saveEdit}
+        onCancelEdit={cancelEdit}
+        onRemove={handleRemove}
+      />
     </div>
   );
 }
-
-// ── styles (tech-style: 青色主调, 透明卡片) ───────────────────────
-const wrapperStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--space-2, 8px)',
-  padding: 'var(--space-3, 12px)',
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-md, 8px)',
-  background: 'var(--bg-card)',
-};
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 'var(--space-2, 8px)',
-};
-
-const titleStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: 'var(--color-ai)',
-  fontFamily: 'monospace',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-};
-
-const countStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: 'var(--text-muted)',
-  fontFamily: 'monospace',
-};
-
-const addRowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 'var(--space-2, 8px)',
-  alignItems: 'flex-end',
-};
-
-const textareaStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '6px 8px',
-  fontSize: 13,
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-sm, 4px)',
-  background: 'var(--bg-secondary)',
-  color: 'var(--text-primary)',
-  fontFamily: 'inherit',
-  resize: 'vertical',
-  outline: 'none',
-};
-
-const addBtnStyle: React.CSSProperties = {
-  padding: '6px 14px',
-  fontSize: 12,
-  border: '1px solid var(--accent)',
-  borderRadius: 'var(--radius-sm, 4px)',
-  background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
-  color: 'var(--accent)',
-  cursor: 'pointer',
-};
-
-const errorStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: 'var(--color-error)',
-};
-
-const mutedStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: 'var(--text-muted)',
-  padding: 'var(--space-1, 4px)',
-};
-
-const listStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--space-2, 8px)',
-  maxHeight: 320,
-  overflowY: 'auto',
-};
-
-const noteItemStyle: React.CSSProperties = {
-  padding: 'var(--space-2, 8px)',
-  border: '1px solid var(--border-subtle, rgba(255,255,255,0.04))',
-  borderRadius: 'var(--radius-sm, 4px)',
-  background: 'var(--surface-raised, rgba(255,255,255,0.03))',
-};
-
-const noteContentStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: 'var(--text-primary)',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
-  lineHeight: 1.5,
-};
-
-const noteMetaStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginTop: 'var(--space-1, 4px)',
-  fontSize: 10,
-  color: 'var(--text-muted)',
-  fontFamily: 'monospace',
-};
-
-const noteActionsStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 'var(--space-1, 4px)',
-};
-
-const actionBtnStyle: React.CSSProperties = {
-  padding: '2px 6px',
-  fontSize: 10,
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-sm, 4px)',
-  background: 'transparent',
-  color: 'var(--text-secondary)',
-  cursor: 'pointer',
-};
-
-const editRowStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--space-1, 4px)',
-};
-
-const editBtnRowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 'var(--space-1, 4px)',
-  justifyContent: 'flex-end',
-};
-
-const saveBtnStyle: React.CSSProperties = {
-  ...addBtnStyle,
-  padding: '2px 10px',
-};
-
-const cancelBtnStyle: React.CSSProperties = {
-  ...actionBtnStyle,
-  padding: '2px 10px',
-};
 
 export default NoteEditor;

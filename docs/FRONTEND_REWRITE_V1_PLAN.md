@@ -18,6 +18,7 @@
 | D5 | 壳数量 | **恒为 1** | 原地替换 `SentinelShell`，不新建并行壳（AGENTS.md 硬规则：禁止新一级入口/新壳） |
 | R1 | CaseQueuePanel 未挂载（2026-11-18 裁决） | **补挂到 `/action`** | `CaseQueuePanel` 有组件有测试但从未挂入任何页面（`git log -S` 无挂载记录）；`ExecOverviewPanel` 只取 `open/in_progress`（limit 8）**不含 `blocked`**，二者非包含关系 → 判定为漏挂。B5 在 `/action` 挂入完整队列，并更正 ROUTE_REGISTRY «P1 已完成» 表述 |
 | R2 | 20% 首屏目标口径（2026-11-18 裁决） | **口径暂不调整，增设 B5.5 瘦身批** | 口径 A 目标 74,398 B 中 `vendor-react` 已占 **53,816 B（72.3%）**，应用代码仅剩 20,582 B 预算而现状 38,942 B（需再砍 47%）→ JS 侧结构性不可达。裁定先跑 B5.5 专项瘦身并复测，再由数据决定是否降级口径；B6 才做最终判定 |
+| R3 | §2.1 硬规则 3「≤300 行」与 §2.3「保留物」冲突（2026-11-18 裁决） | **按文件类别分层豁免，非全站豁免** | 事实基础：`types/index.ts` 907 行含 **569 行纯类型声明**、`types/codegarden.ts` 453 行含 338 行类型、`contexts/I18nContext.tsx` 957 行为词条表 —— 长度来自**声明式内容**而非逻辑密度，硬拆会把类型定义切碎、破坏 §2.3「契约层不重写」。裁定：① **契约层豁免**（`types/`、`api/`、`contexts/`、`lib/`、`hooks/realtime.ts`）—— 按文件职责拆分，**不按行数**；② **组件层不豁免**（页面/区块/视图组件一律 ≤300 行，含 `MaintPage` / `ItemDetailDialog` / `DeepReadPage` / `V1Prototype` / `HistoryPage` / `LayerCard` / `TodoItem` 等，均归 B6 拆）；③ 豁免清单进 §2.1 硬规则 3 的脚注，**不静默绕过**，逐条可查 |
 
 > 编号约定：`D*` = 本表决策；`R*` = 2026-11-18 补充裁决。验证报告里的 `D1–D8` 是**契约偏差/偏差编号**，与本表 `D*` 不同序列。
 
@@ -69,6 +70,8 @@ L0  tokens        纯 CSS 变量（三态主题），零 JS
 1. 依赖只能向下，禁止反向 import（`primitives` 不得 import `domains`）。
 2. 跨域 import 必须经 `domains/<x>/index.ts` 公开出口，禁止深层路径。
 3. 单个非测试文件 ≤300 行；超出即拆区块。
+   - **契约层豁免（R3, 2026-11-18 裁决）**：`types/`、`api/`、`contexts/`、`lib/`、`hooks/realtime.ts` 下的文件**不适用**本条，改为**按文件职责拆分**（`api/` 一个域模块可含数十个端点函数；`types/` 是纯声明式契约）。豁免**仅限这些目录**，不适用于 `components/`、`pages/`、`hooks/`（`realtime.ts` 除外）、`primitives/`、`shell/` 任何文件。豁免清单逐条可查，不静默绕过。
+   - **组件层零豁免**：页面 / 区块 / 视图 / 卡片组件一律 ≤300 行；超限即拆，不得以「历史遗留」「先挂着」为由留存。
 4. `echarts` 只允许在 `primitives/EChart.tsx` 内 import（v0.8.9 M-4 成果，守卫测试保留）。
 5. 禁止新增一级菜单或并行壳；新能力只能作为四菜单内的区块挂入。
 
@@ -159,7 +162,8 @@ frontend/src/
 | **B3** | `hooks/useQuery` + 域 API 模块；54 处直调收敛 | 直调计数降为 0（grep 断言）；无回归 |
 | **B4** | 资讯域 `/` 重写（拆 God 组件 + 密度重排） | 首屏区块全保留；单文件 ≤300 行；包体积不增 |
 | **B5** | 知识域 `/knowledge` + 行动域 `/action` 重写 | 同上 |
-| **B6** | 设置域 `/settings` + 工具页容器统一 + 旧三份 CSS 删除 + 性能对比 + 验证报告 | §7 全部指标达标；旧代码零残留 |
+| **B5.6** | 行动/知识域剩余超限文件拆分（owner 裁决扩批：`EventsReviewPage` / `WeeklyReport` / `MonthlyReport` / `SkillBuilder` / `Dashboard` / `DeepReaderPage` / `NoteEditor`） | 同上 |
+| **B6** | 设置域 `/settings` + 工具页容器统一 + 旧三份 CSS 删除 + **组件层剩余超限文件拆分**（`MaintPage` / `ItemDetailDialog` / `DeepReadPage` / `V1Prototype` / `HistoryPage` / `LayerCard` / `TodoItem` / `settings/*` / `secrets/SecretsPage` / `secnews/settings/*` 等 17 件；R3 组件层零豁免）+ 性能对比 + 验证报告 | §7 全部指标达标；旧代码零残留 |
 
 **回滚**: 每批一个 commit（可含 1–3 个配套 commit），回滚 = `git revert` 单批，不依赖跨批状态。
 
@@ -172,7 +176,9 @@ frontend/src/
 | B2 | ✅ | 2026-11-17 | 验证报告 §3；DEV-0393（缺口见 §4） |
 | B3 | ✅ | 2026-11-17 | 验证报告 §5；DEV-0394（缺口 G5/G6 见 §4，偏差 D1–D5 见 §5.5） |
 | B4 | ✅ | 2026-11-18 | 验证报告 §8（含 §8.5 D7 关闭记录）；DEV-0395 + DEV-0396（退出条件 3 已由 DEV-0396 复测达标：首屏 JS 92,758 B / 较 B3 −759 B；D6 见 §8.4） |
-| B5–B6 | ⏳ 未开始 | — | — |
+| B5 | ◐ | 2026-11-18 | 验证报告 §9（点名三文件）+ §10（续拆 9 件，38 新建）；DEV-0397 + DEV-0398；**12 个超限容器全部达标**；域内余 7 件 → B5.6 |
+| B5.6 | ✅ | 2026-11-18 | 验证报告 §11（7 个超限文件拆分达标 + R3 契约冲突裁决）；DEV-0399 |
+| B6 | ⏳ 未开始 | — | — |
 
 ---
 

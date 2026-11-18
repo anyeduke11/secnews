@@ -73,8 +73,18 @@
 - **契约保持点**：导出名与文件路径全部不变（`ReviewOverlay` 再导出 `RvView`、`CaseDetail` 再导出 `Badge`，消费方 import 未改）；**R19.1 单点 aggregate 契约**保持（`getCaseAggregate` 仅容器一处调用，旧 5 个 N+1 端点零调用，`c11_aggregate_and_sse.test.tsx` 一行未改并通过）；**零新增 echarts import**（仍走 `shared/EChart` 单一入口）；**本组无任何测试文件改动**
 - **门禁（合并态统一复测，非子任务局部快照）**：`tsc` exit 0 · **110 文件 / 783 tests 全通过（0 失败，DEV-0397 的 OpsRunsPanel flaky 未复现）** · 覆盖率 **58.61 / 77.58 / 59.59 / 58.61**（较 B5 首批再升，≥ B0 基线，阈值未降）· `vite build` exit 0 · `generate_meta --check` OK
 - **体积**：首屏 JS gzip **92,776 B**（index 27,702 + vendor-react 53,816 + SentinelHomePage 11,258）—— 较首批 +4 B、较 D7 收口**累计 +18 B / +0.019%**（D8 量级未扩大；两域均 lazy 路由，不影响首屏关键路径）；入口 CSS 15,470 B；全量 JS 558,524 B / 75 chunk（+1,679 B，chunk 数持平）
-- **残留（不隐藏，登记于验证报告 §10.4）**：① 两域内仍有 7 个超限文件未拆（行动域 `EventsReviewPage` 341 / `WeeklyReport` 369 / `MonthlyReport` 368；知识域 `SkillBuilder` 552 / `DeepReaderPage` 495（**被源码守卫直读**）/ `Dashboard` 341；`shared/NoteEditor` 334 归属待确认）→ 建议并入 B6 或另开 B5.6 ② 契约 §2.1「≤300 行」与 §2.3「保留物」在类型/API 契约层自相冲突（`I18nContext` 957 / `types/index.ts` 907 / `api/settings.ts` 847 / `api/v1.ts` 762 等），**豁免口径须 owner 明确，不由实现侧自行决定** ③ LCP 仍未复测
+- **残留（已于 2026-11-18 由 B5.6 / DEV-0399 关闭，详见该条目）**：① 两域内 7 个超限文件（行动域 `EventsReviewPage` 341 / `WeeklyReport` 369 / `MonthlyReport` 368；知识域 `SkillBuilder` 552 / `DeepReaderPage` 495（被源码守卫直读）/ `Dashboard` 341；`shared/NoteEditor` 334 归属待确认）② 契约 §2.1「≤300 行」与 §2.3「保留物」在类型/API 契约层自相冲突 → **两项均已在 B5.6 处置**（7 文件拆分达标 + R3 分层豁免口径落地）③ LCP 仍未复测（留 B5.5 / B6）
 - **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §10（§10.1 改动面 / §10.2 契约保持 / §10.3 门禁 / §10.4 残留）；§1 批次表 B5 记 ◐（点名 12 文件达标，域内余 7 项）
+
+### 前端重构 V1 · B5.6 剩余 7 个超限文件拆分 + R3 契约冲突裁决 (DEV-0399, 2026-11-18)
+- **触发**: owner 指令「先处理那 7 个超限文件和契约冲突的裁决」。拆分部分同 §9/§10 性质 = **结构性拆分**（容器 + 纯展示区块），DOM/class/`data-testid`/aria/内联 style 逐字保留，取数原样搬运，未接 `useQuery`
+- **7 容器全部达标（28 新建，最大 223 行）**：`SkillBuilder.tsx` 552→**176**（`skills/` 8 件）· `DeepReaderPage.tsx` 495→**202**（`reader/` 5 件）· `EventsReviewPage.tsx` 341→**216** · `Dashboard.tsx` 341→**110**（`dashboard/` 4 件）· `WeeklyReport.tsx` 369→**146** · `MonthlyReport.tsx` 368→**138**（两报告共用 `sharedBlocks.tsx` 90，周/月产物差异原样保留）· `NoteEditor.tsx` 334→**155**（`shared/` 3 件）
+- **`NoteEditor` 归属**：消费方 `ReviewPage.tsx`（`/reviews`）→ 归**知识域**；物理位置仍在 `components/shared/`，迁移需改 import，本批不做
+- **守卫零放宽**：`nav4_shell.test.tsx` 三条断言涉及本批文件 —— 「5 视图文件存在且带 colocated test」（两个容器**原地保留同名** + test 原位原名未动）/「5 视图不得自嵌 SentinelShell」（两容器 grep = 0）/「TODO 闭环」（`DeepReaderPage.tsx` 的 `backend not implemented` grep = 0）；既有测试（EventsReviewPage / DeepReaderPage / ReviewPage / SkillBuilder / Dashboard）**一行未改**并通过
+- **R3 裁决（契约冲突关闭，写入契约 §0 + §2.1 硬规则 3 脚注）**：§2.1「≤300 行」与 §2.3「保留物」在契约层冲突。**实测依据**：`types/index.ts` 907 行含 **569 行纯类型声明**（81 interface / 仅 7 导出函数）· `types/codegarden.ts` 338 行类型 · `I18nContext.tsx` 957 词条表 · `api/*` 每文件 35–82 个「1 函数 = 1 端点」薄封装 → 长度来自**声明式契约**而非逻辑密度。口径 = **按文件类别分层豁免，非全站豁免**：契约层（`types/` `api/` `contexts/` `lib/` `hooks/realtime.ts`）改为**按职责拆分**；**组件层零豁免**，剩余 17 件（`MaintPage` 522 / `settings/*` / `ItemDetailDialog` 453 / `DeepReadPage` 428 / `V1Prototype` 411 / `HistoryPage` 407 / `LayerCard` 385 / `TodoItem` 376 / `secrets/SecretsPage` 320 等）全部归 B6；**例外**：`api/settings.ts` 847 虽在豁免目录但 B3 新建，缺口 **G5 仍有效**，B6 按子域拆分
+- **门禁**：`tsc` exit 0 · **110 文件 / 783 tests 全通过，0 失败** · 覆盖率 **58.64 / 77.50 / 59.97 / 58.64**（≥ 前批与 B0 基线，阈值未降）· `vite build` exit 0 · `generate_meta --check` OK
+- **体积**：首屏 JS gzip **92,770 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,257）—— 较 B5 续拆批 **−6 B**，较 D7 收口累计 **+12 B / +0.013%**（D8 未扩大且本批回落）；全量 JS 559,813 B / 75 chunk
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §11 + §1 批次表 + §10.4 关闭指向；契约 §0 R3 行 / §2.1 硬规则 3 脚注 / §6 批次表 B5.6 与 B6 行 / 批次进度表；DEV-0399
 
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决

@@ -1,4 +1,29 @@
 
+## [DEV-0399] refactor(fe): 前端重构 V1 B5.6 — 剩余 7 个超限文件拆分 + R3 契约冲突裁决（§2.1 硬规则 3 vs §2.3 保留物）
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B5.6（owner 指令「先处理那 7 个超限文件和契约冲突的裁决」）= 7 文件拆分 + R3 口径落地
+- **性质声明**: 拆分部分同 §9/§10 = **结构性拆分**，非视觉重做、非数据层重写；DOM/class/`data-testid`/aria/内联 style 值逐字保留，取数原样搬运，**未接 `hooks/useQuery`**
+- **改动面（28 新建 + 7 容器改写）**:
+  - `skills/SkillBuilder.tsx` 552 → **176**（`skills/` 8 件，步进/草稿/提交/dry-run 全留容器）
+  - `reader/DeepReaderPage.tsx` 495 → **202**（`reader/` 5 件，含 deepReaderModel 161 / DeepReaderMarkdown 113）
+  - `events/EventsReviewPage.tsx` 341 → **216**（EventsReviewBlocks 223 / eventsReviewModel 37）
+  - `dashboard/Dashboard.tsx` 341 → **110**（dashboardModel 83 / SkillMatrix 76 / HealthCard 59 / TriggerTimeline 55）
+  - `report/WeeklyReport.tsx` 369 → **146**（WeeklyReportBlocks 212 / WeeklyReportHighlights 91 / sharedBlocks 90 周月共用）
+  - `report/MonthlyReport.tsx` 368 → **138**（MonthlyReportBlocks 222 / MonthlyReportHighlights 93）
+  - `shared/NoteEditor.tsx` 334 → **155**（noteEditorModel 148 内联 style 常量 / NoteEditorList 101 / NoteEditorComposer 44）
+  - 28 个新建非测试文件最大 **223** 行、7 容器最大 **216** 行，全部 ≤300；导出名与文件路径全部不变（`WeeklyReportContent` / `MonthlyReport` / `DeepReaderPage` / `NoteEditor` / `SkillBuilder` / `Dashboard` / `EventsReviewPage`）
+- **`NoteEditor` 归属裁决**: 消费方 `components/ReviewPage.tsx` L16 import / L136 使用（路由 `/reviews`）→ 归**知识域**（此前 §10.4 记「归属待确认」）。物理位置仍在 `components/shared/`，迁移需改 import，本批不做
+- **守卫保持（本批最高风险项）**: `nav4_shell.test.tsx` 三条断言涉及本批文件，守卫文件**未改**，实测：① 「5 视图文件存在且带 colocated test」→ `EventsReviewPage.tsx` / `DeepReaderPage.tsx` **原地保留为同名容器**，两个 `.test.tsx` 原位原名未动 ② 「5 视图不得自嵌 SentinelShell」→ 两容器 grep 计数 **0** ③ 「TODO 闭环」→ `DeepReaderPage.tsx` 的 `backend not implemented` grep 计数 **0**。既有测试（`EventsReviewPage` / `DeepReaderPage` / `ReviewPage` / `SkillBuilder` / `Dashboard`）**一行未改**并通过
+- **R3 裁决（契约冲突关闭）**: §2.1 硬规则 3「单个非测试文件 ≤300 行」与 §2.3「保留物（不重写）」在契约层直接冲突。**实测事实**（非印象）：`types/index.ts` 907 行含 **569 行纯类型声明**（81 interface / 仅 7 导出函数）· `types/codegarden.ts` 453 含 338 行类型 · `contexts/I18nContext.tsx` 957 为词条表 · `api/*` 每个文件含 35–82 个「1 函数 = 1 端点」的薄封装。→ **长度来自声明式契约而非逻辑密度**，硬拆会切碎类型定义、破坏 §2.3 与 §2.1 硬规则 2（跨域 import 出口）。裁决口径 = **按文件类别分层豁免，非全站豁免**：① 契约层（`types/` `api/` `contexts/` `lib/` `hooks/realtime.ts`）豁免，改为**按文件职责拆分** ② **组件层零豁免**（`components/` `pages/` `primitives/` `shell/` 一律 ≤300），当前组件层剩余 **17 件全部归 B6**，不得以「历史遗留」留存 ③ 豁免清单逐条可查（契约 §0 R3 行 + §2.1 硬规则 3 脚注），不静默绕过
+  - **例外**：`api/settings.ts` 847 虽在豁免目录，但它是 B3 新建且已登记缺口 **G5** → G5 仍有效，B6 按子域拆分，**不因 R3 豁免而关闭**
+- **实测门禁（全绿）**:
+  - `npx tsc --noEmit` exit 0（全仓，非局部快照）
+  - `npx vitest run --coverage` **110 文件 / 783 tests 全通过，0 失败**；覆盖率 Stmts 58.64 / Branch 77.50 / Funcs 59.97 / Lines 58.64（B5 续拆批 58.61/77.58/59.59/58.61、B0 基线 57.05/76.39/57.42/57.05，阈值未下调）
+  - `npx vite build --logLevel error` exit 0；`python scripts/generate_meta.py --check` OK（56/19/99/155 · core_routers 67 · AGENTS 7/7，纯前端改动架构数字未变）
+- **体积**: 首屏 JS gzip **92,770 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,257）—— 较 B5 续拆批 92,776 **−6 B**（本批回落），较 D7 收口 92,758 累计 **+12 B / +0.013%**（D8 未扩大）。全量 JS 559,813 B / 75 chunk（+1,289 B，chunk 数持平）
+- **残留**: ① 组件层 17 件超限归 B6（已写入契约 §6 B6 行 + §11.3 清单）② `api/settings.ts` G5 仍有效 ③ LCP 仍未复测 ④ `NoteEditor` 物理位置未迁（迁移需改 `ReviewPage.tsx` import）
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §11（§11.1 改动面 / §11.2 守卫 / §11.3 R3 裁决 / §11.4 门禁 / §11.5 残留）+ §1 批次表 + §10.4 加关闭指向；契约 §0 R3 行 + §2.1 硬规则 3 脚注 + §6 批次表 B5.6/B6 行 + 批次进度表；CHANGELOG B5.6 小节
+
 ## [DEV-0398] refactor(fe): 前端重构 V1 B5 续拆 — 知识域 + 行动域剩余 9 个超限文件拆分达标
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B5 续拆（owner 裁决「续拆 B5 剩余 9 个」，承接 DEV-0397 §范围偏差）；退出条件同 B5（首屏区块全保留 / 单文件 ≤300 行 / 包体积不增）

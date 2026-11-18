@@ -10,6 +10,9 @@
  *  - POST /api/event-technique/event-types/{id}/batch-approve — 批量通过 (min_confidence)
  * 注意: /api/event-technique/candidates 的 event_type_id 为必填 Query,
  *       故先选类型再拉候选; 类型清单为空/接口失败时显式降级空态。
+ *
+ * B5.6 拆分: 本文件只留状态与取数编排 (容器), 纯展示区块见 EventsReviewBlocks.tsx,
+ *             行类型见 eventsReviewModel.ts。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -20,31 +23,14 @@ import {
   rejectEventCandidate,
 } from '../../api/shared';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
-import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import {
+  EventsCandidateSection,
+  EventsNotice,
+  EventsReviewHeader,
+  EventsTypeSection,
+} from './EventsReviewBlocks';
+import type { CandidateRow, EventTypeRow, ReviewNotice } from './eventsReviewModel';
 import '../shared/editorial/pages.css';
-
-interface EventTypeRow {
-  id: string;
-  name?: string;
-  candidate_stats?: {
-    pending?: number;
-    approved?: number;
-    rejected?: number;
-    total?: number;
-    avg_confidence?: number;
-  };
-}
-
-interface CandidateRow {
-  id: string;
-  technique_id: string;
-  stage?: string;
-  confidence?: number;
-  evidence_quote?: string;
-  rationale?: string;
-  owner_status?: string;
-}
 
 export function EventsReviewPage() {
   const [types, setTypes] = useState<EventTypeRow[] | null>(null);
@@ -56,7 +42,7 @@ export function EventsReviewPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [notice, setNotice] = useState<ReviewNotice | null>(null);
   const [batching, setBatching] = useState(false);
   // A2 (DEV-0188): 批量通过两段式确认 — 首次点击仅武装 (5s 无操作自动退出), 二次点击才发请求
   const [batchArmed, setBatchArmed] = useState(false);
@@ -181,160 +167,49 @@ export function EventsReviewPage() {
     }
   }
 
+  function startReject(candidateId: string) {
+    setRejectId(candidateId);
+    setRejectReason('');
+  }
+
+  function cancelReject() {
+    setRejectId(null);
+    setRejectReason('');
+  }
+
   return (
       <div className="ed-wrap">
-        <header className="ed-head">
-          <span className="ed-kicker">WIRE DESK</span>
-          <h1 className="ed-h1">通稿审核</h1>
-          <p className="ed-sub">事件类型候选 (LLM 抽取的技战法映射) 逐条人工审定: 通过落映射图, 驳回须写理由; 全部动作写审计日志。</p>
-          <div style={{ marginTop: 10 }}>
-            <Stamp color="info" variant="hollow">数据源: /api/event-technique (真实端点)</Stamp>
-          </div>
-        </header>
+        <EventsReviewHeader />
 
         {notice && (
-          <p className="ac-banner" role="status" style={{ color: notice.kind === 'ok' ? 'var(--sn-mint)' : 'var(--sn-amber)', borderColor: notice.kind === 'ok' ? 'var(--sn-mint-dim)' : 'var(--sn-amber-dim)', background: notice.kind === 'ok' ? 'var(--sn-mint-dim)' : 'var(--sn-amber-dim)' }}>
-            {notice.text}
-          </p>
+          <EventsNotice notice={notice} />
         )}
 
-        <div className="ed-sechead">
-          <span>事件类型</span>
-          <span className="ed-note">{types ? `${types.length} 类` : '…'}</span>
-        </div>
-        {types === null ? (
-          <EmptyState title="加载中…" />
-        ) : types.length === 0 ? (
-          <EmptyState
-            title={typesError ? '类型清单加载失败' : '暂无事件类型'}
-            description={typesError ?? 'MP-2 语料入库后这里会出现事件类型清单。'}
-          />
-        ) : (
-          <div className="ed-grid">
-            {types.map(t => {
-              const stats = t.candidate_stats ?? {};
-              const active = selected === t.id;
-              return (
-                <div
-                  key={t.id}
-                  className={`ed-card click${active ? '' : ''}`}
-                  role="button"
-                  tabIndex={0}
-                  style={active ? { borderColor: 'var(--sn-accent)' } : undefined}
-                  onClick={() => selectType(t.id)}
-                  onKeyDown={ev => { if (ev.key === 'Enter') selectType(t.id); }}
-                >
-                  <span className="t">{t.name || t.id}</span>
-                  <span className="mono" style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-3)' }}>{t.id}</span>
-                  <span className="d">
-                    待审 {stats.pending ?? 0} · 已过 {stats.approved ?? 0} · 驳回 {stats.rejected ?? 0}
-                    {typeof stats.avg_confidence === 'number' ? ` · 均信 ${stats.avg_confidence}` : ''}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <EventsTypeSection
+          types={types}
+          typesError={typesError}
+          selected={selected}
+          onSelect={selectType}
+        />
 
         {selected && (
-          <>
-            <div className="ed-sechead">
-              <span>候选队列 · {selected}</span>
-              <span className="ed-note" style={{ display: 'inline-flex', gap: 10, alignItems: 'baseline' }}>
-                {candidates.length} PENDING
-                <button
-                  type="button"
-                  className={`ed-btn${batchArmed ? ' warn' : ''}`}
-                  disabled={batching}
-                  onClick={onBatchClick}
-                >
-                  {batching ? '批量中…' : batchArmed ? '确认批量通过 (≥0.7)?' : '批量通过 (信 ≥0.7)'}
-                </button>
-              </span>
-            </div>
-            {candsLoading ? (
-              <EmptyState title="候选加载中…" />
-            ) : candsError ? (
-              <EmptyState title="候选加载失败" description={candsError} />
-            ) : candidates.length === 0 ? (
-              <EmptyState title="该类型暂无待审候选" description="候选由采集管线每日自动抽取入池 (置信度 ≥ 阈值)。若尚未产出, 可等待下次调度或运行 agent 抽取脚本。" />
-            ) : (
-              <table className="ed-table" aria-label="候选队列">
-                <thead>
-                  <tr>
-                    <th>技战法</th>
-                    <th>阶段</th>
-                    <th>置信</th>
-                    <th>证据摘录</th>
-                    <th>动作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidates.map(c => (
-                    <tr key={c.id}>
-                      <td className="mono">{c.technique_id}</td>
-                      <td className="mono">{c.stage ?? '--'}</td>
-                      <td className="mono">{typeof c.confidence === 'number' ? c.confidence.toFixed(2) : '--'}</td>
-                      <td style={{ maxWidth: 380 }}>
-                        <div style={{ lineHeight: 1.55 }}>{c.evidence_quote || c.rationale || '--'}</div>
-                        {rejectId === c.id && (
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <input
-                              className="editorial-input"
-                              style={{ flex: 1, minWidth: 160 }}
-                              placeholder="驳回理由 (必填, ≤500 字)"
-                              aria-label="驳回理由"
-                              value={rejectReason}
-                              maxLength={500}
-                              onChange={e => setRejectReason(e.target.value)}
-                            />
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {rejectId === c.id ? (
-                            <>
-                              <button
-                                type="button"
-                                className="ed-btn warn"
-                                disabled={busyId === c.id || !rejectReason.trim()}
-                                onClick={() => reject(c.id)}
-                              >
-                                确认驳回
-                              </button>
-                              <button type="button" className="ed-btn" onClick={() => { setRejectId(null); setRejectReason(''); }}>
-                                取消
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="ed-btn primary"
-                                disabled={busyId === c.id}
-                                onClick={() => approve(c.id)}
-                              >
-                                通过
-                              </button>
-                              <button
-                                type="button"
-                                className="ed-btn"
-                                disabled={busyId === c.id}
-                                onClick={() => { setRejectId(c.id); setRejectReason(''); }}
-                              >
-                                驳回
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </>
+          <EventsCandidateSection
+            selected={selected}
+            candidates={candidates}
+            candsLoading={candsLoading}
+            candsError={candsError}
+            busyId={busyId}
+            batching={batching}
+            batchArmed={batchArmed}
+            rejectId={rejectId}
+            rejectReason={rejectReason}
+            onBatchClick={onBatchClick}
+            onApprove={approve}
+            onReject={reject}
+            onStartReject={startReject}
+            onCancelReject={cancelReject}
+            onRejectReasonChange={setRejectReason}
+          />
         )}
       </div>
   );

@@ -34,6 +34,7 @@ import { useAbortGuard } from '../hooks/useAbortGuard';
 import { MaintPageCleanupCard } from './MaintPageCleanupCard';
 import { MaintPageHealthCard } from './MaintPageHealthCard';
 import { MaintPageVacuumCard } from './MaintPageVacuumCard';
+import { PageHeader } from '../primitives/PageHeader';
 import type {
   CleanupResp,
   DirtyReportResp,
@@ -144,14 +145,7 @@ export function MaintPage() {
 
   return (
     <div className="px-6 py-8 max-w-7xl mx-auto">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: 'var(--ink)' }}>
-          {t('maint.title')}
-        </h1>
-        <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
-          {t('maint.subtitle')}
-        </p>
-      </header>
+      <PageHeader title={t('maint.title')} description={t('maint.subtitle')} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 健康: 只读 */}

@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import { listKnowledgeItems, listKnowledgeTopics } from '../../api/knowledge';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
+import { PageHeader } from '../../primitives/PageHeader';
 import { DIFFICULTIES, DOMAINS, TYPES } from '../KnowledgeFilters';
 import '../shared/editorial/pages.css';
 
@@ -96,14 +97,12 @@ export function KnowledgeLibraryPage() {
 
   return (
       <div className="ed-wrap">
-        <header className="ed-head">
-          <span className="ed-kicker">CATALOG ROOM</span>
-          <h1 className="ed-h1">编目室</h1>
-          <p className="ed-sub">知识条目的编目清单 = knowledge_items 镜像 (wiki-first 单一事实源)。领域 / 主题 / 类型 / 难度多维筛选, 掌握度列取 SM-2 库内代理值。</p>
-          <div style={{ marginTop: 10 }}>
-            <Stamp color="info" variant="hollow">数据源: /api/knowledge/items (真实端点)</Stamp>
-          </div>
-        </header>
+        <PageHeader
+          kicker="CATALOG ROOM"
+          title="编目室"
+          description="知识条目的编目清单 = knowledge_items 镜像 (wiki-first 单一事实源)。领域 / 主题 / 类型 / 难度多维筛选, 掌握度列取 SM-2 库内代理值。"
+          footer={<Stamp color="info" variant="hollow">数据源: /api/knowledge/items (真实端点)</Stamp>}
+        />
 
         {/* 筛选条: 枚举与 KnowledgeFilters 同源 */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }} role="group" aria-label="编目筛选">

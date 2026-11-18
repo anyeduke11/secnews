@@ -54,6 +54,19 @@
   --duration-normal: 200ms;
   --duration-slow: 320ms;
 
+  /* redesign-v1 R-1 (2026-11-19): 对齐 design/redesign-v1 词汇层命名。
+     全部为既有 token 的别名, 不引入新色值/新时长, 三态主题随 var() 自动跟随。 */
+  --shell-w: 1580px;
+  --dur-fast: var(--duration-fast);
+  --dur-normal: var(--duration-normal);
+  --dur-slow: var(--duration-slow);
+  --info: var(--color-info);
+  --accent-weak: var(--accent-soft);
+  --mint-weak: var(--mint-dim);
+  --amber-weak: var(--amber-dim);
+  --red-weak: var(--red-dim);
+  --info-weak: var(--accent-soft);
+
   /* Stage1 可读性: 全局字号下限 (正文 >=11px / 描述辅助 >=11px, 见反 slop 清单) */
   --text-min: 11px;
 
@@ -78,7 +91,7 @@
   --surface-raised: rgba(238, 243, 250, 0.03);
   --surface-glass: rgba(10, 22, 40, 0.92);
   --line: rgba(148, 180, 220, 0.14);
-  --line-strong: rgba(148, 180, 220, 0.26);
+  --line-strong: rgba(148, 180, 220, 0.30);
   --border-color: rgba(148, 180, 220, 0.14);
   --border-light: rgba(148, 180, 220, 0.2);
   --border-subtle: rgba(148, 180, 220, 0.08);
@@ -169,7 +182,7 @@
   --surface-raised: rgba(20, 41, 74, 0.03);
   --surface-glass: rgba(237, 241, 247, 0.92);
   --line: rgba(22, 43, 80, 0.13);
-  --line-strong: rgba(22, 43, 80, 0.26);
+  --line-strong: rgba(22, 43, 80, 0.28);
   --border-color: rgba(22, 43, 80, 0.13);
   --border-light: rgba(22, 43, 80, 0.19);
   --border-subtle: rgba(22, 43, 80, 0.07);
@@ -301,7 +314,7 @@
   --color-tech: #0f766e;
   /* hairline — 轻触即见的编辑细线 */
   --line: #E4DED2;                /* --hairline */
-  --line-strong: #d6cfc2;         /* --hairline-2 */
+  --line-strong: #cfc6b4;         /* --hairline-2 (redesign-v1) */
   --border-color: #E4DED2;
   --border-light: #d6cfc2;
   --border-subtle: rgba(28, 25, 23, 0.07);

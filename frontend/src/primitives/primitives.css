@@ -1,0 +1,26 @@
+/* ===== L1 组件词汇表 (redesign-v1 R-2, 2026-11-19 · DEV-0405) =====
+   原则 (DESIGN.md §5 R-2): 先复用、禁止平行新增。
+   页面骨架/卡片/表格/按钮已有成熟词汇 = components/shared/editorial/pages.css 的
+   `.ed-*` 家族 (ed-head / ed-h1 / ed-sechead / ed-card / ed-table / ed-btn / ed-tabs)。
+   本文件只补 `.ed-*` 缺失的**状态徽章**一族, 不复制任何既有条目。
+   作用域 .sentinel; 色值 100% 取自 tokens; 零阴影。
+*/
+
+/* —— 状态徽章 (StatusBadge 原语): 五档语义, 必带文字标签 —— */
+.sentinel .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.sentinel .badge.b-ok { color: var(--mint); border-color: var(--mint); background: var(--mint-weak); }
+.sentinel .badge.b-part { color: var(--info); border-color: var(--info); background: color-mix(in srgb, var(--info) 10%, transparent); }
+.sentinel .badge.b-none { color: var(--amber); border-color: var(--amber); background: var(--amber-weak); border-style: dashed; }
+.sentinel .badge.b-disc { color: var(--ink-3); border-color: var(--line-strong); }
+.sentinel .badge.b-red { color: var(--red); border-color: var(--red); background: var(--red-weak); }

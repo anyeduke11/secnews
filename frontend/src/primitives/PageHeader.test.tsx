@@ -30,4 +30,16 @@ describe('PageHeader', () => {
     const { container } = render(<PageHeader title="t" />);
     expect(container.querySelectorAll('p')).toHaveLength(0);
   });
+
+  it('kicker 渲染 .ed-kicker 眉标, footer 渲染在描述之下', () => {
+    const { container } = render(
+      <PageHeader title="编目室" kicker="CATALOG ROOM" description="d" footer={<span>数据源</span>} />
+    );
+    expect(container.querySelector('.ed-kicker')).toHaveTextContent('CATALOG ROOM');
+    expect(screen.getByText('数据源')).toBeInTheDocument();
+    // 顺序: kicker → h1 → 描述 → footer
+    const ordered = Array.from(container.querySelectorAll('.ed-kicker, h1, p, span:not(.ed-kicker)'));
+    expect(ordered[0]).toHaveClass('ed-kicker');
+    expect(ordered[1].tagName).toBe('H1');
+  });
 });

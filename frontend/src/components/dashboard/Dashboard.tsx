@@ -25,6 +25,7 @@ import { SkillMatrix } from './SkillMatrix';
 import { TriggerTimeline } from './TriggerTimeline';
 import { buildHealthSnapshot, MOCK_TIMELINE } from './dashboardModel';
 import type { HealthSnapshot, TriggerTimelineItem } from './dashboardModel';
+import { PageHeader } from '../../primitives/PageHeader';
 
 interface DashboardProps {
   onBack?: () => void;
@@ -63,27 +64,24 @@ export function Dashboard({ onBack }: DashboardProps) {
   const health = useMemo<HealthSnapshot>(() => buildHealthSnapshot(skills), [skills]);
 
   return (
-    <div className="min-h-screen bg-[var(--sn-bg-0,#0b0d10)] text-[var(--sn-ink-1,#e6e8eb)] p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-tight" data-testid="dashboard-title">
-            {t('dashboard.title', '技能看板')}
-          </h1>
-          <p className="text-[12px] text-[var(--sn-ink-3,#8a929c)] mt-1">
-            {t('dashboard.subtitle', 'skill 状态矩阵 + 触发器时间线 + 健康指标')}
-          </p>
-        </div>
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded border border-[var(--sn-line,#3a3f45)] px-3 py-1 text-[12px] hover:bg-[var(--sn-bg-hover,#1a1d22)]"
-            data-testid="dashboard-back"
-          >
-            {t('common.back', '返回')}
-          </button>
-        )}
-      </header>
+    <div className="min-h-screen">
+      {/* redesign-v1 R-2: 页头改用 PageHeader 原子 (.ed-head), 外边距由 PageLayout 提供 */}
+      <PageHeader
+        title={<span data-testid="dashboard-title">{t('dashboard.title', '技能看板')}</span>}
+        description={t('dashboard.subtitle', 'skill 状态矩阵 + 触发器时间线 + 健康指标')}
+        actions={
+          onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded border border-[var(--line)] px-3 py-1 text-[12px] hover:bg-[var(--bg-hover)]"
+              data-testid="dashboard-back"
+            >
+              {t('common.back', '返回')}
+            </button>
+          ) : undefined
+        }
+      />
 
       {loading && (
         <p className="text-[12px] text-[var(--sn-ink-3,#8a929c)]" data-testid="dashboard-loading">

@@ -6,19 +6,18 @@
  */
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
+import { PageHeader } from '../../primitives/PageHeader';
 import type { CandidateRow, EventTypeRow, ReviewNotice } from './eventsReviewModel';
 
 /** 顶部标题区 (含数据源印章) */
 export function EventsReviewHeader() {
   return (
-    <header className="ed-head">
-      <span className="ed-kicker">WIRE DESK</span>
-      <h1 className="ed-h1">通稿审核</h1>
-      <p className="ed-sub">事件类型候选 (LLM 抽取的技战法映射) 逐条人工审定: 通过落映射图, 驳回须写理由; 全部动作写审计日志。</p>
-      <div style={{ marginTop: 10 }}>
-        <Stamp color="info" variant="hollow">数据源: /api/event-technique (真实端点)</Stamp>
-      </div>
-    </header>
+    <PageHeader
+      kicker="WIRE DESK"
+      title="通稿审核"
+      description="事件类型候选 (LLM 抽取的技战法映射) 逐条人工审定: 通过落映射图, 驳回须写理由; 全部动作写审计日志。"
+      footer={<Stamp color="info" variant="hollow">数据源: /api/event-technique (真实端点)</Stamp>}
+    />
   );
 }
 

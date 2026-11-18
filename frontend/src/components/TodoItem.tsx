@@ -187,7 +187,8 @@ export function TodoItem({
         <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
           {item.category && (
             <span
-              className="badge"
+              // 分类标签 (redesign-v1 §3 `.tag` 词汇), 与状态徽章 `.badge` 语义区分, 颜色仍走分类 token
+              className="tag"
               style={{
                 backgroundColor: `color-mix(in srgb, ${catColor} 8%, transparent)`,
                 color: catColor,

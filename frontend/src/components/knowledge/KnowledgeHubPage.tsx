@@ -14,6 +14,7 @@ import { getKnowledgeHubStats } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
+import { PageHeader } from '../../primitives/PageHeader';
 import '../shared/editorial/pages.css';
 
 interface HubStats {
@@ -60,14 +61,12 @@ export function KnowledgeHubPage() {
 
   return (
       <div className="ed-wrap">
-        <header className="ed-head">
-          <span className="ed-kicker">KNOWLEDGE HUB</span>
-          <h1 className="ed-h1">资料库前厅</h1>
-          <p className="ed-sub">先看一眼知识资产的总量与管线动静，再去对应领域动手。</p>
-          <div style={{ marginTop: 10 }}>
-            <Stamp color="info" variant="hollow">数据源: /api/knowledge/hub-stats (真实端点)</Stamp>
-          </div>
-        </header>
+        <PageHeader
+          kicker="KNOWLEDGE HUB"
+          title="资料库前厅"
+          description="先看一眼知识资产的总量与管线动静，再去对应领域动手。"
+          footer={<Stamp color="info" variant="hollow">数据源: /api/knowledge/hub-stats (真实端点)</Stamp>}
+        />
 
         <div className="ed-sechead">
           <span>速览</span>

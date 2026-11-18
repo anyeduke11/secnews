@@ -15,6 +15,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getQualitySummary, listInfoFilterRules } from '../../api/secnews';
 import { Stamp } from '../shared/editorial/Stamp';
 import { EmptyState } from '../EmptyState';
+import { PageHeader } from '../../primitives/PageHeader';
 import '../shared/editorial/pages.css';
 
 interface GateStat {
@@ -67,11 +68,11 @@ export function QualityDashboardPage() {
 
   return (
       <div className="ed-wrap">
-        <header className="ed-head">
-          <span className="ed-kicker">PROOFROOM</span>
-          <h1 className="ed-h1">校对室</h1>
-          <p className="ed-sub">收录质量的全貌: 门禁通过情况、信息过滤规则、以及被校对拦下的样本。</p>
-        </header>
+        <PageHeader
+          kicker="PROOFROOM"
+          title="校对室"
+          description="收录质量的全貌: 门禁通过情况、信息过滤规则、以及被校对拦下的样本。"
+        />
 
         <div className="ed-tabs" role="tablist" aria-label="校对室分区">
           {TABS.map(t => (

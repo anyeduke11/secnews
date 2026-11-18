@@ -20,6 +20,11 @@
  * 复习栈能力丰富 (2026-09-21 设计稿 §4.1): 卡片标题化 / 评分即时反馈
  * ("下次 N 天后见") / 5 秒撤销窗 / 键盘 1·3·5 快捷评分 / 页内全屏
  * ReviewOverlay (会话·数据·管理三视图, 零新增路由)。
+ *
+ * B5 (2026-11-18) 绞杀者拆分: 原 576 行单文件按区块拆为 action/ 下 4 个文件
+ * (actionModel / ActionFloorHeader / ReviewStackPanel / JudgingQueuePanel),
+ * 本文件只保留状态、取数、写操作编排与区块组合; DOM / class / aria 与拆分前逐字一致。
+ * R1 裁决 (2026-11-18): 补挂 v1 CaseQueuePanel (blocked 队列此前无 UI 入口)。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -35,124 +40,20 @@ import { getSecNewsStats } from '../../api/secnews';
 import { SentinelShell } from './SentinelShell';
 import { ApprovalInbox } from '../action/ApprovalInbox';
 import { CopilotCards } from '../action/CopilotCards';
+import { CaseQueuePanel } from '../v1/panels/CaseQueuePanel';
 import { ExecOverviewPanel } from '../v1/panels/ExecOverviewPanel';
 import { ActionCommandConsole } from './action/ActionCommandConsole';
+import { ActionFloorHeader } from './action/ActionFloorHeader';
+import { ReviewStackPanel } from './action/ReviewStackPanel';
+import { JudgingQueuePanel } from './action/JudgingQueuePanel';
+import {
+  ACTION_SHOWN, GRADE_DEFS, STACK_DEPTH, reviewTitle,
+  type ActionStatus, type JustGraded, type PlanningAction,
+  type ReviewRow, type ReviewStats, type WriteState,
+} from './action/actionModel';
 import { ReviewOverlay, type RvView } from './review/ReviewOverlay';
 import './sentinel.css';
 import './sentinel-action.css';
-
-/* ---------------------------------------------------------------------
- * 接口响应类型 (与 backend/api/{kl_planning_api,reviews}.py 对齐)
- * ------------------------------------------------------------------- */
-type ActionStatus = 'pending' | 'in_progress' | 'completed' | 'dismissed';
-
-interface PlanningAction {
-  id: number;
-  item_id: string;
-  action_type: string;
-  priority: number;
-  title: string;
-  description: string | null;
-  current_stage: string | null;
-  target_stage: string | null;
-  status: ActionStatus | string;
-  created_at: string | null;
-  completed_at: string | null;
-  dismissed_at: string | null;
-}
-
-interface ReviewRow {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  easiness: number;
-  interval: number;
-  repetitions: number;
-  due_at: string;
-  last_grade: number | null;
-  last_reviewed_at: string | null;
-  /** migration 120 enrich 字段 (未命中/未 enrich 时为 undefined) */
-  title?: string | null;
-  url?: string | null;
-  category?: string | null;
-  excerpt?: string | null;
-}
-
-/** 卡片主行: enrich 命中显示真实标题, 否则如实渲染裸 entity_id */
-function reviewTitle(row: ReviewRow): string {
-  return row.title || row.entity_id;
-}
-
-/** 评分即时反馈态: 显示 "下次 N 天后见" + 5 秒撤销窗 */
-interface JustGraded {
-  key: string;
-  entityType: string;
-  entityId: string;
-  title: string;
-  interval: number | null;
-}
-
-interface ReviewStats {
-  total: number;
-  due: number;
-  avg_easiness: number;
-}
-
-/** 每行写入态: saving / fail / ok; 判读待办另带 done|dismissed */
-type WriteState = 'saving' | 'fail' | 'ok' | 'done' | 'dismissed';
-
-/** planning_actions 接口单次固定返回 50 条, 本屏按优先级取前 N 条呈现 */
-const ACTION_SHOWN = 8;
-/** 复习栈视觉层数 (顶层可操作, 其后为队列中的真实后续卡) */
-const STACK_DEPTH = 3;
-
-/* ---------------------------------------------------------------------
- * 纯函数 helpers
- * ------------------------------------------------------------------- */
-
-/** API 来源的 href 白名单: 只放行 http/https, 其余 (javascript:/data:) 一律不渲染链接 */
-function safeHref(url?: string | null): string | null {
-  if (!url) return null;
-  return /^https?:\/\//i.test(url.trim()) ? url.trim() : null;
-}
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-function stamp(iso?: string | null): string {
-  if (!iso) return '--';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '--';
-  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-
-function relTime(iso?: string | null): string {
-  if (!iso) return '--';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '--';
-  const m = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (m < 1) return '刚刚';
-  if (m < 60) return `${m} 分钟前`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} 小时前`;
-  return `${Math.floor(h / 24)} 天前`;
-}
-
-/** SM-2 自评三档 → grade (0-2 未记住, 3-5 记住) */
-const GRADE_DEFS: { label: string; grade: number; hint: string }[] = [
-  { label: '忘光', grade: 1, hint: '回到判断层重读原文' },
-  { label: '模糊', grade: 3, hint: '间隔缩短, 近日再见' },
-  { label: '记得牢', grade: 5, hint: '间隔拉长, 明日再见' },
-];
-
-const ACTION_TYPE_LABEL: Record<string, string> = {
-  read: '深读',
-  refine: '精读入库',
-  link: '建立关联',
-  publish: '产出输出',
-  review: '复看',
-};
 
 /* ---------------------------------------------------------------------
  * 组件
@@ -321,230 +222,34 @@ export function SentinelActionPage() {
   return (
     <SentinelShell layer="action" ingested={newToday}>
       <section className="ac-scr" aria-label="行动层 · 今日行动：复习栈与判读待办">
-        <header className="ac-head">
-          <div>
-            <span className="ac-kicker">ACTION FLOOR</span>
-            <h1 className="ac-h1">今日<b>行动</b><span> / 04</span></h1>
-            <p className="ac-sub">案件从主张到产物的执行闭环在上方指挥台推进；复习栈与判读队列在其下同步维护。</p>
-          </div>
-        </header>
-
-        {notice && (
-          <p className="ac-banner" role="status">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 1.8l5 9H1.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M6.5 5.2v2.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="6.5" cy="9.2" r=".7" fill="currentColor" /></svg>
-            {notice}
-          </p>
-        )}
+        <ActionFloorHeader notice={notice} />
 
         {/* R-15 四段执行指挥台: Case → Claim → Run → Artifact, 行动菜单主体 */}
         <ActionCommandConsole />
 
         <div className="ac-grid">
-          {/* ===== 复习栈 · SM-2 ===== */}
-          <section className="ac-panel ac-review" aria-labelledby="ac-h-review">
-            <header className="ac-ph">
-              <h2 id="ac-h-review">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 4.5L6.5 2 11 4.5 6.5 7z" stroke="currentColor" strokeWidth="1.5" stroke-linejoin="round" /><path d="M2 7.5L6.5 10 11 7.5" stroke="currentColor" strokeWidth="1.5" stroke-linejoin="round" /></svg>
-                复习栈
-              </h2>
-              <span className="ac-phn num">{reviewStats ? `${reviewStats.due} DUE` : '…'}</span>
-            </header>
+          <ReviewStackPanel
+            loading={loading}
+            reviewStats={reviewStats}
+            stack={stack}
+            top={top}
+            graded={graded}
+            reviewState={reviewState}
+            justGraded={justGraded}
+            onGrade={(row, grade) => { void gradeReview(row, grade); }}
+            onUndo={() => { void undoJustGraded(); }}
+            onOpenOverlay={setOverlayView}
+            onGoNews={() => navigate('/')}
+          />
 
-            {loading ? (
-              <div className="ac-load" aria-busy="true"><div className="skel-line w1" /><div className="skel-line w2" /><div className="skel-line w3" /></div>
-            ) : !top ? (
-              <div className="ac-empty">
-                <div className="ac-empty-ring" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.5" /><path d="M9 5.6V9l2.3 1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                </div>
-                <h3>今日复习栈已清空</h3>
-                <p>到期队列为空。SM-2 会在下一次到期时把卡片排回来。</p>
-              </div>
-            ) : (
-              <>
-                <div className="ac-stack" aria-label={`复习栈 ${stack.length} 张到期卡片，最上层为当前待评分卡片`}>
-                  {/* 绝对定位层序: 后续卡先入 DOM, 顶层卡最后渲染才压在上方 */}
-                  {stack.slice(1).map((row, i) => {
-                    const depth = stack.length - 1 - i; // 队列里往后第几张
-                    return (
-                      <article key={row.id} className={`ac-card ${depth >= 2 ? 'c2' : 'c1'}`} aria-hidden="true">
-                        <div className="ac-cmeta">
-                          <span className="ac-cdeck">{row.entity_type.toUpperCase()}</span>
-                          <span>往后第 {depth} 张</span>
-                        </div>
-                        <p className="ac-ct" title={reviewTitle(row)}>{reviewTitle(row)}</p>
-                      </article>
-                    );
-                  })}
-                  {top && (() => {
-                    const state = reviewState[top.id];
-                    const href = safeHref(top.url);
-                    return (
-                      <article className="ac-card top">
-                        <div className="ac-cmeta">
-                          <span className="ac-cdeck">{top.entity_type.toUpperCase()}</span>
-                          <span>本次已评 {graded} 张</span>
-                        </div>
-                        <p className="ac-ct" title={reviewTitle(top)}>{reviewTitle(top)}</p>
-                        {top.title && <p className="ac-chint num" title={top.entity_id}>{top.entity_id}</p>}
-                        <p className="ac-chint">
-                          {relTime(top.last_reviewed_at)}评过一次。
-                          {href && (
-                            <> <a href={href} target="_blank" rel="noopener noreferrer">查看原文</a></>
-                          )}
-                        </p>
-                        <div className="ac-sm2">
-                          <span>EF <b className="num">{Number(top.easiness).toFixed(2)}</b></span>
-                          <span>间隔 <b className="num">{top.interval}d</b></span>
-                          <span>重复 <b className="num">{top.repetitions}</b></span>
-                          <span>到期 <b className="num">{stamp(top.due_at)}</b></span>
-                        </div>
-                        <div className="ac-grade">
-                          {GRADE_DEFS.map(g => (
-                            <button
-                              key={g.label}
-                              type="button"
-                              className="ac-gbtn"
-                              title={`${g.label} → grade ${g.grade}：${g.hint}`}
-                              disabled={state === 'saving'}
-                              onClick={() => gradeReview(top, g.grade)}
-                            >
-                              {state === 'saving' ? '提交中' : g.label}
-                              <span className="g num">g{g.grade}</span>
-                            </button>
-                          ))}
-                        </div>
-                        {state === 'fail' && <p className="ac-note is-fail" role="status">评分未写入成功，卡片仍在今日队列中。</p>}
-                      </article>
-                    );
-                  })()}
-                </div>
-                <div className="ac-sched">
-                  <span className="num ac-now">今日 {reviewStats?.due ?? stack.length}</span>
-                  <i aria-hidden="true" />
-                  <span className="num">在册 {reviewStats?.total ?? '--'}</span>
-                  <i aria-hidden="true" />
-                  <span className="num">平均 EF {reviewStats ? Number(reviewStats.avg_easiness).toFixed(2) : '--'}</span>
-                </div>
-                <p className="ac-self">自评机制：记得牢，间隔拉长；模糊，近日再见；忘光，回资讯页重读原文。</p>
-                <a className="ac-link" href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>
-                  去资讯页重读原文
-                  <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </a>
-              </>
-            )}
-            {justGraded && (
-              <div className="ac-gfeedback" role="status">
-                <span>
-                  已评「{justGraded.title}」
-                  {justGraded.interval != null && (
-                    <> · <b className="is-next num">下次 {justGraded.interval} 天后见</b></>
-                  )}
-                </span>
-                <button type="button" className="ac-undobtn" onClick={() => { void undoJustGraded(); }}>
-                  撤销
-                </button>
-              </div>
-            )}
-            <div className="ac-rentry" aria-label="复习栈扩展入口">
-              <button type="button" className="ac-dbtn" onClick={() => setOverlayView('session')}>
-                专注复习
-              </button>
-              <button type="button" className="ac-dbtn" onClick={() => setOverlayView('manage')}>
-                卡片管理
-              </button>
-            </div>
-          </section>
-
-          {/* ===== 判读待办 · planning_actions ===== */}
-          <section className="ac-panel ac-out" aria-labelledby="ac-h-out">
-            <header className="ac-ph">
-              <h2 id="ac-h-out">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M3.5 12.5l.9-3.2 6.6-6.6 2.3 2.3-6.6 6.6z" stroke="currentColor" strokeWidth="1.5" stroke-linejoin="round" /><path d="M9.3 4.2l2.3 2.3" stroke="currentColor" strokeWidth="1.5" stroke-linecap="round" /></svg>
-                判读待办
-              </h2>
-              <span className="ac-phn num">{actions.length} PENDING</span>
-            </header>
-
-            {loading ? (
-              <div className="ac-load" aria-busy="true"><div className="skel-line w3" /><div className="skel-line w2" /><div className="skel-line w1" /></div>
-            ) : shownActions.length === 0 ? (
-              <div className="ac-empty">
-                <div className="ac-empty-ring" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9.5l3.5 3.5L15 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </div>
-                <h3>判读队列已清空</h3>
-                <p>没有待推进的规划动作。采集入库后会自动生成新的动作。</p>
-              </div>
-            ) : (
-              <ul className="ac-dlist">
-                {shownActions.map(a => {
-                  const state = actionState[a.id];
-                  const settled = state === 'done' || state === 'dismissed';
-                  const badge = a.priority >= 8 ? 'hot' : a.priority >= 5 ? 'warm' : '';
-                  return (
-                    <li key={a.id}>
-                      <div className="ac-drow">
-                        <input
-                          type="checkbox"
-                          checked={a.status === 'completed'}
-                          disabled={state === 'saving' || a.status === 'completed'}
-                          onChange={() => advanceAction(a, 'completed')}
-                          aria-label={`完成：${a.title}`}
-                        />
-                        <div className="ac-dbody">
-                          <p className="ac-dt">
-                            <span className={`ac-badge${badge ? ` ${badge}` : ''}`}>{ACTION_TYPE_LABEL[a.action_type] ?? a.action_type}</span>
-                            <span className="ac-dtitle">{a.title}</span>
-                          </p>
-                          <p className="ac-dm">
-                            <span>#{String(a.id).padStart(4, '0')}</span>
-                            <span>P{a.priority}</span>
-                            {a.current_stage && a.target_stage && (
-                              <span className="stage">{a.current_stage} → {a.target_stage}</span>
-                            )}
-                            <span>{relTime(a.created_at)}</span>
-                          </p>
-                        </div>
-                        <div className="ac-dops">
-                          {state === 'saving' && <span className="ac-dstate doing" role="status">推进中</span>}
-                          {state === 'fail' && (
-                            <span className="ac-dstate fail" role="status">
-                              {a.status === 'in_progress' ? '已推进一步' : '未写入'}
-                            </span>
-                          )}
-                          {state === 'done' && <span className="ac-dstate done" role="status">已完成</span>}
-                          {state === 'dismissed' && <span className="ac-dstate" role="status">已暂缓</span>}
-                          {!settled && a.status !== 'dismissed' && (
-                            <button
-                              type="button"
-                              className="ac-dbtn"
-                              disabled={state === 'saving'}
-                              onClick={() => advanceAction(a, 'dismissed')}
-                            >
-                              暂缓
-                            </button>
-                          )}
-                          {a.status === 'in_progress' && !settled && (
-                            <span className="ac-dstate doing">进行中</span>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            <p className="ac-note">
-              队列共 {actions.length} 条待推进（服务端单次上限 50 条，此处按优先级取前 {Math.min(ACTION_SHOWN, Math.max(actions.length, 1))} 条）。
-              「完成」按状态机两步走：pending → 进行中 → 已完成；中途失败会停在已确认的那一步。
-            </p>
-            <a className="ac-link" href="/knowledge/compound" onClick={e => { e.preventDefault(); navigate('/knowledge/compound'); }}>
-              查看复利台全量队列
-              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7h8M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </a>
-          </section>
+          <JudgingQueuePanel
+            loading={loading}
+            actions={actions}
+            shownActions={shownActions}
+            actionState={actionState}
+            onAdvance={(action, target) => { void advanceAction(action, target); }}
+            onGoCompound={() => navigate('/knowledge/compound')}
+          />
         </div>
 
         <p className="endnote">
@@ -558,6 +263,9 @@ export function SentinelActionPage() {
 
         {/* v0.8.6 M1 能力区块: AI 提案审批收件箱 (用例 A; Case 页起草 → 此处人审 → 双签 Run) */}
         <ApprovalInbox />
+
+        {/* R1 补挂 (2026-11-18): v1.0 能力区块 · Case 队列 (blocked 置顶, → /cases/:id 研判) */}
+        <CaseQueuePanel />
 
         {/* v0.8.5 能力区块: 执行与验收总览 (SK-03/04, 待批准/运行中/待验收; → /cases/:id?section=actions) */}
         <ExecOverviewPanel />

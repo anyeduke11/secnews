@@ -6,6 +6,9 @@
  * 人工回执 (v0.8.9 R-1, D4 裁决: direct 执行体 = 人):
  *   queued → [认领/取消] · claimed → [开工/取消] · running → [登记结果(outcome+error)/取消]
  *   终态 action (running) 且全部 run 终态 → [收口 Action] (C1-2 finish 端点)。
+ *
+ * B5 (2026-11-18) 拆分: 行级渲染下沉 RunActionRow, 回执表单下沉 RunFinishForm,
+ * 常量/样式映射下沉 runStageModel; 本文件保留段壳、单值展开态与 props 契约 (未变)。
  */
 import { useState } from 'react';
 import type { Action, Run } from '../../../domain/v1_0';
@@ -15,73 +18,8 @@ import {
   STAGE_TITLE,
   STAGE_COUNT,
   STAGE_EMPTY,
-  ITEM_ROW,
-  TONE_OK,
-  TONE_WARN,
-  TONE_IDLE,
-  TONE_ACCENT,
 } from './stageStyles';
-import { PlanPanel } from './PlanPanel';
-
-const ACTION_STATUS: Record<string, string> = {
-  planned: '待批准',
-  approved: '已批准',
-  running: '运行中',
-  succeeded: '已成功',
-  failed: '已失败',
-  cancelled: '已取消',
-  rejected: '已拒绝',
-};
-
-const TERMINAL_RUN_STATUS = new Set(['succeeded', 'failed', 'cancelled', 'timed_out']);
-
-const OUTCOME_OPTIONS: { value: string; label: string }[] = [
-  { value: 'done', label: '成功 (done)' },
-  { value: 'failed', label: '失败 (failed)' },
-  { value: 'cancelled', label: '取消 (cancelled)' },
-  { value: 'timeout', label: '超时 (timeout)' },
-  { value: 'needs_human', label: '需人工 (needs_human)' },
-];
-
-function outcomeOf(status?: string): { label: string; color: string } {
-  switch (status) {
-    case 'succeeded':
-      return { label: '成功', color: TONE_OK };
-    case 'failed':
-      return { label: '失败', color: TONE_WARN };
-    case 'timed_out':
-      return { label: '超时失败', color: TONE_WARN };
-    case 'cancelled':
-      return { label: '已取消', color: TONE_IDLE };
-    case 'running':
-      return { label: '进行中', color: TONE_ACCENT };
-    case 'queued':
-    case 'claimed':
-      return { label: '排队中', color: TONE_IDLE };
-    default:
-      return { label: '未知', color: TONE_IDLE };
-  }
-}
-
-const btnStyle: React.CSSProperties = {
-  fontSize: 11,
-  cursor: 'pointer',
-  color: 'var(--sn-bg)',
-  background: 'var(--sn-accent)',
-  border: 'none',
-  borderRadius: 'var(--radius-sm, 6px)',
-  padding: '3px 10px',
-};
-
-const btnGhostStyle: React.CSSProperties = {
-  fontSize: 11,
-  cursor: 'pointer',
-  color: 'var(--sn-ink-2)',
-  background: 'transparent',
-  border: '1px solid var(--border-color, rgba(128,128,128,.4))',
-  borderRadius: 'var(--radius-sm, 6px)',
-  padding: '3px 10px',
-};
+import { RunActionRow } from './RunActionRow';
 
 interface RunStageProps {
   caseId: string | null;
@@ -120,9 +58,6 @@ export function RunStage({
 }: RunStageProps) {
   // 登记结果表单: 仅 running 的 run 可展开 (runId 为 null = 收起)
   const [finishFormRun, setFinishFormRun] = useState<string | null>(null);
-  const [finishOutcome, setFinishOutcome] = useState('done');
-  const [finishError, setFinishError] = useState('');
-  const needsError = finishOutcome === 'failed' || finishOutcome === 'timeout' || finishOutcome === 'needs_human';
   // R-2 执行计划面板 (C3-4): 仅 queued/claimed 的 run 可开; 计划读写/审批归 PlanPanel
   const [planPanelRun, setPlanPanelRun] = useState<string | null>(null);
 
@@ -146,186 +81,27 @@ export function RunStage({
 
       {caseId && !loading && !error && actions.length > 0 && (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-          {actions.map(a => {
-            const myRuns = runs.filter(r => r.action_id === a.id);
-            const allRunsTerminal =
-              myRuns.length > 0 && myRuns.every(r => TERMINAL_RUN_STATUS.has(r.status ?? ''));
-            const canCloseAction =
-              a.status === 'running' && allRunsTerminal && !!onFinishAction;
-            return (
-              <li key={a.id} data-testid="run-stage-action" style={ITEM_ROW}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ color: 'var(--sn-ink)', fontSize: 12, fontWeight: 600 }}>{a.title}</span>
-                  <span style={{ fontSize: 11, color: 'var(--sn-ink-3)' }}>
-                    {ACTION_STATUS[a.status ?? ''] ?? a.status ?? '未知'}
-                  </span>
-                </div>
-
-                {myRuns.length === 0 && a.status === 'approved' && (
-                  <button
-                    type="button"
-                    data-testid="run-stage-start"
-                    disabled={starting === a.id}
-                    onClick={() => onStart(a)}
-                    style={{
-                      marginTop: 6,
-                      fontSize: 11,
-                      cursor: starting === a.id ? 'progress' : 'pointer',
-                      color: 'var(--sn-bg)',
-                      background: 'var(--sn-accent)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm, 6px)',
-                      padding: '3px 10px',
-                    }}
-                  >
-                    {starting === a.id ? '发起中…' : '发起运行'}
-                  </button>
-                )}
-                {myRuns.length === 0 && a.status !== 'approved' && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--sn-ink-3)' }}>
-                    尚无运行记录（待批准后可执行）
-                  </div>
-                )}
-
-                {myRuns.map(r => {
-                  const o = outcomeOf(r.status);
-                  const busy = receiptBusy === r.id;
-                  const status = r.status ?? '';
-                  return (
-                    <div
-                      key={r.id}
-                      data-testid="run-stage-run"
-                      style={{ marginTop: 6, fontSize: 11, display: 'flex', flexWrap: 'wrap', gap: '4px 10px', alignItems: 'center' }}
-                    >
-                      <span style={{ color: o.color, fontWeight: 600 }}>{o.label}</span>
-                      {typeof r.duration_ms === 'number' && (
-                        <span style={{ color: 'var(--sn-ink-3)' }}>耗时 {Math.round(r.duration_ms)} ms</span>
-                      )}
-                      {r.error && <span style={{ color: 'var(--sn-ink-3)' }}>失败原因 {r.error}</span>}
-                      {r.result_excerpt && (
-                        <span style={{ color: 'var(--sn-ink-3)' }}>· {r.result_excerpt}</span>
-                      )}
-
-                      {status === 'queued' && onClaimRun && (
-                        <button
-                          type="button" data-testid="run-claim" disabled={busy}
-                          style={btnStyle}
-                          onClick={() => onClaimRun(r)}
-                        >
-                          {busy ? '认领中…' : '认领'}
-                        </button>
-                      )}
-                      {status === 'claimed' && onStartRun && (
-                        <button
-                          type="button" data-testid="run-start" disabled={busy}
-                          style={btnStyle}
-                          onClick={() => onStartRun(r)}
-                        >
-                          {busy ? '开工中…' : '开工'}
-                        </button>
-                      )}
-                      {status === 'running' && onFinishRun && finishFormRun !== r.id && (
-                        <button
-                          type="button" data-testid="run-finish-open" disabled={busy}
-                          style={btnStyle}
-                          onClick={() => { setFinishFormRun(r.id); setFinishOutcome('done'); setFinishError(''); }}
-                        >
-                          登记结果
-                        </button>
-                      )}
-                      {(status === 'queued' || status === 'claimed' || status === 'running') && onCancelRun && (
-                        <button
-                          type="button" data-testid="run-cancel" disabled={busy}
-                          style={btnGhostStyle}
-                          onClick={() => onCancelRun(r)}
-                        >
-                          取消
-                        </button>
-                      )}
-                      {(status === 'queued' || status === 'claimed') && (
-                        <button
-                          type="button" data-testid="run-plan-open"
-                          style={btnGhostStyle}
-                          onClick={() => setPlanPanelRun(planPanelRun === r.id ? null : r.id)}
-                        >
-                          {planPanelRun === r.id ? '收起计划' : '执行计划'}
-                        </button>
-                      )}
-
-                      {status === 'running' && finishFormRun === r.id && onFinishRun && (
-                        <div
-                          data-testid="run-finish-form"
-                          style={{ width: '100%', display: 'grid', gap: 4, marginTop: 4, padding: 6, borderRadius: 6, background: 'var(--bg-hover, rgba(128,128,128,.08))' }}
-                        >
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <label style={{ color: 'var(--sn-ink-3)' }}>结果</label>
-                            <select
-                              data-testid="run-finish-outcome"
-                              value={finishOutcome}
-                              onChange={e => setFinishOutcome(e.target.value)}
-                              style={{ fontSize: 11 }}
-                            >
-                              {OUTCOME_OPTIONS.map(o => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                              ))}
-                            </select>
-                          </div>
-                          {needsError && (
-                            <input
-                              data-testid="run-finish-error"
-                              placeholder="原因码 / 说明（失败真实性：必填）"
-                              value={finishError}
-                              onChange={e => setFinishError(e.target.value)}
-                              style={{ fontSize: 11, padding: '3px 6px' }}
-                            />
-                          )}
-                          {finishOutcome === 'done' && (
-                            <div style={{ color: 'var(--sn-ink-3)', fontSize: 10 }}>
-                              done 须先在第④段登记产物（RA-9：禁止成功但无产物）
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              type="button" data-testid="run-finish-submit"
-                              disabled={busy || (needsError && !finishError.trim())}
-                              style={btnStyle}
-                              onClick={() => {
-                                onFinishRun(r, {
-                                  outcome: finishOutcome,
-                                  error: finishError.trim() || null,
-                                  result_excerpt: null,
-                                });
-                                setFinishFormRun(null);
-                              }}
-                            >
-                              {busy ? '登记中…' : '提交登记'}
-                            </button>
-                            <button type="button" style={btnGhostStyle} onClick={() => setFinishFormRun(null)}>
-                              取消
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {planPanelRun === r.id && (status === 'queued' || status === 'claimed') && (
-                        <PlanPanel runId={r.id} actionId={r.action_id} onRefresh={onRefresh} />
-                      )}
-                    </div>
-                  );
-                })}
-                {canCloseAction && (
-                  <button
-                    type="button"
-                    data-testid="action-finish"
-                    disabled={receiptBusy === `act:${a.id}`}
-                    style={{ ...btnStyle, marginTop: 6 }}
-                    onClick={() => onFinishAction?.(a)}
-                  >
-                    {receiptBusy === `act:${a.id}` ? '收口中…' : '收口 Action'}
-                  </button>
-                )}
-              </li>
-            );
-          })}
+          {actions.map(a => (
+            <RunActionRow
+              key={a.id}
+              action={a}
+              runs={runs}
+              starting={starting}
+              onStart={onStart}
+              receiptBusy={receiptBusy}
+              onClaimRun={onClaimRun}
+              onStartRun={onStartRun}
+              onFinishRun={onFinishRun}
+              onCancelRun={onCancelRun}
+              onFinishAction={onFinishAction}
+              finishFormRun={finishFormRun}
+              onOpenFinishForm={setFinishFormRun}
+              onCloseFinishForm={() => setFinishFormRun(null)}
+              planPanelRun={planPanelRun}
+              onTogglePlanPanel={runId => setPlanPanelRun(planPanelRun === runId ? null : runId)}
+              onRefresh={onRefresh}
+            />
+          ))}
         </ul>
       )}
     </section>

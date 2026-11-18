@@ -40,7 +40,7 @@
 
 | 路径 | 组件 | 说明 |
 |---|---|---|
-| `/action` | SentinelActionPage | **今日行动**（+ ExecOverviewPanel） |
+| `/action` | SentinelActionPage | **今日行动**（+ CaseQueuePanel + ExecOverviewPanel; B5 补挂, 2026-11-18） |
 | `/action/events` | EventsReviewPage | 通稿审核（MP-2 候选人工审定, 全真实端点; Phase 4） |
 | `/cases/:caseId` | CaseDetailPage | 案件详情（壳改 action 高亮） |
 | `/cases` | → `/action` (QueryRedirect 透传 query) | 案件列表归行动 |
@@ -102,7 +102,8 @@
 | 期 | 内容 | 状态 |
 |---|---|---|
 | P0 | SentinelShell 4-tab 化 + `menuOf()` + 4 条 redirect + 守卫测试重写 | ✅ 完成 (2026-09-13) |
-| P1 | 判读台主体迁入 / 质量区 + CaseQueue 迁入 /action | ✅ 完成 (2026-09-13) |
+| P1 | 判读台主体迁入 / 质量区 | ✅ 完成 (2026-09-13) |
+| P1 | ~~CaseQueue 迁入 /action~~ **原声明不实**：`CaseQueuePanel` 有组件有测试但从未挂载（`git log -S` 零挂载记录），`/action` 只挂 `ExecOverviewPanel`（不含 `blocked`）→ 完整队列不可达。R1 裁决（2026-11-18）判定漏挂，已于前端重构 B5 真实补挂 | ✅ 完成 (2026-11-18, B5) |
 | P1 | SentinelGraphPage → knowledge + /knowledge/graph 路由 | ✅ 完成 (2026-09-13) |
 | P1 | SecNewsShell 拆挂：6 视图直挂 PageLayout, /secnews 索引→feed | ✅ 完成 (2026-09-13) |
 | P1 | 更多菜单保留过渡 → P2 评估删除 | 待启动 |

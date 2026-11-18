@@ -1,4 +1,25 @@
 
+## [DEV-0397] refactor(fe): 前端重构 V1 B5 — 知识域图谱 + 行动域拆分（三超限文件达标）+ R1 补挂 CaseQueuePanel
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B5（退出条件 = 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增；第 3 项严格未达成 → 偏差 D8）+ owner 裁决 R1 落地
+- **性质声明**: 本批为**结构性拆分**（容器 + 纯展示区块），非视觉重做、非数据层重写；DOM/class/`data-testid`/aria 逐字保留，取数逻辑原样搬运，**未接 `hooks/useQuery`**（接线风险留给 owner 另批裁决）
+- **改动面（12 新建 + 3 容器改写，全在 `frontend/src/components/sentinel/`）**:
+  - `SentinelGraphPage.tsx` 766 → **288**；拆出 `graph/graphModel.ts` 250 / `graph/GraphSide.tsx` 157 / `graph/GraphCanvas.tsx` 108 / `graph/GraphSvg.tsx` 107 / `graph/GraphFilters.tsx` 59
+  - `SentinelActionPage.tsx` 576 → **284**；新增 `action/ReviewStackPanel.tsx` 160 / `action/JudgingQueuePanel.tsx` 123 / `action/actionModel.ts` 119 / `action/ActionFloorHeader.tsx` 32
+  - `action/RunStage.tsx` 333 → **109**；拆出 `action/RunActionRow.tsx` 191 / `action/RunFinishForm.tsx` 78 / `action/runStageModel.ts` 70（导出名与 props 签名逐字不变，消费方 `ActionCommandConsole.tsx` 与 `stages.test.tsx` 零改动）
+- **守卫零放宽（关键实现约束）**: `nav4_shell.test.tsx` 两条**源码文本守卫**直读 `SentinelGraphPage.tsx`（`const [canvasMode, setCanvasMode] = useState(false)` 字面写法 + `from '../shared/editorial/InfiniteCanvas'` + `画布模式` 文案）。本批选择**把三要素留在容器**满足守卫（实测 L36/L59 + L58/60/191），守卫文件**一字未改**，未走 B2 的聚合断言变通路径；`layer="action"`（守卫 L116）仍在容器 L223。`SentinelGraphPage.test.tsx`(389) / `stages.test.tsx`(236) / `ActionCommandConsole.test.tsx` / `PlanPanel.test.tsx` / `ApprovalInbox.test.tsx` / `CopilotCards.test.tsx` 零断言改动
+- **R1 补挂（关闭验证报告 §7.2 遗留项 D3/ACT-17）**: `<CaseQueuePanel />` 挂入 `/action` 容器 L268（`ApprovalInbox` 之后、`ExecOverviewPanel` 之前；队列含 `blocked` 而总览只取 `open/in_progress`，二者互补）；`CaseQueuePanel.tsx`(103) 本体与其测试未改；`SentinelActionPage.test.tsx` **追加** 1 条挂载守卫并做负向验证（临时删该行 → `expected null not to be null` 失败；恢复后通过），用例数 782 → 783；同步更正 `routes/ROUTE_REGISTRY.md`：`/action` 行补记 CaseQueuePanel，P1 «CaseQueue 迁入 /action ✅ 完成 (2026-09-13)» 拆分并标注**原声明不实**（`git log -S` 零挂载记录）
+- **实测门禁（全绿）**:
+  - `npx tsc --noEmit` exit 0
+  - `npx vitest run --coverage` **110 文件 / 783 tests 全通过**；覆盖率 Stmts 58.38 / Branch 77.48 / Funcs 58.82 / Lines 58.38（B4 态 58.16/77.36/58.39/58.16、B0 基线 57.05/76.39/57.42/57.05，阈值未下调）
+  - `npx vite build --logLevel error` exit 0；`python scripts/generate_meta.py --check` OK（56/19/99/155 · core_routers 67 · AGENTS 7/7）
+  - 组件层直调 grep（`getJSON|postJSON|apiFetch` → `lib/api`）**0 行**，B3 成果保持
+  - ⚠️ **flaky 披露（同 DEV-0396 型）**: 全量并发首跑 1 例失败 `components/settings/OpsRunsPanel.test.tsx` L42（断言 `失败 1` 时停在「载入中…」）。三条判定证据：单跑该文件 5/5 通过、该文件自 `7f65f1a`（B0–B3）后零改动且本批未触碰设置域、全量复跑 110/783 全绿 → 判为负载敏感型既有抖动、非本批引入；设置域抖动治理并入 B6
+- **偏差 D8（负向，需 owner 知情）**: 退出条件 3「包体积不增」严格未达成 —— 首屏 JS gzip **92,772 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,259）较 D7 收口 92,758 B **+14 B / +0.015%**。归因：新增 12 个模块导致入口 chunk 模块 id 与图序位移（entry +11 / 页 chunk +3），无新依赖、无新增首屏代码路径（`/action` 与 `/knowledge/graph` 均 lazy，CaseQueuePanel 落行动域 chunk）。量级在 gzip 噪声内，但按纪律登记、不声称达标。全量 JS 556,845 B / 75 chunk（+1,504 B，chunk 数持平）
+- **范围偏差（不隐藏）**: 契约 §6 的 B5 = 「知识域 `/knowledge` + 行动域 `/action` 重写」，本轮按 owner **点名的三个超限文件**执行。两域内仍有超限未覆盖 —— 行动域 `review/ReviewOverlay.tsx` 584 / `action/ApprovalInbox.tsx` 449 / `v1/CaseDetail.tsx` 784；知识域 `knowledge/ReviewMode.tsx` 658 / `KnowledgeImport.tsx` 538 / `KnowledgeCompoundingDashboard.tsx` 534 / `DeepReadMode.tsx` 503 / `KnowledgePlanningPanel.tsx` 388 / `AttentionHeatmap.tsx` 358。故 §1 批次表 B5 记 **◐ 部分达标**
+- **残留**: ① LCP 仍未复测（本批未改首屏渲染路径，但不得声称无影响）② 首屏 +14 B 与全量 +1,504 B 并入 B5.5 瘦身批（R2 裁决批次）一并处理 ③ `ROUTE_REGISTRY` 其余过渡项未动
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §9（§9.1 改动面 / §9.2 守卫 / §9.3 R1 / §9.4 门禁 / §9.5 体积与偏差）；CHANGELOG B5 小节；契约 §0 R1/R2 裁决行入仓
+
 ## [DEV-0396] perf(fe): 前端重构 V1 B4 包体积修复 — 关闭偏差 D7（首屏 JS −759 B）
 - **时间**: 2026-11-18
 - **类型**: 负向指标修复（B4 退出条件 3「包体积不增」；修复前 +1,193 B / +1.28%）

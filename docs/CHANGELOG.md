@@ -56,6 +56,17 @@
 - **显式缺口**: LCP 未复测（基线本身未采集），不得声称新增 2 处 Suspense 未影响 LCP
 - **留痕**: 验证报告 §8.5
 
+### 前端重构 V1 · B5 知识域图谱 + 行动域拆分 & R1 补挂 (DEV-0397, 2026-11-18)
+- **性质**: 结构性拆分（容器 + 纯展示区块）+ owner 裁决 R1 落地，**非视觉重做、非数据层重写**；DOM/class/`data-testid`/aria 逐字保留，取数逻辑原样搬运（本批未接 `useQuery`）
+- **三个超限文件达标**：`SentinelGraphPage.tsx` 766 → **288**（拆出 `sentinel/graph/` 五文件：`graphModel.ts` 250 / `GraphSide.tsx` 157 / `GraphCanvas.tsx` 108 / `GraphSvg.tsx` 107 / `GraphFilters.tsx` 59）· `SentinelActionPage.tsx` 576 → **284**（`sentinel/action/` 新增 `ReviewStackPanel.tsx` 160 / `JudgingQueuePanel.tsx` 123 / `actionModel.ts` 119 / `ActionFloorHeader.tsx` 32）· `action/RunStage.tsx` 333 → **109**（`RunActionRow.tsx` 191 / `RunFinishForm.tsx` 78 / `runStageModel.ts` 70）；导出名与 props 签名不变，消费方 `ActionCommandConsole.tsx` 零改动
+- **守卫零放宽**：`nav4_shell.test.tsx` 两条直读 `SentinelGraphPage.tsx` 的源码文本断言（画布模式 `useState(false)` 字面写法 + `InfiniteCanvas` import）全部通过**把三要素留在容器**满足，守卫文件一字未改；`SentinelGraphPage.test.tsx`(389) / `stages.test.tsx`(236) 等 5 个相关测试文件零断言改动
+- **R1 补挂（关闭 §7.2 遗留裁决项 D3/ACT-17）**：`<CaseQueuePanel />` 挂入 `/action`（`ApprovalInbox` 之后、`ExecOverviewPanel` 之前 —— 队列含 `blocked`，总览不含，互补）；组件本体与其测试未动；`SentinelActionPage.test.tsx` **追加** 1 条挂载守卫（已负向验证：删该行即失败），并更正 `ROUTE_REGISTRY.md` 「P1 CaseQueue 迁入 /action ✅ 完成 (2026-09-13)」不实表述
+- **门禁与体积**：`tsc` exit 0 · **110 文件 / 783 tests 全通过**，覆盖率 58.38 / 77.48 / 58.82 / 58.38（≥ B4 态与 B0 基线，阈值未降）· 组件层直调 `lib/api` grep 保持 0 · `vite build` exit 0 · `generate_meta.py --check` OK
+- **偏差 D8（负向）**：「包体积不增」严格未达成 —— 首屏 JS gzip **92,772 B**（index 27,697 + vendor-react 53,816 + SentinelHomePage 11,259），较 D7 收口 92,758 B **+14 B / +0.015%**；归因为入口 chunk 模块 id/图序位移（entry +11 / 页 chunk +3），无新依赖、无新增首屏代码路径。全量 JS 556,845 B / 75 chunk（+1,504 B，chunk 数持平）
+- **范围偏差（待 owner 裁决）**：本批按点名三文件执行，两域内仍有超限未覆盖（行动域 `ReviewOverlay` 584 / `ApprovalInbox` 449 / `CaseDetail` 784；知识域 `ReviewMode` 658 / `KnowledgeImport` 538 / `KnowledgeCompoundingDashboard` 534 / `DeepReadMode` 503 等），故 B5 记 **◐ 部分达标**
+- **flaky 披露**：全量首跑 1 例失败 `settings/OpsRunsPanel.test.tsx` L42（停在「载入中…」）；单跑 5/5、该文件自 `7f65f1a` 后零改动、全量复跑全绿 → 判为负载敏感型既有抖动（同 DEV-0396 型），非本批引入
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §9
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

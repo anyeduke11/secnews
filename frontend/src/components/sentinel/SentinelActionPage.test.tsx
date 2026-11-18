@@ -374,5 +374,24 @@ describe('SentinelActionPage — 行动层今日行动', () => {
     fireEvent.click(screen.getByRole('button', { name: '关闭复习栈' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
+
+  /* ============ R1 补挂 (2026-11-18): v1 Case 队列能力区块 ============ */
+
+  it('行动页挂载 CaseQueuePanel 能力区块, 且排在执行总览之前 (R1 裁决)', async () => {
+    const { container } = render_();
+    await waitFor(() => expect(screen.getByText('判读待办')).toBeInTheDocument());
+
+    const queue = container.querySelector('[data-testid="case-queue-panel"]');
+    const exec = container.querySelector('[data-testid="exec-overview-panel"]');
+    expect(queue).not.toBeNull();
+    expect(exec).not.toBeNull();
+    // 相邻顺序契约: 队列 (含 blocked) 在前, 执行总览 (仅 open/in_progress) 在后
+    const blocks = [...container.querySelectorAll(
+      '[data-testid="case-queue-panel"], [data-testid="exec-overview-panel"]',
+    )];
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toBe(queue);
+    expect(blocks[1]).toBe(exec);
+  });
 });
 

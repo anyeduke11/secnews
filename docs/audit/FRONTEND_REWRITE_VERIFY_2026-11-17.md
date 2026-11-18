@@ -596,5 +596,80 @@ python scripts/generate_meta.py --check          # OK · AGENTS 7/7
 ② `perf/lcp_*.mjs` 依赖 Playwright 与本地 `vite preview`，**未纳入 CI**（CI 无浏览器），为人工复测工具；
 ③ en-US 首帧中文为中英双语用户的已知行为变更，若需消除可改为「首帧按 `navigator.language` 预判 + 阻塞首帧」，但会回退 LCP 收益，当前不做。
 
+## 13. B6-b 设置域 /settings 验证证据（2026-11-18）
+
+> B6 拆四子批（a 组件层超限 / b 设置域 / c 工具页容器 / d 旧 CSS 收尾），owner 裁决**从 b 起**。旧三份 CSS（`sentinel.css` / `sentinel-action.css` / `sentinel-graph.css`）处置口径由 owner 定为「按业务流和逻辑重构，打破壳层硬性」，属 **B6-d** 范畴，本批不执行。
+
+### 13.1 改动一：侧边栏 IA 按业务流重排（数据进来 → AI 加工 → 系统维护）
+
+`settings/sections.tsx` **107 → 114 行**，5 组（含无名的 overview + c8 遗留两组）重划为 **3 个业务流组 + 无名总览**：
+
+| 组键 | 标签 | 归属段 | 判定依据 |
+|---|---|---|---|
+| `overview` | （不设标题） | `overview` | 首屏体检入口，不需要分组标题 |
+| `ingest` | 数据接入 | `collection` / `network` | 数据怎么进来（采集/质量/信源/代理） |
+| `intelligence` | AI 与偏好 | `models` / `general` | 进来之后 AI 怎么加工、界面怎么呈现 |
+| `system` | 系统与运维 | `connectivity` / `ops` | 系统自身状态（同步/MCP/凭据/维护/导出/进程启停） |
+
+- `SECTIONS` 声明顺序同步改为 `overview → collection → network → models → general → connectivity → ops`（与业务流顺序一致）。
+- **深链零破坏**：`cat` 键不变，`SettingsPage` 的 `?cat=` 校验逻辑（`SECTIONS.some(s => s.key === catParam)`）无需任何映射。
+- **两处语义纠错**（原归属与内容不符）：`general`（主题/模式/兴趣/能力开关）原挂「管道与门控」→ 现 `intelligence`；`connectivity`（同步/MCP/主密钥）原挂「数据源」→ 现 `system`。
+
+### 13.2 改动二：9 件超限文件拆分（settings 域超限清零）
+
+| 原文件 | 原行数 | 现行数 | 新增文件（行数） |
+|---|---|---|---|
+| `settings/DatabaseMaintenance.tsx` | 470 | **216** | `.types.ts` 15 / `Status.tsx` 98 / `Actions.tsx` 95 / `DangerZone.tsx` 138 / `Duplicates.tsx` 85 |
+| `settings/quality/SecretsPanel.tsx` | 427 | **282** | `Table.tsx` 46 / `KeyModals.tsx` 97 / `Form.tsx` 101 / `.types.ts` 15 |
+| `secnews/settings/InfoFilterCard.tsx` | 375 | **217** | `infoFilter.types.ts` 15 / `InfoFilterAddForm.tsx` 124 / `InfoFilterRuleList.tsx` 70 / `InfoFilterPreview.tsx` 87 |
+| `settings/quality/CustomRulesPanel.tsx` | 348 | **233** | `.types.ts` 58 / `Form.tsx` 77 / `DryRun.tsx` 27 |
+| `settings/ModelPoolPanel.tsx` | 341 | **239** | `ModelPoolPanelParts.tsx` 150 |
+| `settings/ContentPreferencesCard.tsx` | 335 | **274** | `ContentPreferencesCardParts.tsx` 75 |
+| `settings/ProxySettings.tsx` | 328 | **181** | `ProxySettingsParts.tsx` 222 |
+| `settings/SettingsDashboard.tsx` | 311 | **231** | `.types.ts` 63 / `.format.ts` 28 |
+| `secnews/settings/DshControlCard.tsx` | 303 | **223** | `DshControlCardHeader.tsx` 92 / `DshControlCardGateOff.tsx` 40 / `dshControlCard.types.ts` 5 |
+
+- 全部导出签名（named + default）保持不变，`SettingsPage.tsx` **零改动**；20 个新文件全部 ≤300 行，最大 282 行。
+- **settings 域超限文件数：17 → 0**（B4/B5 遗留的 8 件属 `settings/*` 之外的组件层，仍归 B6-a）。
+
+### 13.3 测试口径变更（显式登记，不隐藏）
+
+`settings/sections.test.ts` 原断言「5 组标签 + 旧组键归属」，随 IA 重排必然失败（实测 2 例红）。处理原则（Rule 9）：该测试编码的是**导航分组这一产品契约**，owner 已裁决新契约，故**更新测试到新契约**而不是回滚 IA。改写后 3 例：
+
+1. 分组标题固定为三组（`数据接入` / `AI 与偏好` / `系统与运维`）；
+2. 每段必须归属三组之一，除 `overview` 外不得挂到无标题组（否则导航里看不到入口）；
+3. 关键能力归属：`collection`/`network` → `ingest`，`models`/`general` → `intelligence`，`connectivity`/`ops` → `system`。
+
+### 13.4 门禁实测
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0
+cd frontend && npx vitest run                    # 110 文件 / 783 tests 全通过
+cd frontend && npx vitest run --coverage         # 58.92 / 77.61 / 60.61 / 58.92 (Stmts/Branch/Funcs/Lines)
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK
+```
+
+- 覆盖率 vs `vite.config.ts` 阈值（B0 基线 lines/statements 57.05 · functions 57.42 · branches 76.39）：**四项全部高于阈值**（+1.87 / +1.22 / +3.19 / +1.87 pp）。
+- 登记一处**轻微回落**：Branch 77.61 比 B5.5 的 77.67 **−0.06pp**。归因为拆分后在子组件内新增了提前返回 / 空态分支（分母增大而实测分支未同步覆盖），非覆盖率门槛回退；仍高于阈值 1.22pp。
+
+### 13.5 体积（观测项）
+
+| 指标 | B5.5 | **B6-b** | 变化 |
+|---|---|---|---|
+| 首屏 JS 口径 A | 88,279 B | **88,292 B** | **+13 B / +0.015%** |
+| 入口 chunk | 23,208 | 23,219 | +11 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,255 | 11,257 | +2 |
+| 全量 JS / chunk 数 | 561,200 / 76 | 562,455 / 76 | +1,255（settings 域拆分产物，懒加载 chunk 数不变） |
+
+较 B0 基线 92,998 仍**累计 −4,706 B**。`SettingsPage` 为路由级懒加载 chunk，本批拆分只影响该 chunk 内部构成，不进入首屏。
+
+### 13.6 未做与残留（显式声明）
+
+① **`settings-shell.css` 未去 `.settings-shell` 前缀、未删 `--sn-*` 别名层**。理由三条：它是设置域自身样式（由 `SettingsPage.tsx` import），不是壳层样式；`st-*` 原子实测**无跨域碰撞**（全仓 settings 域外唯一使用者是 `components/shared/editorial/Stamp.tsx`，其类是 `st` / `st-mint` / `st-amber` / `st-red` / `st-ink` / `st-solid` / `st-outline` / `st-lg`，与 `st-btn`/`st-card`/`st-chip`/`st-rule`/`st-cell`/`st-sidenav`/`st-head` **零重叠**）；去前缀属全站原子统一动作，与本批「零视觉变更」目标冲突，留给 **B6-d** 一次做完。
+② `SettingsDashboard` 的 `QUICK_JUMPS` 是硬编码字面量，其顺序与新侧边栏顺序（collection 在 network 之前）不完全一致。本批要求零 DOM 变更，未动；登记为轻微 UX 不一致，随 B6-d 或 B6-c 处理。
+③ 全站组件层超限仍余 **8 件**：`MaintPage` 522 / `ItemDetailDialog` 453 / `DeepReadPage` 428 / `V1Prototype` 411 / `HistoryPage` 407 / `layout/LayerCard` 385 / `TodoItem` 376 / `secrets/SecretsPage` 320 → **B6-a**。
+
 
 

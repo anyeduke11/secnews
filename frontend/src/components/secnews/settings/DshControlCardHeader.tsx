@@ -1,0 +1,93 @@
+/**
+ * DshControlCardHeader — DshControlCard 的「标题 + 状态 chip + 启停按钮」区块
+ * (从 DshControlCard.tsx 机械拆分, JSX/className/文案零变更, 状态仍由父组件持有)
+ */
+import type { DshStatus, ProcessSnapshot } from '../../../api/secnews';
+import type { TFn } from './dshControlCard.types';
+
+const STATUS_I18N: Record<DshStatus['status'], string> = {
+  connected: 'dsh.connected',
+  starting: 'dsh.running_no_endpoint',
+  stopped: 'dsh.stopped',
+  not_configured: 'dsh.not_configured',
+};
+
+const STATUS_TONE: Record<DshStatus['status'], 'ok' | 'warn' | 'mute' | 'bad'> = {
+  connected: 'ok',
+  starting: 'warn',
+  stopped: 'mute',
+  not_configured: 'warn',
+};
+
+type DshOp = 'start' | 'stop' | 'restart';
+
+interface DshControlCardHeaderProps {
+  t: TFn;
+  status: DshStatus | null;
+  proc: ProcessSnapshot | undefined;
+  opBusy: DshOp | 'save' | null;
+  onOp: (op: DshOp) => void;
+}
+
+export function DshControlCardHeader({
+  t,
+  status,
+  proc,
+  opBusy,
+  onOp,
+}: DshControlCardHeaderProps) {
+  const tone = status ? STATUS_TONE[status.status] : 'mute';
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <h3 style={{
+        fontFamily: 'var(--sn-mono)',
+        fontSize: 'var(--sn-fs-h3)',
+        fontWeight: 'var(--sn-fw-medium)',
+        color: 'var(--sn-ink)',
+        margin: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+      }}>
+        {t('dsh.cognitive_brain')}
+        {status && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--sn-fs-mute)' }}>
+            <span className={`st-chip ${tone}`}>
+              <i /> {t(STATUS_I18N[status.status])}
+            </span>
+            {status.endpoint_reachable && status.status === 'connected' && (
+              <span style={{ color: 'var(--sn-mint)', fontFamily: 'var(--sn-mono)' }}>· endpoint OK</span>
+            )}
+          </span>
+        )}
+      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          className="st-btn"
+          onClick={() => onOp('start')}
+          disabled={opBusy !== null}
+          aria-label={t('dsh.start')}
+        >
+          {opBusy === 'start' ? t('dsh.starting') : t('dsh.start')}
+        </button>
+        <button
+          className="st-btn"
+          onClick={() => onOp('stop')}
+          disabled={opBusy !== null || !proc?.running}
+          aria-label={t('dsh.stop')}
+        >
+          {opBusy === 'stop' ? t('dsh.stopping') : t('dsh.stop')}
+        </button>
+        <button
+          className="st-btn"
+          onClick={() => onOp('restart')}
+          disabled={opBusy !== null}
+          aria-label={t('dsh.restart')}
+        >
+          {opBusy === 'restart' ? t('dsh.restarting') : t('dsh.restart')}
+        </button>
+      </div>
+    </div>
+  );
+}

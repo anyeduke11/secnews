@@ -4,6 +4,10 @@
  * 一键启停 (受管子进程) + 端点/启动命令/自启配置持久化 + 状态自动刷新。
  * 数据源: GET /api/dsh/control/status · POST start|stop|restart · PUT config
  * v0.7 Batch ⑨ B9-1: 接入 i18n (dsh.* namespace)
+ *
+ * 拆分 (前端重构 V1 B6-b, 单文件 ≤300 行): 两个展示区块移至同目录
+ * DshControlCardHeader (标题/状态 chip/启停按钮) 与 DshControlCardGateOff (gate 关闭提示卡)。
+ * 状态与请求逻辑全部保留在本组件, 区块仅为受控视图 (零行为/DOM 变更)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../../lib/api';
@@ -14,20 +18,8 @@ import {
 } from '../../../api/secnews';
 import type { DshStatus } from '../../../api/secnews';
 import { useI18n } from '../../../contexts/I18nContext';
-
-const STATUS_I18N: Record<DshStatus['status'], string> = {
-  connected: 'dsh.connected',
-  starting: 'dsh.running_no_endpoint',
-  stopped: 'dsh.stopped',
-  not_configured: 'dsh.not_configured',
-};
-
-const STATUS_TONE: Record<DshStatus['status'], 'ok' | 'warn' | 'mute' | 'bad'> = {
-  connected: 'ok',
-  starting: 'warn',
-  stopped: 'mute',
-  not_configured: 'warn',
-};
+import { DshControlCardGateOff } from './DshControlCardGateOff';
+import { DshControlCardHeader } from './DshControlCardHeader';
 
 export function DshControlCard() {
   const { t } = useI18n();
@@ -118,39 +110,10 @@ export function DshControlCard() {
   };
 
   if (gateOff) {
-    return (
-      <div
-        style={{
-          padding: 'var(--sn-cell-pad)',
-          borderRadius: 'var(--sn-radius-md)',
-          border: '1px solid var(--sn-line)',
-          backgroundColor: 'var(--sn-bg-1)',
-        }}
-      >
-        <h3 style={{
-          fontFamily: 'var(--sn-mono)',
-          fontSize: 'var(--sn-fs-h3)',
-          fontWeight: 'var(--sn-fw-medium)',
-          color: 'var(--sn-ink)',
-          margin: '0 0 6px 0',
-        }}>
-          {t('dsh.cognitive_brain')}
-        </h3>
-        <p style={{
-          fontFamily: 'var(--sn-mono)',
-          fontSize: 'var(--sn-fs-mute)',
-          color: 'var(--sn-ink-3)',
-          margin: 0,
-        }}>
-          {t('dsh.disabled_hint')}
-          {t('dsh.fallback_llm')}
-        </p>
-      </div>
-    );
+    return <DshControlCardGateOff t={t} />;
   }
 
   const proc = status?.process;
-  const tone = status ? STATUS_TONE[status.status] : 'mute';
 
   return (
     <div
@@ -164,56 +127,13 @@ export function DshControlCard() {
         gap: 'var(--sn-row)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3 style={{
-          fontFamily: 'var(--sn-mono)',
-          fontSize: 'var(--sn-fs-h3)',
-          fontWeight: 'var(--sn-fw-medium)',
-          color: 'var(--sn-ink)',
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
-          {t('dsh.cognitive_brain')}
-          {status && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--sn-fs-mute)' }}>
-              <span className={`st-chip ${tone}`}>
-                <i /> {t(STATUS_I18N[status.status])}
-              </span>
-              {status.endpoint_reachable && status.status === 'connected' && (
-                <span style={{ color: 'var(--sn-mint)', fontFamily: 'var(--sn-mono)' }}>· endpoint OK</span>
-              )}
-            </span>
-          )}
-        </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            className="st-btn"
-            onClick={() => doOp('start')}
-            disabled={opBusy !== null}
-            aria-label={t('dsh.start')}
-          >
-            {opBusy === 'start' ? t('dsh.starting') : t('dsh.start')}
-          </button>
-          <button
-            className="st-btn"
-            onClick={() => doOp('stop')}
-            disabled={opBusy !== null || !proc?.running}
-            aria-label={t('dsh.stop')}
-          >
-            {opBusy === 'stop' ? t('dsh.stopping') : t('dsh.stop')}
-          </button>
-          <button
-            className="st-btn"
-            onClick={() => doOp('restart')}
-            disabled={opBusy !== null}
-            aria-label={t('dsh.restart')}
-          >
-            {opBusy === 'restart' ? t('dsh.restarting') : t('dsh.restart')}
-          </button>
-        </div>
-      </div>
+      <DshControlCardHeader
+        t={t}
+        status={status}
+        proc={proc}
+        opBusy={opBusy}
+        onOp={doOp}
+      />
 
       {error && (
         <p style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-mute)', color: 'var(--sn-red)', margin: 0 }}>

@@ -4,11 +4,14 @@
  * 第一性原理: 设置页 = 用户对系统可持久化偏好的低频写入口。
  * 只读监控/数据浏览/一次性动作已按裁决迁出或删除 (见设计稿 docs/superpowers/specs/2026-09-22-settings-refactor-design.md §2)。
  *
+ * B6-b (2026-11-18): 侧边栏按业务流重排 — 数据进来 → AI 加工 → 系统维护。
+ *   cat 键不变 (深链 ?cat= 兼容), 只改分组归属与声明顺序。
+ *
  * overview   — 总览: 体检 + 版本/运行状态 + 跳转 (原 dashboard+about)
- * general    — 通用: 主题/模式/刷新/兴趣画像/能力开关 (原 general + sentinel tab2)
- * models     — 模型配置: LLM Provider/密钥/模型池/三场景 (新, 收旧图片模型+采集模型档位)
  * collection — 采集与管线: 信源/质量规则/调度/KL 队列/资讯门禁
- * network    — 网络: 代理
+ * network    — 网络: 代理 (数据进不来时第一处置点, 归数据接入)
+ * models     — 模型配置: LLM Provider/密钥/模型池/三场景 (新, 收旧图片模型+采集模型档位)
+ * general    — 通用: 主题/模式/刷新/兴趣画像/能力开关 (原 general + sentinel tab2)
  * connectivity — 集成与凭据: 同步/MCP/密钥状态
  * ops        — 运维: 维护/导出动作/dsh 启停
  *
@@ -40,15 +43,19 @@ export interface SectionDef {
   group: SectionGroup;
 }
 
-/** R-15 (v0.8.8): 侧边栏四组 = 数据源 / 管道与门控 / AI 与模型 / 运维与诊断 */
-export type SectionGroup = 'overview' | 'sources' | 'pipeline' | 'ai' | 'ops';
+/**
+ * B6-b: 侧边栏三组 (按业务流, 非按技术层次)
+ *   ingest      数据接入   — 数据怎么进来 (采集/质量/信源/代理)
+ *   intelligence AI 与偏好 — 进来之后 AI 怎么做、界面怎么呈现 (模型/主题/兴趣/能力开关)
+ *   system      系统与运维 — 系统自身状态 (同步/MCP/凭据/维护/导出/进程启停)
+ */
+export type SectionGroup = 'overview' | 'ingest' | 'intelligence' | 'system';
 
 export const SECTION_GROUP_LABELS: Array<{ group: SectionGroup; label: string }> = [
   { group: 'overview', label: '' },
-  { group: 'sources', label: '数据源' },
-  { group: 'pipeline', label: '管道与门控' },
-  { group: 'ai', label: 'AI 与模型' },
-  { group: 'ops', label: '运维与诊断' },
+  { group: 'ingest', label: '数据接入' },
+  { group: 'intelligence', label: 'AI 与偏好' },
+  { group: 'system', label: '系统与运维' },
 ];
 
 export const SECTIONS: SectionDef[] = [
@@ -65,15 +72,14 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></Icon>,
     desc: '信源 / 质量 / KL 队列 / 资讯门禁',
     layout: 'mixed',
-    group: 'pipeline',
+    group: 'ingest',
   },
   {
-    key: 'general',
-    label: '通用',
-    icon: <Icon size={12}><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></Icon>,
-    desc: '主题 / 模式 / 兴趣 / 能力开关',
-    layout: 'mixed',
-    group: 'pipeline',
+    key: 'network',
+    label: '网络',
+    icon: <Icon size={12}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><circle cx="12" cy="20" r="1" /></Icon>,
+    desc: '代理 / 连接',
+    group: 'ingest',
   },
   {
     key: 'models',
@@ -81,27 +87,28 @@ export const SECTIONS: SectionDef[] = [
     icon: <Icon size={12}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9 9h6v6H9z" /><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" /></Icon>,
     desc: 'LLM Provider / 密钥 / 场景模型',
     layout: 'mixed',
-    group: 'ai',
+    group: 'intelligence',
   },
   {
-    key: 'network',
-    label: '网络',
-    icon: <Icon size={12}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><circle cx="12" cy="20" r="1" /></Icon>,
-    desc: '代理 / 连接',
-    group: 'sources',
+    key: 'general',
+    label: '通用',
+    icon: <Icon size={12}><circle cx="12" cy="12" r="3" /><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" /></Icon>,
+    desc: '主题 / 模式 / 兴趣 / 能力开关',
+    layout: 'mixed',
+    group: 'intelligence',
   },
   {
     key: 'connectivity',
     label: '集成与凭据',
     icon: <Icon size={12}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>,
     desc: '同步 / MCP / 主密钥',
-    group: 'sources',
+    group: 'system',
   },
   {
     key: 'ops',
     label: '运维',
     icon: <Icon size={12}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a2 2 0 0 1 7.94-7.94l-3.76 3.76z" /></Icon>,
     desc: '维护 / 导出 / dsh 启停',
-    group: 'ops',
+    group: 'system',
   },
 ];

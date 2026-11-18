@@ -7,7 +7,8 @@
  *
  * 设计: 沿用 settings-shell.css 的 st-section / st-table / st-chip / st-btn;
  *       key_source 徽章三档: env / secrets / none (灰);
- *       主密钥 prompt / reveal / upsert 三个 modal 集中在本组件内。
+ *       密钥表格见 SecretsPanelTable, 主密钥 prompt / reveal / upsert 三个 modal
+ *       见 SecretsPanelKeyModals / SecretsPanelForm。
  */
 import { useState, useCallback, useEffect } from 'react';
 import {
@@ -21,6 +22,10 @@ import {
   unlockSecrets,
   updateSecret,
 } from '../../../api/settings';
+import { SecretsPanelTable } from './SecretsPanelTable';
+import { SecretsPanelMasterKeyModal, SecretsPanelRevealModal } from './SecretsPanelKeyModals';
+import { SecretsPanelForm } from './SecretsPanelForm';
+import type { SecretsPanelKeyPrompt, SecretsPanelMsg, SecretsPanelUpsertState } from './SecretsPanel.types';
 
 export interface SecretsPanelProps {
   providerOptions: string[];
@@ -35,13 +40,11 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
   const [list, setList] = useState<Array<Record<string, any>>>([]);
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [msg, setMsg] = useState<SecretsPanelMsg | null>(null);
   const [keySource, setKeySource] = useState<string>(initialKeySource);
   const [revealModal, setRevealModal] = useState<{ id: number; apiKey: string; ts: number } | null>(null);
-  const [upsertModal, setUpsertModal] = useState<{
-    id?: number; provider: string; name: string; model: string; base_url: string; api_key: string; master_key: string;
-  } | null>(null);
-  const [masterKeyPrompt, setMasterKeyPrompt] = useState<{ target: 'unlock' | 'reveal'; secretId?: number } | null>(null);
+  const [upsertModal, setUpsertModal] = useState<SecretsPanelUpsertState | null>(null);
+  const [masterKeyPrompt, setMasterKeyPrompt] = useState<SecretsPanelKeyPrompt | null>(null);
   const [masterKeyInput, setMasterKeyInput] = useState('');
 
   const load = useCallback(async () => {
@@ -119,6 +122,44 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
     await load();
   }, [load]);
 
+  // 主密钥 prompt 确认 (unlock / reveal 共用)
+  const confirmMasterKey = useCallback(async () => {
+    if (!masterKeyPrompt) return;
+    try {
+      if (masterKeyPrompt.target === 'unlock') {
+        await unlock(masterKeyInput);
+        setMsg({ type: 'ok', text: '保险箱已解锁' });
+      } else if (masterKeyPrompt.target === 'reveal' && masterKeyPrompt.secretId) {
+        const k = await reveal(masterKeyPrompt.secretId, masterKeyInput);
+        setRevealModal({ id: masterKeyPrompt.secretId, apiKey: k, ts: Date.now() });
+        setTimeout(() => setRevealModal(null), 10_000);
+      }
+      setMasterKeyPrompt(null);
+      setMasterKeyInput('');
+    } catch (e: any) {
+      setMsg({ type: 'error', text: `失败: ${e.message}` });
+    }
+  }, [masterKeyPrompt, masterKeyInput, unlock, reveal]);
+
+  const saveUpsert = useCallback(async () => {
+    if (!upsertModal) return;
+    try {
+      const body: Record<string, any> = {
+        name: upsertModal.name,
+        model: upsertModal.model,
+        base_url: upsertModal.base_url,
+        provider: upsertModal.provider,
+        master_key: upsertModal.master_key,
+      };
+      if (upsertModal.api_key) body.api_key = upsertModal.api_key;
+      await upsert(upsertModal.id ? { ...body, id: upsertModal.id } : body);
+      setMsg({ type: 'ok', text: upsertModal.id ? '已更新' : '已新增' });
+      setUpsertModal(null);
+    } catch (e: any) {
+      setMsg({ type: 'error', text: `失败: ${e.message}` });
+    }
+  }, [upsertModal, upsert]);
+
   const keySourceChip = keySource === 'env' ? 'st-chip ok'
     : keySource === 'secrets' ? 'st-chip ok'
     : 'st-chip mute';
@@ -159,49 +200,26 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
         )}
 
         {list.length > 0 && (
-          <table className="st-table" aria-label="密钥列表">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>Provider</th>
-                <th>Model · Base URL</th>
-                <th style={{ width: 200 }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map(s => (
-                <tr key={s.id} data-testid={`secrets-row-${s.id}`}>
-                  <td><span className="st-nm">{s.name || '(无名)'}</span></td>
-                  <td>{s.provider || '(无)'}</td>
-                  <td>
-                    <span className="st-sub">{s.model}</span>
-                    <span className="st-sub">{s.base_url}</span>
-                  </td>
-                  <td>
-                    <div className="st-ctrlrow">
-                      <button type="button" className="st-btn ghost" onClick={() => {
-                        setMasterKeyInput('');
-                        setMasterKeyPrompt({ target: 'reveal', secretId: s.id });
-                      }} title="显明文 10s 自动隐藏">显明文</button>
-                      <button type="button" className="st-btn ghost" onClick={async () => {
-                        const r = await testConn(s.id);
-                        setMsg({ type: r.ok ? 'ok' : 'error', text: r.ok ? '连接 OK' : (r.error || '失败') });
-                      }}>测连</button>
-                      <button type="button" className="st-btn ghost" onClick={() => setUpsertModal({
-                        id: s.id, provider: s.provider || '', name: s.name || '',
-                        model: s.model || '', base_url: s.base_url || '',
-                        api_key: '', master_key: '',
-                      })}>编辑</button>
-                      <button type="button" className="st-btn danger" onClick={async () => {
-                        if (!confirm(`删除密钥 "${s.name}"?`)) return;
-                        await remove(s.id);
-                      }}>删</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <SecretsPanelTable
+            list={list}
+            onReveal={id => {
+              setMasterKeyInput('');
+              setMasterKeyPrompt({ target: 'reveal', secretId: id });
+            }}
+            onTest={async id => {
+              const r = await testConn(id);
+              setMsg({ type: r.ok ? 'ok' : 'error', text: r.ok ? '连接 OK' : (r.error || '失败') });
+            }}
+            onEdit={s => setUpsertModal({
+              id: s.id, provider: s.provider || '', name: s.name || '',
+              model: s.model || '', base_url: s.base_url || '',
+              api_key: '', master_key: '',
+            })}
+            onRemove={async s => {
+              if (!confirm(`删除密钥 "${s.name}"?`)) return;
+              await remove(s.id);
+            }}
+          />
         )}
 
         <div className="st-actionbar">
@@ -231,195 +249,32 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
 
       {/* 主密钥 prompt modal (unlock / reveal 共用) */}
       {masterKeyPrompt && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-          }}
-          onClick={() => setMasterKeyPrompt(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className="st-card"
-            style={{ minWidth: 360, background: 'var(--sn-bg-panel)' }}
-          >
-            <h3>
-              {masterKeyPrompt.target === 'unlock' ? '解锁保险箱' : '显明文需验证主密钥'}
-            </h3>
-            <input
-              type="password" value={masterKeyInput}
-              onChange={e => setMasterKeyInput(e.target.value)}
-              placeholder="主密钥 (12+ 字符)"
-              autoFocus
-              className="st-input"
-              data-testid="master-key-input"
-            />
-            <div className="st-actionbar">
-              <button type="button" className="st-btn ghost" onClick={() => setMasterKeyPrompt(null)}>取消</button>
-              <button
-                type="button"
-                className="st-btn primary"
-                disabled={masterKeyInput.length < 12}
-                onClick={async () => {
-                  try {
-                    if (masterKeyPrompt.target === 'unlock') {
-                      await unlock(masterKeyInput);
-                      setMsg({ type: 'ok', text: '保险箱已解锁' });
-                    } else if (masterKeyPrompt.target === 'reveal' && masterKeyPrompt.secretId) {
-                      const k = await reveal(masterKeyPrompt.secretId, masterKeyInput);
-                      setRevealModal({ id: masterKeyPrompt.secretId, apiKey: k, ts: Date.now() });
-                      setTimeout(() => setRevealModal(null), 10_000);
-                    }
-                    setMasterKeyPrompt(null);
-                    setMasterKeyInput('');
-                  } catch (e: any) {
-                    setMsg({ type: 'error', text: `失败: ${e.message}` });
-                  }
-                }}
-              >确认</button>
-            </div>
-          </div>
-        </div>
+        <SecretsPanelMasterKeyModal
+          prompt={masterKeyPrompt}
+          masterKeyInput={masterKeyInput}
+          onInput={setMasterKeyInput}
+          onClose={() => setMasterKeyPrompt(null)}
+          onConfirm={confirmMasterKey}
+        />
       )}
 
       {/* reveal 明文 modal (10s 自动隐藏) */}
       {revealModal && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-          }}
-          onClick={() => setRevealModal(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className="st-card"
-            style={{ minWidth: 360, background: 'var(--sn-bg-panel)' }}
-          >
-            <h3>明文密钥 (10s 自动隐藏)</h3>
-            <code
-              className="st-info"
-              style={{ display: 'block', wordBreak: 'break-all', fontFamily: 'var(--sn-mono)' }}
-              data-testid="reveal-key"
-            >
-              {revealModal.apiKey}
-            </code>
-            <div className="st-actionbar">
-              <button
-                type="button"
-                className="st-btn primary"
-                onClick={() => navigator.clipboard.writeText(revealModal.apiKey)}
-              >复制</button>
-            </div>
-          </div>
-        </div>
+        <SecretsPanelRevealModal
+          apiKey={revealModal.apiKey}
+          onClose={() => setRevealModal(null)}
+        />
       )}
 
       {/* 新增/编辑密钥 modal */}
       {upsertModal && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-          }}
-          onClick={() => setUpsertModal(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className="st-card"
-            style={{ minWidth: 380, background: 'var(--sn-bg-panel)' }}
-          >
-            <h3>{upsertModal.id ? `编辑密钥 #${upsertModal.id}` : '新增密钥'}</h3>
-            <div className="st-section-body">
-              <label className="st-rule">
-                <div><p className="st-label">Provider</p></div>
-                <div className="st-ctrl">
-                  <select
-                    value={upsertModal.provider}
-                    onChange={e => setUpsertModal({ ...upsertModal, provider: e.target.value })}
-                    className="st-select"
-                  >
-                    {providerOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-              </label>
-              <label className="st-rule">
-                <div><p className="st-label">名称</p></div>
-                <div className="st-ctrl">
-                  <input className="st-input" value={upsertModal.name}
-                         onChange={e => setUpsertModal({ ...upsertModal, name: e.target.value })} />
-                </div>
-              </label>
-              <label className="st-rule">
-                <div><p className="st-label">Model</p></div>
-                <div className="st-ctrl">
-                  <input className="st-input" value={upsertModal.model}
-                         onChange={e => setUpsertModal({ ...upsertModal, model: e.target.value })} />
-                </div>
-              </label>
-              <label className="st-rule">
-                <div><p className="st-label">Base URL</p></div>
-                <div className="st-ctrl">
-                  <input className="st-input" value={upsertModal.base_url}
-                         onChange={e => setUpsertModal({ ...upsertModal, base_url: e.target.value })} />
-                </div>
-              </label>
-              <label className="st-rule">
-                <div>
-                  <p className="st-label">API Key</p>
-                  {upsertModal.id && <p className="st-key">(留空保留旧值)</p>}
-                </div>
-                <div className="st-ctrl">
-                  <input type="password" className="st-input" value={upsertModal.api_key}
-                         onChange={e => setUpsertModal({ ...upsertModal, api_key: e.target.value })} />
-                </div>
-              </label>
-              <label className="st-rule">
-                <div><p className="st-label">主密钥</p><p className="st-key">(验证身份)</p></div>
-                <div className="st-ctrl">
-                  <input type="password" className="st-input" value={upsertModal.master_key}
-                         onChange={e => setUpsertModal({ ...upsertModal, master_key: e.target.value })}
-                         data-testid="upsert-master-key" />
-                </div>
-              </label>
-            </div>
-            <div className="st-actionbar">
-              <button type="button" className="st-btn ghost" onClick={() => setUpsertModal(null)}>取消</button>
-              <button
-                type="button"
-                className="st-btn primary"
-                disabled={
-                  !upsertModal.name || !upsertModal.model || !upsertModal.base_url ||
-                  (!upsertModal.id && !upsertModal.api_key) ||
-                  upsertModal.master_key.length < 12
-                }
-                onClick={async () => {
-                  try {
-                    const body: Record<string, any> = {
-                      name: upsertModal.name,
-                      model: upsertModal.model,
-                      base_url: upsertModal.base_url,
-                      provider: upsertModal.provider,
-                      master_key: upsertModal.master_key,
-                    };
-                    if (upsertModal.api_key) body.api_key = upsertModal.api_key;
-                    await upsert(upsertModal.id ? { ...body, id: upsertModal.id } : body);
-                    setMsg({ type: 'ok', text: upsertModal.id ? '已更新' : '已新增' });
-                    setUpsertModal(null);
-                  } catch (e: any) {
-                    setMsg({ type: 'error', text: `失败: ${e.message}` });
-                  }
-                }}
-              >保存</button>
-            </div>
-          </div>
-        </div>
+        <SecretsPanelForm
+          modal={upsertModal}
+          providerOptions={providerOptions}
+          onChange={setUpsertModal}
+          onClose={() => setUpsertModal(null)}
+          onSave={saveUpsert}
+        />
       )}
     </section>
   );

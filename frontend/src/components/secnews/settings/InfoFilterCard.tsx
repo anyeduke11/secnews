@@ -9,6 +9,10 @@
  * - gate off → 显示禁用提示卡 (与 dsh 同模式)
  * - gate on → 显示规则列表 + 新增/编辑/启停/删除 + 实时预览
  * - V2: 全部走 settings-shell.css 的 st-cellgrid / st-section / st-rule / st-chip
+ *
+ * 拆分 (前端重构 V1 B6-b, 单文件 ≤300 行): 三个展示区块移至同目录
+ * InfoFilterAddForm / InfoFilterRuleList / InfoFilterPreview, 共享类型在 infoFilter.types。
+ * 状态与请求逻辑全部保留在本组件, 区块仅为受控视图 (零行为/DOM 变更)。
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../../contexts/I18nContext';
@@ -23,8 +27,10 @@ import {
 } from '../../../api/secnews';
 import type { FilterRule, GateStatus, PreviewResult } from '../../../api/secnews';
 import { useAbortGuard } from '../../../hooks/useAbortGuard';
-
-const MATCH_KINDS = ['source_name', 'source_id', 'category', 'tag'] as const;
+import { InfoFilterAddForm } from './InfoFilterAddForm';
+import { InfoFilterRuleList } from './InfoFilterRuleList';
+import { InfoFilterPreview } from './InfoFilterPreview';
+import type { MatchKind, RuleType } from './infoFilter.types';
 
 export function InfoFilterCard() {
   const { t } = useI18n();
@@ -35,8 +41,8 @@ export function InfoFilterCard() {
   const [opMsg, setOpMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   // 新增表单
-  const [newRuleType, setNewRuleType] = useState<'deny' | 'allow'>('deny');
-  const [newMatchKind, setNewMatchKind] = useState<typeof MATCH_KINDS[number]>('source_name');
+  const [newRuleType, setNewRuleType] = useState<RuleType>('deny');
+  const [newMatchKind, setNewMatchKind] = useState<MatchKind>('source_name');
   const [newMatchValue, setNewMatchValue] = useState('');
   const [newNote, setNewNote] = useState('');
 
@@ -175,201 +181,38 @@ export function InfoFilterCard() {
         </button>
       </div>
 
-      <section className="st-section" aria-label={t('info_filter.title')}>
-        <h3>{t('info_filter.title')}</h3>
-        <p className="st-section-desc">{t('info_filter.desc')}</p>
-        <div className="st-section-body">
-          {/* 现状 */}
-          <div className="st-cellgrid">
-            <div className="st-cell">
-              <span className="st-cellk">{t('info_filter.rules_count')}</span>
-              <span className="st-cellv sm">{rules.length}</span>
-            </div>
-            <div className="st-cell">
-              <span className="st-cellk">{t('info_filter.enabled_count')}</span>
-              <span className="st-cellv sm mint">
-                {rules.filter(r => r.enabled).length}
-              </span>
-            </div>
-          </div>
+      <InfoFilterAddForm
+        t={t}
+        rulesCount={rules.length}
+        enabledCount={rules.filter(r => r.enabled).length}
+        ruleType={newRuleType}
+        matchKind={newMatchKind}
+        matchValue={newMatchValue}
+        note={newNote}
+        onRuleTypeChange={setNewRuleType}
+        onMatchKindChange={setNewMatchKind}
+        onMatchValueChange={setNewMatchValue}
+        onNoteChange={setNewNote}
+        onCreate={createRule}
+      />
 
-          {/* 新增规则 */}
-          <div className="st-rule" />
-          <h4 style={{
-            fontFamily: 'var(--sn-mono)',
-            fontSize: 'var(--sn-fs-h4)',
-            color: 'var(--sn-ink)',
-            margin: '12px 0 8px',
-          }}>{t('info_filter.add_rule')}</h4>
-          <div className="st-cellgrid">
-            <label className="st-cell">
-              <span className="st-cellk">{t('info_filter.rule_type')}</span>
-              <select
-                className="st-input"
-                value={newRuleType}
-                onChange={e => setNewRuleType(e.target.value as 'deny' | 'allow')}
-                aria-label={t('info_filter.rule_type')}
-              >
-                <option value="deny">deny</option>
-                <option value="allow">allow</option>
-              </select>
-            </label>
-            <label className="st-cell">
-              <span className="st-cellk">{t('info_filter.match_kind')}</span>
-              <select
-                className="st-input"
-                value={newMatchKind}
-                onChange={e => setNewMatchKind(e.target.value as typeof MATCH_KINDS[number])}
-                aria-label={t('info_filter.match_kind')}
-              >
-                {MATCH_KINDS.map(k => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
-            </label>
-            <label className="st-cell" style={{ gridColumn: 'span 2' }}>
-              <span className="st-cellk">{t('info_filter.match_value')}</span>
-              <input
-                className="st-input"
-                type="text"
-                value={newMatchValue}
-                onChange={e => setNewMatchValue(e.target.value)}
-                placeholder={t('info_filter.match_value_placeholder')}
-                aria-label={t('info_filter.match_value')}
-              />
-            </label>
-            <label className="st-cell" style={{ gridColumn: 'span 2' }}>
-              <span className="st-cellk">{t('info_filter.note')}</span>
-              <input
-                className="st-input"
-                type="text"
-                value={newNote}
-                onChange={e => setNewNote(e.target.value)}
-                placeholder={t('info_filter.note_placeholder')}
-                aria-label={t('info_filter.note')}
-              />
-            </label>
-          </div>
-          <button
-            type="button"
-            className="st-btn primary"
-            onClick={createRule}
-            disabled={!newMatchValue.trim()}
-            style={{ marginTop: 10 }}
-          >
-            {t('info_filter.add')}
-          </button>
-        </div>
-      </section>
+      <InfoFilterRuleList
+        t={t}
+        loading={loading}
+        rules={rules}
+        onToggle={toggleRule}
+        onDelete={deleteRule}
+      />
 
-      {/* 规则列表 */}
-      <section className="st-section" aria-label={t('info_filter.rules_list')}>
-        <h3>{t('info_filter.rules_list')}</h3>
-        <div className="st-section-body">
-          {!loading && rules.length === 0 && (
-            <div className="st-info">{t('info_filter.no_rules')}</div>
-          )}
-          {rules.map(r => (
-            <div key={r.id} className="st-card" style={{ marginBottom: 8 }}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`st-chip ${r.rule_type === 'deny' ? 'bad' : 'ok'}`}>
-                  {r.rule_type}
-                </span>
-                <span className="st-chip">{r.match_kind}</span>
-                <code style={{ fontFamily: 'var(--sn-mono)', color: 'var(--sn-ink)' }}>
-                  {r.match_value}
-                </code>
-                {r.note && (
-                  <span style={{
-                    fontFamily: 'var(--sn-mono)',
-                    fontSize: 'var(--sn-fs-mute)',
-                    color: 'var(--sn-ink-3)',
-                  }}>
-                    — {r.note}
-                  </span>
-                )}
-                <div className="ml-auto flex gap-1">
-                  <button
-                    type="button"
-                    className="st-btn ghost xs"
-                    onClick={() => toggleRule(r)}
-                  >
-                    {r.enabled ? t('info_filter.disable') : t('info_filter.enable')}
-                  </button>
-                  <button
-                    type="button"
-                    className="st-btn ghost xs"
-                    onClick={() => deleteRule(r.id)}
-                  >
-                    {t('info_filter.delete')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 实时预览 */}
-      <section className="st-section" aria-label={t('info_filter.preview')}>
-        <h3>{t('info_filter.preview')}</h3>
-        <p className="st-section-desc">{t('info_filter.preview_desc')}</p>
-        <div className="st-section-body">
-          <div className="st-cellgrid">
-            <label className="st-cell">
-              <span className="st-cellk">{t('info_filter.preview_category')}</span>
-              <input
-                className="st-input"
-                type="text"
-                value={previewCat}
-                onChange={e => setPreviewCat(e.target.value)}
-                aria-label={t('info_filter.preview_category')}
-              />
-            </label>
-            <label className="st-cell">
-              <span className="st-cellk">{t('info_filter.preview_source')}</span>
-              <input
-                className="st-input"
-                type="text"
-                value={previewName}
-                onChange={e => setPreviewName(e.target.value)}
-                aria-label={t('info_filter.preview_source')}
-              />
-            </label>
-          </div>
-          <button
-            type="button"
-            className="st-btn primary"
-            onClick={runPreview}
-            disabled={!previewName.trim()}
-            style={{ marginTop: 10 }}
-          >
-            {t('info_filter.preview_run')}
-          </button>
-          {previewResult && (
-            <div style={{ marginTop: 12 }}>
-              <span className={`st-chip ${
-                previewResult.verdict === 'deny' ? 'bad'
-                  : previewResult.verdict === 'allow' ? 'ok' : 'mute'
-              }`}>
-                {t('info_filter.verdict')}: {previewResult.verdict}
-              </span>
-              {previewResult.matched_rule && (
-                <span style={{
-                  marginLeft: 8,
-                  fontFamily: 'var(--sn-mono)',
-                  fontSize: 'var(--sn-fs-mute)',
-                  color: 'var(--sn-ink-3)',
-                }}>
-                  {previewResult.matched_rule.rule_type}/
-                  {previewResult.matched_rule.match_kind}/
-                  {previewResult.matched_rule.match_value}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+      <InfoFilterPreview
+        t={t}
+        category={previewCat}
+        sourceName={previewName}
+        result={previewResult}
+        onCategoryChange={setPreviewCat}
+        onSourceNameChange={setPreviewName}
+        onRun={runPreview}
+      />
     </div>
   );
 }

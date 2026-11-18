@@ -18,28 +18,7 @@ import {
   putLlmPoolRoute,
 } from '../../api/settings';
 import type { PoolPlatform, PoolRouting, PoolSnapshot } from '../../api/settings';
-
-function PlatformChip({ p }: { p: PoolPlatform }) {
-  if (!p.configured) {
-    return <span className="st-chip mute"><i aria-hidden />未配置</span>;
-  }
-  if (p.available === true) {
-    return <span className="st-chip ok"><i aria-hidden />可用 {p.model_count} 款模型</span>;
-  }
-  if (p.available === false && p.error === 'no_key') {
-    return <span className="st-chip mute"><i aria-hidden />未配置</span>;
-  }
-  if (p.available === false) {
-    return <span className="st-chip bad"><i aria-hidden />{p.error?.startsWith('HTTP 40') ? '密钥无效' : '不可达'}</span>;
-  }
-  return <span className="st-chip warn"><i aria-hidden />已配置 · 未知</span>;
-}
-
-const TIER_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 't1_score', label: 'STANDARD 档 (评分/NER/评测)' },
-  { key: 't3_summary', label: 'HEAVY 档 (深度阅读/报告)' },
-  { key: 't3_chunk_summary', label: 'FLASH 档 (摘要/轻量高频)' },
-];
+import { PoolPlatformRow } from './ModelPoolPanelParts';
 
 export function ModelPoolPanel() {
   const [snap, setSnap] = useState<PoolSnapshot | null>(null);
@@ -164,113 +143,32 @@ export function ModelPoolPanel() {
       {snap && (
         <div className="st-rule-list">
           {snap.platforms.map(p => (
-            <div className="st-rule" key={p.name} data-testid={`pool-${p.name}`}>
-              <div>
-                <p className="st-label">{p.label}</p>
-                <p className="st-key">
-                  {p.name} · {p.key_env}
-                  {p.available === true && p.models.length > 0 && (
-                    <span> · {p.models.slice(0, 3).join(' / ')}{p.model_count > 3 ? ` …` : ''}</span>
-                  )}
-                  {p.error && p.error !== 'no_key' && <span> · {p.error}</span>}
-                </p>
-              </div>
-              <div className="st-ctrl">
-                <PlatformChip p={p} />
-                {!p.configured && (
-                  <div className="st-ctrlrow">
-                    <input
-                      type="password"
-                      className="st-input"
-                      style={{ maxWidth: 180 }}
-                      placeholder={`${p.label} API Key`}
-                      aria-label={`${p.label} API Key`}
-                      value={keyDrafts[p.name] ?? ''}
-                      onChange={e => setKeyDrafts(prev => ({ ...prev, [p.name]: e.target.value }))}
-                    />
-                    <button
-                      type="button"
-                      className="st-btn primary"
-                      onClick={() => saveAndDetect(p)}
-                      aria-label={`保存并检测 ${p.label}`}
-                    >
-                      保存并检测
-                    </button>
-                  </div>
-                )}
-                {(p.available === true || p.configured) && (
-                  <button
-                    type="button"
-                    className="st-btn"
-                    onClick={() => {
-                      setRouteOpen(prev => ({ ...prev, [p.name]: !prev[p.name] }));
-                      setRouteDrafts(prev => ({
-                        ...prev,
-                        [p.name]: prev[p.name] ?? { tier: 't1_score', model: p.models[0] ?? '' },
-                      }));
-                    }}
-                    aria-expanded={Boolean(routeOpen[p.name])}
-                    aria-label={`写入路由 ${p.label}`}
-                  >
-                    写入路由
-                  </button>
-                )}
-              </div>
-              {routeOpen[p.name] && (p.available === true || p.configured) && (
-                <div className="st-ctrlrow" style={{ width: '100%', marginTop: 6 }} data-testid={`route-${p.name}`}>
-                  <select
-                    className="st-select"
-                    style={{ maxWidth: 230 }}
-                    aria-label={`${p.label} 路由档位`}
-                    value={routeDrafts[p.name]?.tier ?? 't1_score'}
-                    onChange={e => setRouteDrafts(prev => ({
-                      ...prev,
-                      [p.name]: { ...(prev[p.name] ?? { model: p.models[0] ?? '' }), tier: e.target.value },
-                    }))}
-                  >
-                    {TIER_OPTIONS.map(t => (
-                      <option key={t.key} value={t.key}>{t.label}</option>
-                    ))}
-                  </select>
-                  {p.available === true && p.models.length > 0 ? (
-                    <select
-                      className="st-select"
-                      style={{ maxWidth: 230 }}
-                      aria-label={`${p.label} 路由模型`}
-                      value={routeDrafts[p.name]?.model ?? p.models[0]}
-                      onChange={e => setRouteDrafts(prev => ({
-                        ...prev,
-                        [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model: e.target.value },
-                      }))}
-                    >
-                      {p.models.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      className="st-input"
-                      style={{ maxWidth: 230 }}
-                      placeholder="模型名 (可先「重新探测」自动获取)"
-                      aria-label={`${p.label} 路由模型 (手输)`}
-                      value={routeDrafts[p.name]?.model ?? ''}
-                      onChange={e => setRouteDrafts(prev => ({
-                        ...prev,
-                        [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model: e.target.value },
-                      }))}
-                    />
-                  )}
-                  <button
-                    type="button"
-                    className="st-btn primary"
-                    disabled={writing === p.name || !(routeDrafts[p.name]?.model ?? '').trim()}
-                    onClick={() => writeRoute(p.name, routeDrafts[p.name]?.tier ?? 't1_score', (routeDrafts[p.name]?.model ?? '').trim())}
-                    aria-label={`确认写入 ${p.label} 路由`}
-                  >
-                    {writing === p.name ? '写入中…' : '确认写入'}
-                  </button>
-                </div>
-              )}
-            </div>
+            <PoolPlatformRow
+              key={p.name}
+              p={p}
+              keyDraft={keyDrafts[p.name] ?? ''}
+              routeOpen={Boolean(routeOpen[p.name])}
+              routeDraft={routeDrafts[p.name]}
+              isWriting={writing === p.name}
+              onKeyDraftChange={v => setKeyDrafts(prev => ({ ...prev, [p.name]: v }))}
+              onToggleRoute={() => {
+                setRouteOpen(prev => ({ ...prev, [p.name]: !prev[p.name] }));
+                setRouteDrafts(prev => ({
+                  ...prev,
+                  [p.name]: prev[p.name] ?? { tier: 't1_score', model: p.models[0] ?? '' },
+                }));
+              }}
+              onTierChange={tier => setRouteDrafts(prev => ({
+                ...prev,
+                [p.name]: { ...(prev[p.name] ?? { model: p.models[0] ?? '' }), tier },
+              }))}
+              onModelChange={model => setRouteDrafts(prev => ({
+                ...prev,
+                [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model },
+              }))}
+              onSave={() => saveAndDetect(p)}
+              onWriteRoute={(tier, model) => writeRoute(p.name, tier, model)}
+            />
           ))}
         </div>
       )}

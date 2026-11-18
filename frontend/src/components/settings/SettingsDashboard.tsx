@@ -18,89 +18,9 @@
  */
 import { useEffect, useState } from 'react';
 import { getHealth, getSecretsStatus, getSourcesHealth, getStats } from '../../api/settings';
-import type { SectionKey } from './sections';
-
-interface Props {
-  onJump: (cat: SectionKey) => void;
-}
-
-interface HealthPayload {
-  ok?: boolean;
-  version?: string;
-  status?: string;
-  uptime_s?: number;
-  db?: {
-    ok: boolean;
-    latency_ms: number;
-    size_mb?: number;
-    hotspots_count?: number;
-    error?: string;
-  };
-  scheduler?: {
-    ok: boolean;
-    jobs?: string[];
-    error?: string;
-  };
-  collectors?: {
-    last_run?: string;
-    watchdog_recoveries_24h?: number;
-  };
-  cache?: { hit_rate?: number };
-}
-
-interface SecretsStatus {
-  initialized?: boolean;
-  unlocked?: boolean;
-  source?: 'os_keyring' | 'session' | 'uninitialized';
-}
-
-interface StatsPayload {
-  total_hotspots?: number;
-  collect_runs_24h?: number;
-  success_rate_24h?: number;
-  avg_collect_duration_ms?: number;
-  last_fallback_at?: string | null;
-}
-
-interface SourcesHealth {
-  total?: number;
-  healthy?: number;
-  warning?: number;
-  dead?: number;
-}
-
-const QUICK_JUMPS: Array<{ cat: SectionKey; label: string; key: string; note: string }> = [
-  { cat: 'general', label: '通用', key: 'general', note: '主题/模式/能力开关' },
-  { cat: 'models', label: '模型配置', key: 'models', note: 'Provider/密钥/场景模型' },
-  { cat: 'collection', label: '采集与管线', key: 'collection', note: '信源/质量/KL 队列/门禁' },
-  { cat: 'network', label: '网络', key: 'network', note: '代理/连接' },
-  { cat: 'connectivity', label: '集成与凭据', key: 'connectivity', note: '同步/MCP/主密钥' },
-  { cat: 'ops', label: '运维', key: 'ops', note: '维护/导出/dsh' },
-];
-
-function fmtUptime(s?: number): string {
-  if (typeof s !== 'number' || s < 0) return '—';
-  const days = Math.floor(s / 86400);
-  const hrs = Math.floor((s % 86400) / 3600);
-  if (days > 0) return `${days}d ${hrs}h`;
-  const mins = Math.floor((s % 3600) / 60);
-  return `${hrs}h ${mins}m`;
-}
-
-function fmtPct(v?: number): string {
-  if (typeof v !== 'number') return '—';
-  return `${(v * 100).toFixed(1)}%`;
-}
-
-function fmtInt(v?: number): string {
-  if (typeof v !== 'number') return '—';
-  return v.toLocaleString('en-US');
-}
-
-function fmtMs(v?: number): string {
-  if (typeof v !== 'number') return '—';
-  return `${Math.round(v)} ms`;
-}
+import { QUICK_JUMPS } from './SettingsDashboard.types';
+import type { HealthPayload, Props, SecretsStatus, StatsPayload, SourcesHealth } from './SettingsDashboard.types';
+import { fmtInt, fmtMs, fmtPct, fmtUptime } from './SettingsDashboard.format';
 
 export function SettingsDashboard({ onJump }: Props) {
   const [health, setHealth] = useState<HealthPayload | null>(null);

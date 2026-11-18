@@ -96,6 +96,15 @@
 - **体积**: 首屏 JS **92,770 → 88,279 B（−4,491 / −4.8%）**，较 B0 基线 92,998 **累计 −4,719，首次低于基线**；全量 561,200 B / 76 chunk
 - **留痕**: 验证报告 §12；契约 §0 R4 + §7.1 + §6 批次表与进度表 B5.5 行；DEV-0400
 
+### 前端重构 V1 · B6-b 设置域 /settings (DEV-0401, 2026-11-18)
+- **触发**: owner 裁决「开始 B6」+「B6-b 设置域 /settings 优先」；旧三份 CSS 处置口径同批裁定为「按业务流和逻辑重构，打破壳层硬性」（属 B6-d，本批不执行）
+- **IA 按业务流重排**: `settings/sections.tsx` 5 组 → **3 个业务流组 + 无名总览**（`ingest` 数据接入 / `intelligence` AI 与偏好 / `system` 系统与运维），`SECTIONS` 顺序改为 总览→采集→网络→模型→通用→集成→运维。**cat 键不变** → `?cat=` 深链零破坏、`SettingsPage` 零改动。纠正两处归属错位（`general` / `connectivity`）
+- **超限拆分 9 件**: `DatabaseMaintenance` 470→216 · `quality/SecretsPanel` 427→282 · `InfoFilterCard` 375→217 · `quality/CustomRulesPanel` 348→233 · `ModelPoolPanel` 341→239 · `ContentPreferencesCard` 335→274 · `ProxySettings` 328→181 · `SettingsDashboard` 311→231 · `DshControlCard` 303→223；20 个新文件全 ≤300，导出签名全保持，**settings 域超限文件清零**
+- **测试口径变更**: `settings/sections.test.ts` 随 IA 改判更新为业务流三组契约（3 例），非回滚 IA
+- **门禁**: `tsc` 0 · 110 文件 / **783 tests 全通过** · 覆盖率 **58.92 / 77.61 / 60.61 / 58.92**（四项高于阈值；Branch 较 B5.5 −0.06pp 已归因）· `vite build` 0 · `generate_meta --check` OK
+- **体积**: 首屏 JS **88,279 → 88,292 B（+13 B）**，较 B0 基线 92,998 累计 **−4,706 B**；全量 562,455 B / 76 chunk
+- **留痕**: 验证报告 §13；契约 §6 批次进度表 B6-b 行；DEV-0401
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

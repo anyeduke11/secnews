@@ -19,60 +19,13 @@ import {
   putQualityRules,
   updateCustomRule,
 } from '../../../api/settingsQuality';
+import { CustomRulesPanelDryRun } from './CustomRulesPanelDryRun';
+import { CustomRulesPanelForm } from './CustomRulesPanelForm';
+import {
+  EMPTY_FORM, CustomRule, DryRunResult, FormState, GateInfo,
+} from './CustomRulesPanel.types';
 
-export interface CustomRule {
-  id: number;
-  name: string;
-  rule_kind: 'expert' | 'semantic';
-  match_kind: string;
-  match_value: string;
-  action: 'flag' | 'reject';
-  deduction: number;
-  scope_category: string;
-  enabled: boolean;
-}
-
-export interface GateInfo {
-  name: string;
-  tier: 'hard' | 'soft';
-  enabled: boolean;
-}
-
-interface DryRunHit {
-  item_id: string;
-  title: string;
-  deduction: number;
-  reason: string;
-}
-
-interface DryRunResult {
-  sampled: number;
-  expert: { reject_hits: DryRunHit[]; flag_hits: DryRunHit[] };
-  semantic: { ran: number; cap: number; skipped: number; hits: DryRunHit[]; notes: string[] };
-}
-
-const EXPERT_KINDS: ReadonlyArray<[string, string]> = [
-  ['title_contains', '标题包含'],
-  ['source_in', '来源属于(csv)'],
-  ['category_equals', '分类等于'],
-  ['url_matches', 'URL 正则'],
-  ['summary_len_lt', '摘要短于(字符)'],
-];
-
-interface FormState {
-  name: string;
-  rule_kind: 'expert' | 'semantic';
-  match_kind: string;
-  match_value: string;
-  action: 'flag' | 'reject';
-  deduction: number;
-  scope_category: string;
-}
-
-const EMPTY_FORM: FormState = {
-  name: '', rule_kind: 'expert', match_kind: 'title_contains',
-  match_value: '', action: 'flag', deduction: 10, scope_category: '',
-};
+export type { CustomRule, GateInfo } from './CustomRulesPanel.types';
 
 export function CustomRulesPanel({ open }: { open: boolean }) {
   const [rules, setRules] = useState<CustomRule[]>([]);
@@ -227,61 +180,11 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
         ))}
 
         {/* 新建 / 编辑表单 */}
-        <div className="st-rule" data-testid="custom-rule-form">
-          <div>
-            <p className="st-label">{editingId == null ? '新建规则' : `编辑规则 #${editingId}`}</p>
-            <div className="st-ctrlrow">
-              <select className="st-input" value={form.rule_kind} aria-label="规则类型"
-                onChange={e => {
-                  const kind = e.target.value as FormState['rule_kind'];
-                  setForm(f => ({
-                    ...f, rule_kind: kind,
-                    match_kind: kind === 'semantic' ? 'nl' : 'title_contains',
-                  }));
-                }}>
-                <option value="expert">专家规则</option>
-                <option value="semantic">AI 语义规则</option>
-              </select>
-              {form.rule_kind === 'expert' && (
-                <select className="st-input" value={form.match_kind} aria-label="匹配方式"
-                  onChange={e => setForm(f => ({ ...f, match_kind: e.target.value }))}>
-                  {EXPERT_KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-                </select>
-              )}
-              {form.rule_kind === 'expert' && (
-                <select className="st-input" value={form.action} aria-label="动作"
-                  onChange={e => setForm(f => ({ ...f, action: e.target.value as FormState['action'] }))}>
-                  <option value="flag">扣分</option>
-                  <option value="reject">拒收 (strict 生效)</option>
-                </select>
-              )}
-              <input type="number" min={0} max={100} className="st-input" style={{ maxWidth: 80 }}
-                value={form.deduction} aria-label="扣分"
-                onChange={e => setForm(f => ({ ...f, deduction: parseInt(e.target.value, 10) || 0 }))} />
-            </div>
-          </div>
-          <div className="st-ctrl" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-            <input className="st-input" placeholder="规则名称" aria-label="规则名称"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <textarea className="st-input" rows={2}
-              placeholder={form.rule_kind === 'semantic' ? '用自然语言描述违规判定标准' : '匹配值'}
-              aria-label="匹配值" value={form.match_value}
-              onChange={e => setForm(f => ({ ...f, match_value: e.target.value }))} />
-            <input className="st-input" placeholder="限定分类 (留空=全部)" aria-label="限定分类"
-              value={form.scope_category}
-              onChange={e => setForm(f => ({ ...f, scope_category: e.target.value }))} />
-            <div className="st-ctrlrow">
-              <button type="button" className="st-btn primary" disabled={busy} onClick={submit}>
-                {editingId == null ? '创建规则' : '保存修改'}
-              </button>
-              {editingId != null && (
-                <button type="button" className="st-btn" disabled={busy}
-                  onClick={() => { setEditingId(null); setForm(EMPTY_FORM); }}>取消</button>
-              )}
-            </div>
-          </div>
-        </div>
+        <CustomRulesPanelForm
+          form={form} setForm={setForm}
+          editingId={editingId} setEditingId={setEditingId}
+          busy={busy} submit={submit}
+        />
 
         {/* gate 开关 */}
         <div className="st-rule" data-testid="gate-toggles">
@@ -318,24 +221,7 @@ export function CustomRulesPanel({ open }: { open: boolean }) {
             </button>
           </div>
         </div>
-        {dryRun && (
-          <div className="st-cellnote" data-testid="dry-run-result">
-            抽样 {dryRun.sampled} 条: 拒收命中 {dryRun.expert.reject_hits.length} ·
-            扣分命中 {dryRun.expert.flag_hits.length} ·
-            语义命中 {dryRun.semantic.hits.length} (判别 {dryRun.semantic.ran}/cap {dryRun.semantic.cap})
-            {(dryRun.expert.reject_hits.length + dryRun.expert.flag_hits.length + dryRun.semantic.hits.length) === 0
-              && ' — 无命中'}
-            <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-              {[...dryRun.expert.reject_hits, ...dryRun.expert.flag_hits, ...dryRun.semantic.hits]
-                .slice(0, 10).map(h => (
-                  <li key={h.item_id}>{h.title} — {h.reason}</li>
-                ))}
-            </ul>
-            {dryRun.semantic.notes.length > 0 && (
-              <p>语义侧提示: {dryRun.semantic.notes.join('; ')}</p>
-            )}
-          </div>
-        )}
+        <CustomRulesPanelDryRun dryRun={dryRun} />
 
         <div className="st-actionbar">
           {msg && <span className={`st-ab-msg ${msg.type === 'ok' ? 'ok' : 'bad'}`}>{msg.text}</span>}

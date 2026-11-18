@@ -1,4 +1,15 @@
 
+## [DEV-0401] refactor(fe): 前端重构 V1 B6-b — 设置域 /settings 按业务流重排 IA + 9 件超限文件拆分（settings 域超限清零）
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B6 子批 b（B6 拆 a 组件层超限 / b 设置域 / c 工具页容器 / d 旧 CSS 收尾，owner 裁决**从 b 起**）
+- **IA 重排（owner 口径「按业务流和逻辑重构」）**: `settings/sections.tsx` 107 → 114 行，5 组（含无名 overview + c8 遗留两组）重划为 **3 个业务流组 + 无名总览** —— `ingest` 数据接入（`collection`/`network`）/ `intelligence` AI 与偏好（`models`/`general`）/ `system` 系统与运维（`connectivity`/`ops`）；`SECTIONS` 声明顺序同步为 总览→采集→网络→模型→通用→集成→运维。**cat 键不变** → `?cat=` 深链天然兼容、`SettingsPage` 零改动。顺带纠正两处归属错位：`general` 原挂「管道与门控」→ AI 与偏好；`connectivity` 原挂「数据源」→ 系统与运维
+- **超限拆分 9 件（全部 ≤300；settings 域超限 17 → 0）**: `DatabaseMaintenance` 470→216（+5 文件）/ `quality/SecretsPanel` 427→282（+4）/ `secnews/settings/InfoFilterCard` 375→217（+4）/ `quality/CustomRulesPanel` 348→233（+3）/ `ModelPoolPanel` 341→239（+1）/ `ContentPreferencesCard` 335→274（+1）/ `ProxySettings` 328→181（+1）/ `SettingsDashboard` 311→231（+2）/ `secnews/settings/DshControlCard` 303→223（+3）；共 20 个新文件，最大 282 行。导出签名（named + default）全保持，调用方零改动
+- **测试口径变更（显式登记）**: `settings/sections.test.ts` 原断言「5 组标签 + 旧组键归属」，IA 重排后实测 2 例红。处理 = **更新测试到新契约**（业务流三组标题 / 每段必有归属且 overview 例外 / 关键能力归属映射），不是回滚 IA —— 该测试编码的是导航分组这一产品契约，owner 已改判
+- **门禁**: `tsc` exit 0 · **110 文件 / 783 tests 全通过** · 覆盖率 **58.92 / 77.61 / 60.61 / 58.92**（Stmts/Branch/Funcs/Lines，四项均高于 `vite.config.ts` 阈值 57.05/76.39/57.42；Branch 较 B5.5 的 77.67 **−0.06pp**，归因拆分新增提前返回/空态分支，非门槛回退）· `vite build` exit 0 · `generate_meta.py --check` OK
+- **体积**: 首屏 JS 口径 A 88,279 → **88,292 B**（+13 B / +0.015%，较 B0 基线 92,998 累计 **−4,706 B**）；全量 JS 562,455 B / 76 chunk（+1,255，`SettingsPage` 为路由级懒加载 chunk，不进首屏）
+- **未做（显式声明）**: ① `settings-shell.css` **未去 `.settings-shell` 前缀、未删 `--sn-*` 别名** —— 它是设置域自身样式而非壳层样式，`st-*` 实测无跨域碰撞（域外唯一使用者 `shared/editorial/Stamp.tsx` 的 `st-*` 系与 settings 原子零重叠），去前缀属全站原子统一，留 B6-d；② `SettingsDashboard.QUICK_JUMPS` 硬编码顺序与新侧边栏不完全一致，本批要求零 DOM 变更未动
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §13（§13.1 IA / §13.2 拆分 / §13.3 测试口径 / §13.4 门禁 / §13.5 体积 / §13.6 未做与残留）；契约 §6 批次进度表 B6-b 行；CHANGELOG B6-b 小节
+
 ## [DEV-0400] perf(fe): 前端重构 V1 B5.5 — 首屏瘦身专项（归因工具入仓 + 字体非阻塞 LCP 128ms 达标 + i18n 按 locale 动态加载 + R4 口径降级）
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B5.5（owner 裁决「开始 B5.5 首屏瘦身专项」）= 性能专项，非视觉重做、非结构拆分

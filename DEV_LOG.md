@@ -1,4 +1,17 @@
 
+## [DEV-0402] refactor(fe): 前端重构 V1 B6-a — 组件层剩余 8 件超限文件拆分（全站组件层超限清零）
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B6 子批 a（承接 B6-b；8 件清单源自验证报告 §13.6 ③）
+- **结果**: 组件层（`components/` `routes/` `shell/`）非测试超限文件 **8 → 0**，新增 23 文件，主文件最大 261 行 / 新文件最大 223 行，全部 ≤300
+- **拆分明细（原 → 现）**: `MaintPage` 522→189（+5）/ `ItemDetailDialog` 453→249（+4）/ `DeepReadPage` 428→138（+3）/ `v1/V1Prototype` 411→47（+3）/ `HistoryPage` 407→261（+4）/ `layout/LayerCard` 385→139（+2）/ `TodoItem` 376→253（+1）/ `secrets/SecretsPage` 320→246（+1）
+- **口径**: 纯搬迁 —— DOM / className / data-testid / i18n key / hooks 顺序逐字保留；导出面零变更（`LayerCard` 8 个导出经 `export { … } from './LayerCardParts'` 原样转发）；调用方零改动
+- **剩余超限 10 件全部为 R3 契约层**: `types/index.ts` 907 · `api/settings.ts` 847 · `api/v1.ts` 762 · `api/knowledge.ts` 572 · `types/codegarden.ts` 453 · `lib/i18n/messages.zh-CN.ts` 428 · `messages.en-US.ts` 428 · `api/secnews.ts` 420 · `api/codegarden.ts` 375 · `hooks/realtime.ts` 315 —— 按职责拆分、不按行数，不入本批
+- **门禁**: `tsc` exit 0 · **110 文件 / 783 tests 全通过** · 覆盖率 **58.69 / 77.45 / 60.30 / 58.69**（四项仍高于阈值 57.05/76.39/57.42；较 B6-b 回落 −0.23/−0.16/−0.31/−0.23 pp，归因拆分后 V8 按文件重置分母且 `LayerCard`/`TodoItem` 两族无测试，未触阈值）· `vite build` exit 0 · `generate_meta.py --check` OK
+- **专项测试未改动**: `MaintPage.test` 11/11 · `DeepReadPage.test` 10/10 · `secrets` 域 11/11 · `v1_url_builder.test` 7/7（静态读 `V1Prototype.tsx` 断言无 `MOCK_`，47 行主文件仍满足）
+- **体积**: 首屏 JS 口径 A 88,292 → **88,272 B**（−20 B，属 gzip 分块边界抖动，非优化收益；较 B0 累计 −4,726 B）；全量 JS 563,571 B / 76 chunk（+1,116，来自新增 import/export 包装）
+- **未做（显式声明）**: ① `LayerCard` 与 `TodoItem` 在 `src/` 内已无实际 import（实测 grep 零引用），导出面按约束完整保留，**未删除** —— 删代码属独立决策，超出「拆到 ≤300 行」范围，待 owner 定夺；② `V1Prototype.tsx` 文件名与导出名 `KnowledgeV1Page` 不一致属既有约定，未改名
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §14（14.1 拆分表 / 14.2 全站扫描 / 14.3 门禁 / 14.4 体积 / 14.5 未做与残留）；契约 §6 批次进度表 B6 行；CHANGELOG B6-a 小节
+
 ## [DEV-0401] refactor(fe): 前端重构 V1 B6-b — 设置域 /settings 按业务流重排 IA + 9 件超限文件拆分（settings 域超限清零）
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B6 子批 b（B6 拆 a 组件层超限 / b 设置域 / c 工具页容器 / d 旧 CSS 收尾，owner 裁决**从 b 起**）

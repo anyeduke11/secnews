@@ -1,0 +1,154 @@
+// 拆分自 DeepReadPage.tsx: 单节折叠卡 (SectionCard) + 分节图标/色调映射 +
+// LLM 正文的最小 markdown 清理。折叠态是卡内局部 state, 其余纯展示。
+import { useState } from 'react';
+import { DeepReadSection, DeepReadTone } from '../types';
+
+/** 语义三色锁 → 图标描边色 */
+const TONE_COLOR: Record<DeepReadTone, string> = {
+  mint: 'var(--color-success)',
+  amber: 'var(--color-warning)',
+  red: 'var(--color-error)',
+};
+
+/** 已知分节的图标; 未命中用 DEFAULT_ICON, 保证后端加节不需要改前端 */
+const ICON_BY_KEY: Record<string, string> = {
+  key_takeaways: 'M4 6h16M4 10h16M4 14h10M4 18h7',
+  next_actions: 'M5 13l4 4L19 7',
+  evidence_gaps: 'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+  impact_ioc: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  exploit_conditions: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  remediation: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  attack_surface: 'M12 9v2m0 4h.01m-6.94 4h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.7-1.33-3.46 0L3.34 16c-.77 1.33.2 3 1.72 3z',
+  mitigation: 'M4 4h16v16H4zM9 9h6v6H9z',
+  detection: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  capability_boundary: 'M3 12h18M12 3v18M5.6 5.6l12.8 12.8',
+  cost_alternatives: 'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  regulation_points: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
+  applicability: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm14 14v-2a4 4 0 0 0-3-3.87',
+  obligations_timeline: 'M12 6v6l4 2m6-2a10 10 0 1 1-20 0 10 10 0 0 1 20 0z',
+  penalty: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01',
+  tender_card: 'M3 5h18v14H3zM3 10h18M7 15h4',
+  qualification: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+  scoring: 'M4 20V10m6 10V4m6 16v-7m4 7H2',
+  key_dates: 'M3 5h18v16H3zM3 9h18M8 2v4m8-4v4',
+  positioning: 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z',
+  adoption_cost: 'M20 12V8H4v12h16v-4M4 12h16M9 16h.01',
+  license_risk: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4',
+  biz_signal: 'M3 17l6-6 4 4 8-8m0 0h-6m6 0v6',
+  playbook: 'M4 4h16v16H4zM10 9l5 3-5 3z',
+  pitfalls: 'M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07',
+  facts: 'M4 6h16M4 12h16M4 18h16',
+  system_impact: 'M12 2v6m0 0l3-3m-3 3L9 5M4 14h16v6H4z',
+  watch: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zm11 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  context: 'M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 16v-4m0-4h.01',
+  significance: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  // v2 分析框架节 (what_why_how / swot_lite / five_w)
+  what: 'M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 16v-4m0-4h.01',
+  why_matters: 'M22 12h-4l-3 9L9 3l-3 9H2',
+  how_react: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+  strengths_opp: 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+  weak_threat: 'M23 18l-9.5-9.5-5 5L1 6M17 18h6v-6',
+  who_when: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm14 14v-2a4 4 0 0 0-3-3.87M12 6v6l4 2',
+  scope_bound: 'M12 2v4M12 18v4M2 12h4M18 12h4M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20',
+  // 历史遗留键 (旧行 sections_json 是扁平 4 键)
+  summary: 'M4 6h16M4 10h16M4 14h16M4 18h16',
+  impact: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  relations: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71',
+  risks: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+};
+
+const DEFAULT_ICON = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6v6m0-9h.01';
+
+/**
+ * LLM 正文里的 markdown 强调标记在本 UI 是纯文本渲染 (全仓无 markdown 依赖,
+ * 也不该为剥几个符号引入带 XSS 面的渲染库), 这里做最小化清理。
+ */
+function stripInlineMarkdown(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '');
+}
+
+export function SectionCard({ section }: { section: DeepReadSection }) {
+  const [open, setOpen] = useState(true);
+  const icon = ICON_BY_KEY[section.key] || DEFAULT_ICON;
+  const stroke = TONE_COLOR[section.tone] || TONE_COLOR.mint;
+
+  return (
+    <div
+      style={{
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-md, 8px)',
+        background: 'var(--bg-card)',
+        overflow: 'hidden',
+      }}
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2, 8px)',
+          width: '100%',
+          padding: 'var(--space-3, 12px) var(--space-4, 16px)',
+          border: 'none',
+          background: 'color-mix(in srgb, var(--bg-elevated) 80%, transparent)',
+          color: 'var(--text-primary)',
+          cursor: 'pointer',
+          fontSize: 14,
+          fontWeight: 600,
+          lineHeight: 1.4,
+          textAlign: 'left',
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d={icon} />
+        </svg>
+        <span style={{ flex: 1 }}>{section.title}</span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          style={{
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.15s ease',
+          }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            padding: 'var(--space-4, 16px)',
+            borderTop: '1px solid var(--border-color)',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            lineHeight: 1.7,
+            fontSize: 14,
+            color: 'var(--text-secondary)',
+            minHeight: 48,
+          }}
+        >
+          {section.body.trim()
+            ? stripInlineMarkdown(section.body)
+            : <span style={{ color: 'var(--text-muted)' }}>本节暂无内容</span>}
+        </div>
+      )}
+    </div>
+  );
+}

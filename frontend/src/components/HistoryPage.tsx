@@ -7,9 +7,7 @@ import {
   BatchItemsResponse,
   BatchSummaryResponse,
   HotspotItem,
-  CATEGORIES,
 } from '../types';
-import { HotspotCard } from './HotspotCard';
 import { useGoBack } from '../hooks/useGoBack';
 import { importFromHistory } from '../api/knowledge';
 import {
@@ -20,21 +18,15 @@ import {
 import { Icon } from './Icon';
 import { EmptyState } from './EmptyState';
 import { useReactions } from '../hooks/useReactions';
-import { ReactionButtons, useReactionAction } from './sentinel/ReactionButtons';
+import { useReactionAction } from './sentinel/ReactionButtons';
+import { BatchSummaryBar } from './HistoryPageParts';
+import { HistoryPageBatchList } from './HistoryPageBatchList';
+import { HistoryPageFilters } from './HistoryPageFilters';
+import { HistoryPageItem } from './HistoryPageItem';
 
 interface HistoryPageProps {
   favoritedIds: Set<string>;
   onToggleFavorite: (item: HotspotItem) => void;
-}
-
-function formatBatchDate(isoString: string): string {
-  // "2026-07-06T00:00:00+00:00" → "7/6"
-  const d = new Date(isoString);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function formatBatchRange(start: string, end: string): string {
-  return `${formatBatchDate(start)} - ${formatBatchDate(end)}`;
 }
 
 export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps) {
@@ -193,145 +185,28 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
 
       <div className="flex gap-4 flex-col md:flex-row">
         {/* 左侧批次列表 (sticky) */}
-        <aside
-          className="shrink-0 hidden md:block"
-          style={{
-            width: 240,
-            position: 'sticky',
-            top: 16,
-            alignSelf: 'flex-start',
-            maxHeight: 'calc(100vh - 32px)',
-            overflowY: 'auto',
-          }}
-        >
-          <div
-            className="rounded-[var(--radius-md)] p-3"
-            style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
-          >
-            <h3 className="text-xs font-bold mb-2" style={{ color: 'var(--text-muted)' }}>
-              批次列表 (按时间倒序)
-            </h3>
-            {batchesLoading && (
-              <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>加载中…</p>
-            )}
-            {batchesError && (
-              <div
-                className="text-xs py-2.5 px-2 rounded-[var(--radius-sm)]"
-                style={{
-                  backgroundColor: 'color-mix(in srgb, var(--color-error) 12%, transparent)',
-                  border: '1px solid var(--color-error)',
-                  color: 'var(--color-error)',
-                }}
-              >
-                加载失败: {batchesError}
-              </div>
-            )}
-            {!batchesLoading && !batchesError && batches.length === 0 && (
-              <EmptyState
-                compact
-                title="暂无历史批次"
-                description="项目刚启动, 第 1 批还未结束"
-              />
-            )}
-            <ul className="space-y-1">
-              {batches.map(b => {
-                const active = b.batch_no === selectedBatchNo;
-                return (
-                  <li key={b.batch_no}>
-                    <button
-                      onClick={() => setSelectedBatchNo(b.batch_no)}
-                      className={`w-full text-left px-2.5 py-2 rounded-[var(--radius-sm)] transition-colors ${active ? 'active' : ''}`}
-                      style={{
-                        backgroundColor: active ? 'var(--bg-hover)' : 'transparent',
-                        borderLeft: active ? '3px solid var(--color-ai)' : '3px solid transparent',
-                        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">第 {b.batch_no} 批</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          {b.item_count} 条
-                        </span>
-                      </div>
-                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {formatBatchRange(b.start, b.end)}
-                      </div>
-                      {b.favorite_count > 0 && (
-                        <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-finance)' }}>
-                          ⭐ {b.favorite_count} 收藏
-                        </div>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </aside>
+        <HistoryPageBatchList
+          batches={batches}
+          batchesLoading={batchesLoading}
+          batchesError={batchesError}
+          selectedBatchNo={selectedBatchNo}
+          onSelectBatch={setSelectedBatchNo}
+        />
 
         {/* 右侧 items 区域 */}
         <main className="flex-1 min-w-0">
           {/* 批次元数据 + 筛选 */}
           {selectedBatchNo != null && summary && (
-            <div
-              className="rounded-[var(--radius-md)] p-3 mb-3"
-              style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
-            >
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                  第 {selectedBatchNo} 批
-                </span>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {formatBatchRange(summary.start, summary.end)} · 共 {summary.total} 条 · {summary.source_count} 个信源
-                </span>
-              </div>
-              {summary.top_sources.length > 0 && (
-                <div className="text-xs mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-                  Top 信源: {summary.top_sources.map(s => `${s.source}(${s.count})`).join(', ')}
-                </div>
-              )}
-            </div>
+            <BatchSummaryBar batchNo={selectedBatchNo} summary={summary} />
           )}
 
           {/* 分类 + 搜索 */}
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <button
-              onClick={() => setCategory('all')}
-              className="btn-ghost px-2.5 py-1 text-xs"
-              style={{
-                color: category === 'all' ? 'var(--color-ai)' : undefined,
-                borderBottom: category === 'all' ? '2px solid var(--color-ai)' : '2px solid transparent',
-              }}
-            >
-              全部
-            </button>
-            {CATEGORIES.filter(c => c.id !== 'all').map(c => (
-              <button
-                key={c.id}
-                onClick={() => setCategory(c.id)}
-                className="btn-ghost px-2.5 py-1 text-xs"
-                style={{
-                  color: category === c.id ? c.color : undefined,
-                  borderBottom: category === c.id ? `2px solid ${c.color}` : '2px solid transparent',
-                }}
-              >
-                {c.label}
-              </button>
-            ))}
-            <input
-              type="text"
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-              placeholder="搜索本批次内关键词 (FTS5)…"
-              className="ml-auto px-2 py-1 text-xs rounded-[var(--radius-sm)]"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                width: 240,
-              }}
-            />
-          </div>
+          <HistoryPageFilters
+            category={category}
+            keyword={keyword}
+            onCategoryChange={setCategory}
+            onKeywordChange={setKeyword}
+          />
 
           {/* items grid */}
           {itemsLoading && items.length === 0 && (
@@ -359,41 +234,21 @@ export function HistoryPage({ favoritedIds, onToggleFavorite }: HistoryPageProps
             className="grid gap-3"
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
           >
-            {items.map((item, i) => {
-              const isArchived = archivedIds.has(item.id);
-              const isArchiving = archivingIds.has(item.id);
-              return (
-                <div key={item.id} className="relative">
-                  <HotspotCard
-                    item={item}
-                    index={i}
-                    isFavorited={favoritedIds.has(item.id)}
-                    onToggleFavorite={onToggleFavorite}
-                  />
-                  <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleArchive(item); }}
-                      disabled={isArchived || isArchiving}
-                      className="btn-ghost px-1.5 py-0.5 text-[10px]"
-                      style={{
-                        backgroundColor: isArchived ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-                        color: isArchived ? 'var(--text-muted)' : 'var(--text-secondary)',
-                        border: '1px solid var(--border-color)',
-                        opacity: isArchiving ? 0.6 : 1,
-                        cursor: (isArchived || isArchiving) ? 'default' : 'pointer',
-                      }}
-                      title={isArchived ? '已归档到知识库' : '归档到知识库'}
-                    >
-                      {isArchiving ? '📚 归档中…' : isArchived ? '✓ 已归档' : '📚 归档'}
-                    </button>
-                    {reactionsAvailable && (
-                      <ReactionButtons item={item} current={reactionOf(item.id)} onReact={doReact} />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {items.map((item, i) => (
+              <HistoryPageItem
+                key={item.id}
+                item={item}
+                index={i}
+                isFavorited={favoritedIds.has(item.id)}
+                onToggleFavorite={onToggleFavorite}
+                isArchived={archivedIds.has(item.id)}
+                isArchiving={archivingIds.has(item.id)}
+                onArchive={handleArchive}
+                reactionsAvailable={reactionsAvailable}
+                currentReaction={reactionOf(item.id)}
+                onReact={doReact}
+              />
+            ))}
           </div>
 
           {/* 加载更多 sentinel */}

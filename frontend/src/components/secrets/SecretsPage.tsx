@@ -7,6 +7,8 @@
  *
  * API 保持向后兼容: export function SecretsPage({ onBack })
  * (App.tsx lazy import: import('./components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage })))
+ *
+ * B6-a 二次拆分: 头部右侧导入/导出/新增按钮 → ./SecretsToolbar (纯搬迁)。
  */
 import { useState, useEffect } from 'react';
 import { useSecrets } from '../../hooks/useSecrets';
@@ -19,6 +21,7 @@ import { SetupModal } from './SetupModal';
 import { UnlockModal } from './UnlockModal';
 import { MasterKeyPromptModal } from './MasterKeyPromptModal';
 import { RotationBanner } from './RotationBanner';
+import { SecretsToolbar } from './SecretsToolbar';
 import type { SecretsPageProps } from './types';
 
 export function SecretsPage({ onBack }: SecretsPageProps) {
@@ -86,94 +89,18 @@ export function SecretsPage({ onBack }: SecretsPageProps) {
             LLM API Key · 30 分钟解锁
           </span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            共 {total} 条
-          </span>
-          {status?.setup && (
-            <button
-              onClick={async () => {
-                if (!window.confirm('导入会更新同名 secret, 确认继续?')) return;
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'application/json,application/octet-stream,.json';
-                input.onchange = async (e: any) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setPromptRequest({
-                    title: '导入加密 JSON',
-                    hint: '请输入主密钥以解密',
-                    submitLabel: '导入',
-                    onSubmit: async (mk) => {
-                      setPromptRequest(null);
-                      try {
-                        const result = await importSecrets(file, mk);
-                        window.alert(
-                          `导入完成: 新增 ${result.inserted}, 更新 ${result.updated}, 失败 ${result.failures.length}`
-                        );
-                        await refreshList();
-                      } catch (err: any) {
-                        window.alert(`导入失败: ${err?.message || err}`);
-                      }
-                    },
-                  });
-                };
-                input.click();
-              }}
-              className="btn-ghost px-3 py-1.5 text-xs"
-              title="导入加密 JSON"
-            >
-              导入
-            </button>
-          )}
-          {status?.setup && (
-            <button
-              onClick={async () => {
-                setPromptRequest({
-                  title: '导出加密 JSON',
-                  hint: '主密钥不存 DB, 丢失则无法解密。导出文件用此密钥加密。',
-                  submitLabel: '导出',
-                  onSubmit: async (mk) => {
-                    setPromptRequest(null);
-                    try {
-                      const blob = await exportSecrets(mk);
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `secrets-export-${Math.floor(Date.now() / 1000)}.json`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    } catch (err: any) {
-                      window.alert(`导出失败: ${err?.message || err}`);
-                    }
-                  },
-                });
-              }}
-              className="btn-ghost px-3 py-1.5 text-xs"
-              title="导出加密 JSON (整个文件用 master_key 加密)"
-            >
-              导出
-            </button>
-          )}
-          {status?.setup && (
-            <button
-              onClick={() => {
-                setEditing(null);
-                setShowAddForm(s => !s);
-              }}
-              className="btn-ghost px-3 py-1.5 text-xs"
-              style={{
-                backgroundColor: showAddForm && !editing ? 'var(--bg-hover)' : undefined,
-                color: 'var(--color-ai)',
-                borderColor: 'var(--color-ai)',
-              }}
-            >
-              {showAddForm && !editing ? '收起表单' : '+ 新增'}
-            </button>
-          )}
-        </div>
+        <SecretsToolbar
+          total={total}
+          setup={!!status?.setup}
+          showAddForm={showAddForm}
+          editing={editing}
+          setPromptRequest={setPromptRequest}
+          setEditing={setEditing}
+          setShowAddForm={setShowAddForm}
+          importSecrets={importSecrets}
+          exportSecrets={exportSecrets}
+          refreshList={refreshList}
+        />
       </div>
 
       {/* 状态条 */}

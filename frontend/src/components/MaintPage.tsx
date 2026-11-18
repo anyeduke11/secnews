@@ -14,6 +14,10 @@
  * - 错误不抛 — 显示状态徽章, 不阻塞 SSE 心跳条
  * - 健康卡为只读仪表 (拉取后展示, 不触发操作)
  * - 清理类操作需二次确认 (本地 useState, 不阻塞 UI)
+ *
+ * B6-a 拆分: 类型 → MaintPage.types.ts, 共享小件 → MaintPageParts.tsx,
+ * 三张卡 → MaintPageHealthCard / MaintPageVacuumCard / MaintPageCleanupCard.
+ * 本文件只保留请求编排与页面骨架 (行为未变)。
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -27,101 +31,18 @@ import {
 } from '../api/settings';
 import { useI18n } from '../contexts/I18nContext';
 import { useAbortGuard } from '../hooks/useAbortGuard';
-
-/** 后端权威形状 = maintenance_service.db_health() (fragmentation_pct 已是百分数)。 */
-interface HealthResp {
-  size_mb?: number;
-  page_count?: number;
-  freelist_pages?: number;
-  fragmentation_pct?: number;
-  journal_mode?: string;
-}
-
-/** 后端权威形状 = maintenance_service.dirty_data_report() (嵌套;
- * DEV-0322: older_than_7_days → older_than_retention, 口径改台账动态
- * retention 且与 archive_quality_logs 同 isoformat cutoff)。 */
-interface DirtyReportResp {
-  quality_check_logs?: { total?: number; older_than_retention?: number; retention_days?: number };
-  duplicate_hotspots?: number;
-  duplicate_knowledge_items?: number;
-  orphan_raw_items?: number;
-  invalid_urls?: number;
-}
-
-/** 后端权威形状 = GET /quality-log-tiers (DEV-0322 进程内实测:
- * bands 末档 in_window=false 的 rows = 此刻点"清理"将真实归档的量)。 */
-interface TierBand {
-  index: number;
-  in_window: boolean;
-  from_days: number | null;
-  to_days: number;
-  rows: number;
-  est_bytes: number;
-}
-
-interface TiersResp {
-  tier_days?: number;
-  tiers?: number;
-  window_days?: number;
-  ledger_retention_days?: number;
-  total_rows?: number;
-  avg_row_bytes?: number;
-  total_est_bytes?: number;
-  bands?: TierBand[];
-}
-
-/** 后端权威形状 = maintenance_service.run_vacuum() (DEV-0318: 旧 ok/duration_ms/reindexed 为想象契约)。 */
-interface VacuumResp {
-  status?: string;
-  total_seconds?: number;
-}
-
-/** 后端权威形状 = GET /api/maintenance/index-health (DEV-0320, 进程内实测:
- * check=ok|\"N issues\"|probe_failed:*; user/auto 索引分列;
- * stat1_covered 为绝对数展示 — 小表/纯 autoindex 表 ANALYZE 有意跳过,
- * 覆盖率分母会制造"欠 stats"假异常, 前端不用 tables_with_indexes 组成比率)。 */
-interface IndexHealthSchema {
-  schema: string;
-  file: string;
-  user_indexes: number;
-  auto_indexes: number;
-  tables_with_indexes: number;
-  stat1_covered: number;
-  check: string;
-  check_errors: string[];
-  check_ms: number;
-}
-
-interface IndexHealthResp {
-  mode?: string;
-  checked_at?: string;
-  schemas?: IndexHealthSchema[];
-  totals?: {
-    user_indexes: number;
-    auto_indexes: number;
-    schemas_ok: number;
-    schemas_total: number;
-  };
-}
-
-/** 后端权威形状 = cleanup_quality_logs() (薄包装 archive_quality_logs;
- * DEV-0318: 旧 /cleanup + {deleted} 全对不上 → 按钮永远空跑)。 */
-interface CleanupResp {
-  dry_run?: boolean;
-  retention_days?: number;
-  rows_to_delete?: number;
-  rows_archived?: number;
-  rows_remaining_after?: number;
-}
-
-type ToolStatus = 'idle' | 'running' | 'ok' | 'error';
-
-function fmtBytes(n: number): string {
-  // avg 宽度估算展示 (后端口径: 文本列 SUM(LENGTH) + 数值列 ~10B/行)
-  if (n <= 0) return '0 KB';
-  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
+import { MaintPageCleanupCard } from './MaintPageCleanupCard';
+import { MaintPageHealthCard } from './MaintPageHealthCard';
+import { MaintPageVacuumCard } from './MaintPageVacuumCard';
+import type {
+  CleanupResp,
+  DirtyReportResp,
+  HealthResp,
+  IndexHealthResp,
+  TiersResp,
+  ToolStatus,
+  VacuumResp,
+} from './MaintPage.types';
 
 export function MaintPage() {
   const { t } = useI18n();
@@ -221,15 +142,6 @@ export function MaintPage() {
     }
   }, [cutoffDays, fetchHealth, dead]);
 
-  const statusBadge = (s: ToolStatus): { bg: string; fg: string; text: string } => {
-    switch (s) {
-      case 'running': return { bg: 'var(--bg-info, var(--bg-elevated))', fg: 'var(--text-on-info, var(--ink))', text: t('maint.status.running') };
-      case 'ok': return { bg: 'var(--bg-success, var(--bg-elevated))', fg: 'var(--text-on-success, var(--mint))', text: t('maint.status.ok') };
-      case 'error': return { bg: 'var(--bg-warning)', fg: 'var(--text-on-warning, var(--color-error))', text: t('maint.status.error') };
-      default: return { bg: 'var(--bg-elevated)', fg: 'var(--ink-3)', text: t('maint.status.idle') };
-    }
-  };
-
   return (
     <div className="px-6 py-8 max-w-7xl mx-auto">
       <header className="mb-8">
@@ -243,280 +155,35 @@ export function MaintPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 健康: 只读 */}
-        <section
-          data-testid="maint-card-health"
-          className="rounded-lg p-5"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-mono" style={{ color: 'var(--ink-3)' }}>
-              {t('maint.health.title')}
-            </h2>
-            <button
-              type="button"
-              onClick={fetchHealth}
-              className="text-xs font-mono px-2 py-0.5 rounded"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--ink-2)' }}
-            >
-              {t('maint.refresh')}
-            </button>
-          </div>
-          {healthError && !health ? (
-            <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
-              {t('maint.health.error')}
-            </p>
-          ) : health ? (
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.dbSize')}</dt>
-                <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.size_mb?.toFixed(1) ?? '—'} MB
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.freePages')}</dt>
-                <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.freelist_pages ?? '—'}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.fragmentation')}</dt>
-                <dd className="font-mono" style={{ color: 'var(--ink)' }}>
-                  {health.fragmentation_pct != null ? `${health.fragmentation_pct.toFixed(1)}%` : '—'}
-                </dd>
-              </div>
-              {dirty && (
-                <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <div className="flex justify-between">
-                    <dt style={{ color: 'var(--ink-3)' }}>{t('maint.health.cleanupCandidates')}</dt>
-                    <dd className="font-mono" style={{ color: (dirty.quality_check_logs?.older_than_retention ?? 0) > 100 ? 'var(--color-warning)' : 'var(--ink)' }}>
-                      {dirty.quality_check_logs?.older_than_retention ?? '—'}
-                    </dd>
-                  </div>
-                </div>
-              )}
-            </dl>
-          ) : (
-            <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
-              {t('maint.health.loading')}
-            </p>
-          )}
-        </section>
+        <MaintPageHealthCard
+          health={health}
+          dirty={dirty}
+          healthError={healthError}
+          onRefresh={fetchHealth}
+        />
 
         {/* 索引重建 */}
-        <section
-          data-testid="maint-card-vacuum"
-          className="rounded-lg p-5"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-mono" style={{ color: 'var(--ink-3)' }}>
-              {t('maint.vacuum.title')}
-            </h2>
-            <span
-              className="text-xs px-2 py-0.5 rounded font-mono"
-              style={{ background: statusBadge(vacuum).bg, color: statusBadge(vacuum).fg }}
-            >
-              {statusBadge(vacuum).text}
-            </span>
-          </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
-            {t('maint.vacuum.desc')}
-          </p>
-          {/* DEV-0320: 重建前先看到索引真实状态 (curl 实测契约, fail-loud) */}
-          <div className="mb-4 rounded p-3" style={{ background: 'var(--bg-elevated)' }} data-testid="maint-index-status">
-            {indexHealthError && !indexHealth ? (
-              <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
-                {t('maint.vacuum.indexError')}
-              </p>
-            ) : indexHealth?.schemas ? (
-              <div className="space-y-1.5">
-                <div className="text-xs font-mono mb-2" style={{ color: 'var(--ink-3)' }}>
-                  {t('maint.vacuum.indexTitle')}
-                </div>
-                {indexHealth.schemas.map((s) => {
-                  const ok = s.check === 'ok';
-                  return (
-                    <div key={s.schema} data-testid={`maint-index-row-${s.schema}`} className="text-xs font-mono flex items-baseline justify-between gap-2">
-                      <span className="shrink-0" style={{ color: 'var(--ink-2)' }}>
-                        {s.schema}
-                        {s.file && <span style={{ color: 'var(--ink-3)' }}> ({s.file})</span>}
-                      </span>
-                      <span className="text-right" style={{ color: ok ? 'var(--ink-2)' : 'var(--color-warning)' }}>
-                        {t('maint.vacuum.idx')} {s.user_indexes}
-                        <span style={{ color: 'var(--ink-3)' }}>+{s.auto_indexes}</span>
-                        {' · '}
-                        {s.check}
-                        {` ${s.check_ms}ms`}
-                        {' · '}
-                        {t('maint.vacuum.stats')} {s.stat1_covered}
-                      </span>
-                    </div>
-                  );
-                })}
-                {indexHealth.schemas.some((s) => s.check !== 'ok' && s.check_errors.length > 0) && (
-                  <p className="text-xs font-mono" style={{ color: 'var(--color-warning)', wordBreak: 'break-all' }}>
-                    {indexHealth.schemas
-                      .filter((s) => s.check !== 'ok' && s.check_errors.length > 0)
-                      .map((s) => `${s.schema}: ${s.check_errors[0]}`)
-                      .join(' | ')}
-                  </p>
-                )}
-                <div className="text-xs font-mono pt-1.5" style={{ borderTop: '1px solid var(--border-color)', color: 'var(--ink-3)' }}>
-                  {indexHealth.mode === 'full' ? t('maint.vacuum.modeFull') : t('maint.vacuum.modeQuick')}
-                  {' · '}
-                  {indexHealth.totals?.schemas_ok}/{indexHealth.totals?.schemas_total} {t('maint.vacuum.schemasOk')}
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
-                {t('maint.vacuum.checking')}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={runVacuum}
-            disabled={vacuum === 'running'}
-            className="text-sm px-4 py-2 rounded font-mono disabled:opacity-50"
-            style={{ background: 'var(--mint)', color: 'var(--text-on-success, #fff)' }}
-          >
-            {vacuum === 'running' ? t('maint.status.running') : t('maint.vacuum.cta')}
-          </button>
-          {vacuumInfo && (
-            <div className="mt-3 text-xs font-mono" style={{ color: 'var(--ink-2)' }}>
-              {vacuumInfo.total_seconds != null && (
-                <div>{t('maint.vacuum.duration')}: {vacuumInfo.total_seconds}s</div>
-              )}
-            </div>
-          )}
-        </section>
+        <MaintPageVacuumCard
+          indexHealth={indexHealth}
+          indexHealthError={indexHealthError}
+          vacuum={vacuum}
+          vacuumInfo={vacuumInfo}
+          onRunVacuum={runVacuum}
+        />
 
         {/* 清理 */}
-        <section
-          data-testid="maint-card-cleanup"
-          className="rounded-lg p-5"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-mono" style={{ color: 'var(--ink-3)' }}>
-              {t('maint.cleanup.title')}
-            </h2>
-            <span
-              className="text-xs px-2 py-0.5 rounded font-mono"
-              style={{ background: statusBadge(cleanup).bg, color: statusBadge(cleanup).fg }}
-            >
-              {statusBadge(cleanup).text}
-            </span>
-          </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
-            {t('maint.cleanup.desc')}
-          </p>
-          {/* DEV-0322: 近三档 + 超窗口档真实统计 (口径与清理执行同源,
-              超窗口行 = 此刻点清理将真实归档的量; 失败态独立 fail-loud) */}
-          <div className="mb-4 rounded p-3" style={{ background: 'var(--bg-elevated)' }} data-testid="maint-tier-status">
-            {tiersError && !tiers ? (
-              <p className="text-xs font-mono" role="alert" style={{ color: 'var(--color-error)' }}>
-                {t('maint.cleanup.tierError')}
-              </p>
-            ) : tiers?.bands ? (
-              <div className="space-y-1.5">
-                <div className="text-xs font-mono mb-2" style={{ color: 'var(--ink-3)' }}>
-                  {t('maint.cleanup.tierTitle')}
-                </div>
-                {tiers.bands.map((b) => {
-                  const out = !b.in_window;
-                  return (
-                    <div
-                      key={b.index}
-                      data-testid={`maint-tier-row-${b.index}`}
-                      className="text-xs font-mono flex items-baseline justify-between gap-2"
-                    >
-                      <span className="shrink-0" style={{ color: out && b.rows > 0 ? 'var(--color-warning)' : 'var(--ink-2)' }}>
-                        {out
-                          ? `${t('maint.cleanup.tierOut')} >${b.to_days}${t('maint.cleanup.daysUnit')}`
-                          : `${t('maint.cleanup.tier')} ${b.index} · ${b.to_days}–${b.from_days}${t('maint.cleanup.daysUnit')}`}
-                      </span>
-                      <span className="text-right" style={{ color: 'var(--ink-2)' }}>
-                        {b.rows}{t('maint.cleanup.rowsUnit')} · ~{fmtBytes(b.est_bytes)}
-                      </span>
-                    </div>
-                  );
-                })}
-                <div className="text-xs font-mono pt-1.5" style={{ borderTop: '1px solid var(--border-color)', color: 'var(--ink-3)' }}>
-                  {t('maint.cleanup.windowLabel')}: {tiers.window_days}{t('maint.cleanup.daysUnit')}
-                  {' · '}
-                  {t('maint.cleanup.ledgerLabel')}: {tiers.ledger_retention_days}{t('maint.cleanup.daysUnit')}
-                  {' · ~'}{fmtBytes(tiers.total_est_bytes ?? 0)}
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
-                {t('maint.cleanup.tierChecking')}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <label className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
-              {t('maint.cleanup.cutoffDays')}
-            </label>
-            <input
-              type="number"
-              data-testid="maint-cleanup-days"
-              min={7}
-              max={365}
-              value={cutoffDays}
-              onChange={(e) => setCutoffDays(Number(e.target.value))}
-              className="w-20 px-2 py-1 text-sm font-mono rounded"
-              style={{
-                background: 'var(--bg-input)',
-                color: 'var(--ink)',
-                border: '1px solid var(--border-color)',
-              }}
-            />
-          </div>
-          {cleanupConfirm ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={runCleanup}
-                disabled={cleanup === 'running'}
-                className="text-sm px-3 py-2 rounded font-mono disabled:opacity-50"
-                style={{ background: 'var(--color-error)', color: 'var(--text-on-warning, #fff)' }}
-              >
-                {t('maint.cleanup.confirm')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCleanupConfirm(false)}
-                className="text-sm px-3 py-2 rounded font-mono"
-                style={{ background: 'var(--bg-elevated)', color: 'var(--ink-2)' }}
-              >
-                {t('maint.cleanup.cancel')}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCleanupConfirm(true)}
-              disabled={cleanup === 'running'}
-              className="text-sm px-4 py-2 rounded font-mono disabled:opacity-50"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--ink)' }}
-            >
-              {cleanup === 'running' ? t('maint.status.running') : t('maint.cleanup.cta')}
-            </button>
-          )}
-          {cleanupInfo && (
-            <div className="mt-3 text-xs font-mono" style={{ color: 'var(--ink-2)' }}>
-              {cleanupInfo.rows_archived != null && (
-                <div>{t('maint.cleanup.archived')}: {cleanupInfo.rows_archived}</div>
-              )}
-              {cleanupInfo.rows_remaining_after != null && (
-                <div>{t('maint.cleanup.remaining')}: {cleanupInfo.rows_remaining_after}</div>
-              )}
-            </div>
-          )}
-        </section>
+        <MaintPageCleanupCard
+          tiers={tiers}
+          tiersError={tiersError}
+          cleanup={cleanup}
+          cleanupInfo={cleanupInfo}
+          cutoffDays={cutoffDays}
+          cleanupConfirm={cleanupConfirm}
+          onCutoffDaysChange={setCutoffDays}
+          onRunCleanup={runCleanup}
+          onRequestConfirm={() => setCleanupConfirm(true)}
+          onCancelConfirm={() => setCleanupConfirm(false)}
+        />
       </div>
     </div>
   );

@@ -1,25 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
 import { createAnnotation, deleteKnowledgeItem, getKnowledgeItem, listAnnotations, updateKnowledgeItem } from '../api/knowledge';
 import type { KnowledgeItemPatch } from '../api/knowledge';
 import { importFromKnowledgeWithStatus } from '../api/codegarden';
-import { Icon } from './Icon';
-
-interface ItemDetailDialogProps {
-  item_id: string | null;
-  onClose: () => void;
-}
-
-const DOMAINS = ['security', 'ai', 'finance', 'startup', 'engineering', 'product'];
-const TYPES = ['news', 'analysis', 'paper', 'tutorial', 'tool', 'opinion'];
-const DIFFICULTIES = ['beginner', 'intermediate', 'advanced', 'expert'];
-
-const labelStyle: React.CSSProperties = {
-  color: 'var(--text-muted)',
-  fontSize: '10px',
-  marginBottom: '2px',
-  display: 'block',
-};
+import { ItemDetailDialogProps, ItemAnnotation } from './ItemDetailDialog.types';
+import { ItemDetailDialogHeader } from './ItemDetailDialogHeader';
+import { ItemDetailDialogFooter } from './ItemDetailDialogFooter';
+import {
+  BasicInfoSection,
+  CategoryEditSection,
+  TagsSection,
+  ConceptsSection,
+  AnnotationSection,
+  MasterySection,
+  ContentSection,
+} from './ItemDetailDialogParts';
 
 export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const [item, setItem] = useState<KnowledgeItem | null>(null);
@@ -32,13 +27,13 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
   const [toast, setToast] = useState<string | null>(null);
   // P3-3: 标注 (此前 NoteEditor 只在不可达的死路由 /reviews /deep 中,
   // annotations 表恒 0 → 标注功能在实际 UI 中不存在)
-  const [notes, setNotes] = useState<Array<{ id: number; content: string; created_at?: string }>>([]);
+  const [notes, setNotes] = useState<ItemAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
 
   const loadNotes = useCallback((id: string) => {
     // 原 r.ok ? json : null 语义经 apiFetch 归一: 非 ok 也走 catch → null → 清空 notes
-    listAnnotations<{ id: number; content: string; created_at?: string }>('knowledge_item', id)
+    listAnnotations<ItemAnnotation>('knowledge_item', id)
       .catch(() => null)
       .then(data => {
         const items = data?.items ?? data?.annotations ?? [];
@@ -194,28 +189,7 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
         }}
       >
         {/* 顶部标题 */}
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Icon size={16}>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </Icon>
-            条目详情
-          </h3>
-          <button
-            onClick={onClose}
-            className="btn-ghost px-2 py-0.5 text-xs"
-            aria-label="关闭"
-          >
-            <Icon size={14}>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </Icon>
-          </button>
-        </div>
+        <ItemDetailDialogHeader onClose={onClose} />
 
         {loading && (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>
@@ -234,217 +208,40 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
 
         {item && !loading && (
           <div className="space-y-3">
-            {/* 1. 基本信息 */}
-            <div>
-              <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>基本信息</p>
-              <div className="rounded-[var(--radius-sm)] p-2.5" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                <div className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                  {item.title}
-                </div>
-                <div className="text-[10px] space-y-0.5" style={{ color: 'var(--text-muted)' }}>
-                  <div>来源: {item.source} {item.source_url && <span>· <a href={item.source_url} target="_blank" rel="noreferrer" style={{ color: 'var(--color-ai)' }}>原文链接</a></span>}</div>
-                  <div>录入时间: {item.ingested_at}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. 分类编辑 */}
-            <div>
-              <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>分类</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label style={labelStyle}>domain</label>
-                  <select className="tech-select px-2 py-1 text-xs w-full" value={domain} onChange={e => setDomain(e.target.value)}>
-                    <option value="">(未设置)</option>
-                    {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>topic</label>
-                  <input type="text" className="tech-input px-2 py-1 text-xs w-full" value={topic} onChange={e => setTopic(e.target.value)} placeholder="主题" />
-                </div>
-                <div>
-                  <label style={labelStyle}>type</label>
-                  <select className="tech-select px-2 py-1 text-xs w-full" value={type} onChange={e => setType(e.target.value)}>
-                    <option value="">(未设置)</option>
-                    {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>difficulty</label>
-                  <select className="tech-select px-2 py-1 text-xs w-full" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
-                    <option value="">(未设置)</option>
-                    {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. 标签 */}
-            <div>
-              <label style={labelStyle}>tags (逗号分隔)</label>
-              <input type="text" className="tech-input px-2 py-1 text-xs w-full" value={tagsText} onChange={e => setTagsText(e.target.value)} placeholder="tag1, tag2, ..." />
-            </div>
-
-            {/* 4. 概念列表（只读） */}
-            <div>
-              <label style={labelStyle}>concepts (只读)</label>
-              <div className="flex flex-wrap gap-1">
-                {item.concepts && item.concepts.length > 0 ? (
-                  item.concepts.map(c => (
-                    <span
-                      key={c}
-                      className="px-2 py-0.5 rounded-[var(--radius-sm)] text-[10px]"
-                      style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-ai)' }}
-                    >
-                      {c}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>(无)</span>
-                )}
-              </div>
-            </div>
-
-            {/* 5. 标注 (P3-3) */}
-            <div>
-              <label style={labelStyle}>标注 / 笔记</label>
-              <div className="space-y-1.5">
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    className="tech-input px-2 py-1 text-xs w-full"
-                    value={noteText}
-                    onChange={e => setNoteText(e.target.value)}
-                    placeholder="写一条笔记…"
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddNote(); }}
-                  />
-                  <button
-                    onClick={handleAddNote}
-                    disabled={noteSaving || !noteText.trim()}
-                    className="btn-ghost px-2.5 py-1 text-xs shrink-0"
-                    style={{ color: 'var(--color-ai)', opacity: noteSaving ? 0.6 : 1 }}
-                  >
-                    {noteSaving ? '保存…' : '添加'}
-                  </button>
-                </div>
-                {notes.length > 0 ? (
-                  <div className="space-y-1">
-                    {notes.map(n => (
-                      <div
-                        key={n.id}
-                        className="rounded-[var(--radius-sm)] px-2 py-1.5 text-[11px]"
-                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
-                      >
-                        {n.content}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    (暂无标注 — 在上方输入后回车添加)
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 6. 掌握度 */}
-            <div>
-              <label style={labelStyle}>mastery: {mastery}</label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={mastery}
-                onChange={e => setMastery(Number(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--color-ai)' }}
-              />
-            </div>
-
-            {/* 6. Markdown 正文（只读） */}
-            <div>
-              <label style={labelStyle}>正文 (Markdown, 只读)</label>
-              <pre
-                className="rounded-[var(--radius-sm)] p-2.5 text-[11px] overflow-auto"
-                style={{
-                  backgroundColor: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  maxHeight: '240px',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  margin: 0,
-                }}
-              >
-{content || '(无正文)'}
-              </pre>
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="btn-ghost px-3 py-1.5 text-xs"
-                style={{ color: 'var(--color-ai)', opacity: saving ? 0.6 : 1 }}
-              >
-                {saving ? '保存中…' : '保存修改'}
-              </button>
-              {item.type === 'github' && (
-                <button
-                  onClick={handleAddToCodegarden}
-                  className="btn-ghost px-3 py-1.5 text-xs"
-                  style={{ color: 'var(--color-startup)' }}
-                  title="转化为 CodeGarden 项目 (source_type=reference)"
-                >
-                  🌱 加入 CodeGarden
-                </button>
-              )}
-              <button
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleting}
-                className="btn-ghost px-3 py-1.5 text-xs"
-                style={{ color: 'var(--color-error)', opacity: deleting ? 0.6 : 1 }}
-              >
-                删除
-              </button>
-              {toast && (
-                <span className="text-[10px] ml-auto" style={{
-                  color: toast.startsWith('✓') ? 'var(--color-ai)' : 'var(--color-error)',
-                }}>
-                  {toast}
-                </span>
-              )}
-            </div>
-
-            {/* 删除确认弹窗 */}
-            {confirmDelete && (
-              <div
-                className="rounded-[var(--radius-sm)] p-3"
-                style={{ backgroundColor: 'var(--bg-hover)', border: '1px solid var(--color-error)' }}
-              >
-                <p className="text-xs mb-2" style={{ color: 'var(--text-primary)' }}>
-                  确认删除此条目? 此操作不可撤销。
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="btn-ghost px-3 py-1 text-xs"
-                    style={{ color: 'var(--color-error)', opacity: deleting ? 0.6 : 1 }}
-                  >
-                    {deleting ? '删除中…' : '确认删除'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="btn-ghost px-3 py-1 text-xs"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    取消
-                  </button>
-                </div>
-              </div>
-            )}
+            <BasicInfoSection item={item} />
+            <CategoryEditSection
+              domain={domain}
+              topic={topic}
+              type={type}
+              difficulty={difficulty}
+              onDomainChange={setDomain}
+              onTopicChange={setTopic}
+              onTypeChange={setType}
+              onDifficultyChange={setDifficulty}
+            />
+            <TagsSection tagsText={tagsText} onTagsTextChange={setTagsText} />
+            <ConceptsSection concepts={item.concepts} />
+            <AnnotationSection
+              notes={notes}
+              noteText={noteText}
+              noteSaving={noteSaving}
+              onNoteTextChange={setNoteText}
+              onAddNote={handleAddNote}
+            />
+            <MasterySection mastery={mastery} onMasteryChange={setMastery} />
+            <ContentSection content={content} />
+            <ItemDetailDialogFooter
+              item={item}
+              saving={saving}
+              deleting={deleting}
+              confirmDelete={confirmDelete}
+              toast={toast}
+              onSave={handleSave}
+              onAddToCodegarden={handleAddToCodegarden}
+              onRequestDelete={() => setConfirmDelete(true)}
+              onCancelDelete={() => setConfirmDelete(false)}
+              onDelete={handleDelete}
+            />
           </div>
         )}
       </div>

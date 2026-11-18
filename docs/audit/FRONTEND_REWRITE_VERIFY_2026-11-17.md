@@ -671,5 +671,71 @@ python scripts/generate_meta.py --check          # OK
 ② `SettingsDashboard` 的 `QUICK_JUMPS` 是硬编码字面量，其顺序与新侧边栏顺序（collection 在 network 之前）不完全一致。本批要求零 DOM 变更，未动；登记为轻微 UX 不一致，随 B6-d 或 B6-c 处理。
 ③ 全站组件层超限仍余 **8 件**：`MaintPage` 522 / `ItemDetailDialog` 453 / `DeepReadPage` 428 / `V1Prototype` 411 / `HistoryPage` 407 / `layout/LayerCard` 385 / `TodoItem` 376 / `secrets/SecretsPage` 320 → **B6-a**。
 
+## 14. B6-a 组件层剩余超限拆分验证证据（2026-11-18）
+
+> 承接 §13.6 ③ 的 8 件清单，一次拆完。**目标达成：全站组件层（非测试）超限文件 8 → 0**，剩余 10 件全部落在 R3 分层豁免的契约层。
+
+### 14.1 拆分结果（8 件 → 0 件，新增 23 文件）
+
+| 原文件 | 原行数 | 现行数 | 新增文件（行数） |
+|---|---|---|---|
+| `MaintPage.tsx` | 522 | **189** | `MaintPage.types.ts` 92 / `MaintPageParts.tsx` 22 / `MaintPageHealthCard.tsx` 80 / `MaintPageVacuumCard.tsx` 116 / `MaintPageCleanupCard.tsx` 163 |
+| `ItemDetailDialog.tsx` | 453 | **249** | `ItemDetailDialog.types.ts` 6 / `ItemDetailDialogHeader.tsx` 32 / `ItemDetailDialogParts.tsx` 223 / `ItemDetailDialogFooter.tsx` 98 |
+| `DeepReadPage.tsx` | 428 | **138** | `DeepReadPageSectionCard.tsx` 153 / `DeepReadPageHeader.tsx` 92 / `DeepReadPageMetaBar.tsx` 113 |
+| `v1/V1Prototype.tsx` | 411 | **47** | `V1PrototypeKnowledgeView.tsx` 198 / `V1PrototypeKnowledgeCard.tsx` 205 / `V1PrototypeParts.tsx` 14 |
+| `HistoryPage.tsx` | 407 | **261** | `HistoryPageBatchList.tsx` 95 / `HistoryPageFilters.tsx` 55 / `HistoryPageItem.tsx` 56 / `HistoryPageParts.tsx` 41 |
+| `layout/LayerCard.tsx` | 385 | **139** | `LayerCardParts.tsx` 174 / `LayerCardStates.tsx` 88 |
+| `TodoItem.tsx` | 376 | **253** | `TodoItemActions.tsx` 161 |
+| `secrets/SecretsPage.tsx` | 320 | **246** | `SecretsToolbar.tsx` 128 |
+
+- 主文件最大 261 行；新文件最大 223 行 —— **全部 ≤300**。
+- 拆分口径：纯搬迁。DOM 结构 / className / data-testid / i18n key / hooks 调用顺序逐字保留，未做任何行为或视觉改动。
+- **导出面零变更**：`MaintPage` / `ItemDetailDialog` / `DeepReadPage` / `KnowledgeV1Page` / `HistoryPage` / `TodoItem` / `SecretsPage` 全部从原路径同名导出；`layout/LayerCard` 的 **8 个导出**（`LayerCard` `LayerCardRow` `LayerCardGrid` `LayerCardAlert` `PipelineFlow` `ViewMoreLink` `LayerEmptyState` `LayerSkeleton`）经 `export { … } from './LayerCardParts'` 原样转发，调用方零改动。
+
+### 14.2 拆后全站超限扫描（组件层清零）
+
+```
+907 types/index.ts          847 api/settings.ts      762 api/v1.ts
+572 api/knowledge.ts        453 types/codegarden.ts  428 lib/i18n/messages.zh-CN.ts
+428 lib/i18n/messages.en-US.ts  420 api/secnews.ts   375 api/codegarden.ts
+315 hooks/realtime.ts
+```
+
+10 件**全部**属 §2.1 R3 分层豁免（契约层按职责拆分、不按行数）。组件层（`components/` `routes/` `shell/`）**零超限**。
+
+### 14.3 门禁实测
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0
+cd frontend && npx vitest run                    # 110 文件 / 783 tests 全通过
+cd frontend && npx vitest run --coverage         # 58.69 / 77.45 / 60.30 / 58.69 (Stmts/Branch/Funcs/Lines)
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK (56/19/99/155, core_routers 67)
+```
+
+- 覆盖率四项仍**全部高于** `vite.config.ts` 阈值（57.05 / 76.39 / 57.42）：+1.64 / +1.06 / +2.88 / +1.64 pp。
+- **登记小幅回落**：较 B6-b（58.92 / 77.61 / 60.61 / 58.92）为 −0.23 / −0.16 / −0.31 / −0.23 pp。归因：拆分后文件粒度变细，V8 计数按文件重置，`LayerCard`/`TodoItem` 两族本无测试覆盖（见 §14.5 ①），其行数在更小的文件里被更完整地计入分母。**未触及阈值，不构成门槛回退**。
+- 专项测试：`MaintPage.test.tsx` 11/11、`DeepReadPage.test.tsx` 10/10、`secrets` 域 11/11、`v1_url_builder.test.ts` 7/7（该测试静态读 `V1Prototype.tsx` 源码断言无 `MOCK_`，拆分后主文件 47 行仍满足）。**四个测试文件均未修改**。
+
+### 14.4 体积（观测项）
+
+| 指标 | B6-b | **B6-a** | 变化 |
+|---|---|---|---|
+| 首屏 JS 口径 A | 88,292 B | **88,272 B** | **−20 B** |
+| 入口 chunk | 23,219 | 23,201 | −18 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,257 | 11,255 | −2 |
+| 全量 JS / chunk 数 | 562,455 / 76 | 563,571 / 76 | +1,116 |
+
+纯搬迁不改代码总量，首屏 −20 B 属 gzip 分块边界抖动（非优化收益）。全量 +1,116 B 来自新增 `export`/`import` 语句与模块包装。较 B0 基线 92,998 累计 **−4,726 B**。
+
+### 14.5 未做与残留（显式声明）
+
+① **`LayerCard` 与 `TodoItem` 当前在 `src/` 内无任何实际 import**（并行拆分时实测 grep 无引用；仅 gitignored 的本地 hook 状态快照提及）。导出面按要求完整保留，**未做删除清理** —— 删除属"减少代码面"的独立决策，超出 B6-a「拆到 ≤300 行」范围，登记待 owner 定夺。
+
+② `V1Prototype.tsx` 文件名与导出名 `KnowledgeV1Page` 不一致，属既有约定，本批**未改名**（改名会波及 `routes/lazy-imports.ts`，非拆分范畴）。
+
+③ B6 剩余子批：**c** 工具页容器统一 / **d** 旧三份 CSS 收尾 + 全站 `st-*` 原子去前缀 + 性能对比 + 终章。
+
 
 

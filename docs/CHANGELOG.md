@@ -105,6 +105,16 @@
 - **体积**: 首屏 JS **88,279 → 88,292 B（+13 B）**，较 B0 基线 92,998 累计 **−4,706 B**；全量 562,455 B / 76 chunk
 - **留痕**: 验证报告 §13；契约 §6 批次进度表 B6-b 行；DEV-0401
 
+### 前端重构 V1 · B6-a 组件层剩余超限拆分 (DEV-0402, 2026-11-18)
+- **结果**: 组件层（`components/` `routes/` `shell/`）非测试超限文件 **8 → 0**，新增 23 文件，全部 ≤300 行（主文件最大 261 / 新文件最大 223）
+- **拆分**: `MaintPage` 522→189 · `ItemDetailDialog` 453→249 · `DeepReadPage` 428→138 · `v1/V1Prototype` 411→47 · `HistoryPage` 407→261 · `layout/LayerCard` 385→139 · `TodoItem` 376→253 · `secrets/SecretsPage` 320→246
+- **口径**: 纯搬迁（DOM / className / data-testid / i18n key / hooks 顺序逐字保留）；导出面零变更（`LayerCard` 8 个导出经 re-export 原样转发）；调用方零改动；四个既有测试文件未修改
+- **剩余超限 10 件全为 R3 契约层**（`types/` `api/` `lib/i18n/` `hooks/realtime.ts`），按职责拆分、不按行数
+- **门禁**: `tsc` 0 · 110 文件 / **783 tests 全通过** · 覆盖率 **58.69 / 77.45 / 60.30 / 58.69**（高于阈值，较 B6-b −0.23/−0.16/−0.31/−0.23 pp 已归因）· `vite build` 0 · `generate_meta --check` OK
+- **体积**: 首屏 JS **88,292 → 88,272 B**（−20 B 属 gzip 抖动），较 B0 基线 92,998 累计 **−4,726 B**；全量 563,571 B / 76 chunk
+- **显式声明**: `LayerCard` / `TodoItem` 在 `src/` 内已无实际 import，导出面保留但**未删除**（超范围，待定夺）
+- **留痕**: 验证报告 §14；契约 §6 批次进度表 B6 行；DEV-0402
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

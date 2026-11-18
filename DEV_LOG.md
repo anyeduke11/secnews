@@ -1,4 +1,16 @@
 
+## [DEV-0404] refactor(fe): 前端重构 V1 B6-c — 工具页容器统一（去双重 padding，B6 四子批收口）
+- **时间**: 2026-11-19
+- **类型**: 绞杀者 B6 子批 c（B6 最后一个子批；owner 裁定口径 A「最小」）
+- **病灶**: `PageLayout` 已提供 `max-w-[1580px] mx-auto px-4 sm:px-6 pt-4 pb-16` 容器，但 3 个 skills 工具页各自再套 `p-4 md:p-6` → 双重内边距（桌面 24+24 / 移动 16+16），留白口径不一致
+- **改动（3 文件，手术式）**: `skills/SkillStore.tsx` L115 / `skills/SkillDetail.tsx` L80 / `skills/SkillBuilder.tsx` L89 各删 `p-4 md:p-6` 一处，保留自身内容列宽（1400 / 900 / 800）与 `mx-auto w-full`；其余工具页实测无自有 padding / max-w（全仓 `p-4 md:p-6` 仅这 3 处），零改动
+- **口径说明**: 内容列宽（阅读型窄列）属业务语义，由各页保留；页边距统一由 PageLayout 提供 —— 与 owner 口径 A 一致，不引入新抽象（口径 B `primitives/ToolPage` / 口径 C PageLayout 独占宽度未采纳）
+- **门禁**: `tsc` exit 0 · skills 域 40 tests · 全量 **110 文件 / 783 tests 全通过** · `vite build` exit 0 · `generate_meta.py --check` OK
+- **体积（观测项）**: 首屏 JS gzip **88,314 → 88,294 B**（−20 B；index 23,205 + vendor-react 53,816 + SentinelHomePage 11,273），较 B0 基线 92,998 累计 **−4,704 B**；全量 JS 563,689 B / 76 chunk（−25 B）；首屏 CSS 12,759 → 12,754（−5 B）
+- **LCP（R4 唯一判定指标）**: 同脚本同夹具复测，with_fonts 中位 156 / 136 ms（两次测量），no_fonts 中位 124 / 128 ms —— 均 ≤ 201.6 ms，**达标**
+- **未做（显式声明）**: 无人工视觉截图比对（改动为纯删除重复 padding；如需可补 `preview` 逐页截图）
+- **留痕**: 验证报告 §16；契约 §6 批次进度表 B6 行（四子批全部交付）；CHANGELOG B6-c 小节
+
 ## [DEV-0403] refactor(fe): 前端重构 V1 B6-d — 壳层 / 资讯域 CSS 拆分（打破壳层硬性）
 - **时间**: 2026-11-19
 - **类型**: 绞杀者 B6 子批 d（承接 B6-a；旧三份 CSS 按 owner 口径「按业务流和逻辑重构，打破壳层硬性」处置）

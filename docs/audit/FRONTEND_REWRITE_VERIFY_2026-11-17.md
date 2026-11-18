@@ -15,7 +15,7 @@
 | B4 | 资讯域 `/` 重写 | 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增 | ✅ 2026-11-18（见 §8；包体积于 §8.5 复测达标，D7 已关闭） |
 | B5 | 知识域 + 行动域重写（owner 裁决范围 = 12 个超限文件） | 同上 | ✅ 2026-11-18（见 §9 + §10 + **§11 B5.6**；12 + 7 = 19 个超限容器全部达标） |
 | B5.6 | 剩余 7 个超限文件拆分 + R3 契约冲突裁决 | 同上 + 豁免口径落地 | ✅ 2026-11-18（见 §11） |
-| B6 | 设置域 + 工具页 + 旧 CSS 删除 + **组件层剩余 17 件超限拆分** + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ⏳ 未开始 |
+| B6 | 设置域 + 工具页 + 旧 CSS 删除 + **组件层剩余 17 件超限拆分** + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ✅ 2026-11-19（四子批 a/b/c/d，见 §13–§16；R4 LCP 单指标达标） |
 
 ## 2. B1 验证证据
 
@@ -824,9 +824,69 @@ const SENTINEL_CSS = `${SHELL_CSS}\n${SENTINEL_CSS_FILE}`;
 
 ③ `sentinel-action.css` / `sentinel-graph.css` **不搬目录**（理由见 §15.1）。
 
-④ B6 剩余子批 **c**（工具页容器统一）未做，待 owner 放行。
+④ B6 剩余子批 **c**（工具页容器统一）**已由 §16 交付**（2026-11-19，DEV-0404）。
 
 ⑤ LCP 采样为冷缓存 + 固定夹具口径，未覆盖弱网/低端机场景；本报告不据此声称移动端或弱网指标。
+
+## 16. B6-c 验证（工具页容器统一，口径 A）
+
+### 16.1 病灶与改动
+
+`PageLayout`（唯一挂载点 `routes/index.tsx#L135`）提供 `tool-main max-w-[1580px] mx-auto px-4 sm:px-6 pt-4 pb-16`（本批未改动），3 个 skills 工具页又各自再套一层 `p-4 md:p-6` → 双重内边距。
+
+| 文件 | 改动 |
+|---|---|
+| `skills/SkillStore.tsx#L115` | 删 `p-4 md:p-6`，保留 `max-w-[1400px] mx-auto w-full` |
+| `skills/SkillDetail.tsx#L80` | 删 `p-4 md:p-6`，保留 `max-w-[900px] mx-auto w-full` |
+| `skills/SkillBuilder.tsx#L89` | 删 `p-4 md:p-6`，保留 `max-w-[800px] mx-auto w-full` |
+
+全仓 `grep 'p-4 md:p-6'` 实测仅这 3 处；三页均只经 `/skill-store*` 路由在 PageLayout 内挂载（grep 无其他消费者）；其余工具页无自有 `max-w` / padding 容器包裹，未改动。
+
+### 16.2 口径
+
+owner 2026-11-19 裁定 **口径 A（最小）**：内容列宽（1400 / 900 / 800 属阅读型业务语义）由各页保留；**页边距统一由 PageLayout 提供**。口径 B（抽 `primitives/ToolPage`）与口径 C（PageLayout 独占宽度）未采纳 —— C 会把 900/800 窄阅读列拉宽，破坏详情 / 向导阅读体验。
+
+### 16.3 门禁
+
+```bash
+cd frontend && npx tsc --noEmit                      # exit 0
+cd frontend && npx vitest run src/components/skills   # 40 tests passed
+cd frontend && npx vitest run --reporter=dot          # 110 文件 / 783 tests 全通过
+cd frontend && npx vite build --logLevel error        # exit 0
+python scripts/generate_meta.py --check               # OK
+```
+
+`nav4_shell.test.tsx` 无 `p-4 md:p-6` / `max-w-[1400|900|800px]` 断言（grep 实测），容器守卫（`max-width 1580 + 底部 64px`）指向 PageLayout，本批未触及。
+
+### 16.4 体积（观测项，口径 A = 入口 + vendor-react + SentinelHomePage）
+
+| 项 | B6-d | B6-c | Δ |
+|---|---|---|---|
+| index（入口，取自 `dist/index.html`） | 23,225 | 23,205 | −20 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,273 | 11,273 | 0 |
+| **首屏 JS gzip** | 88,314 | **88,294** | **−20** |
+| 全量 JS gzip / chunk | 563,714 / 76 | 563,689 / 76 | −25 |
+| 首屏 CSS gzip（index-*.css） | 12,759 | 12,754 | −5 |
+
+较 B0 基线 92,998 累计 **−4,704 B（−5.06%）**，满足 R4「每批登记且不得高于基线」。
+
+### 16.5 LCP 复测（R4 唯一判定指标）
+
+`node perf/lcp_ab.mjs --runs=3`（复用 §15.6 同脚本 / 同夹具 / 已常驻 4173 的 `vite preview` 冷缓存）：
+
+| 组 | 三次采样 (ms) | 中位 | LCP 元素 |
+|---|---|---|---|
+| with_fonts | 300 / 136 / 156 | **156** | `h1.headline` |
+| no_fonts | 124 / 112 / 128 | **124** | `h1.headline` |
+
+同会话另一次测量（相隔数分钟）：with_fonts 中位 **136** / no_fonts 中位 **128**。两组四次测量中位区间 124–156 ms，均 ≤ 201.6 ms → **达标**（较基线 252 ms 降 38%–51%）。with_fonts 首轮 300 ms 为字体 CDN 单次抖动，后续采样回落 —— 与 R4 归因一致。
+
+### 16.6 未做与残留（显式声明）
+
+① 口径 B / C 未采纳（owner 裁定 A）：本批零新增抽象、零 CSS 变更。
+② 其余工具页（`SkillsPage` / `/dashboard` / `/secrets` / `/report` / `/maint` / 知识域子页）实测无自有容器包裹，未改动 —— 统一动作只落在确有双重容器的 3 页。
+③ 未做人工视觉截图回归（仓库无视觉基线）：本批为删除重复 padding 的确定性改动；如需可对 3 页补 `preview` 截图比对。
 
 
 

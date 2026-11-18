@@ -77,7 +77,8 @@ export function SkillDetail({ skillId: skillIdProp, onBack }: { skillId?: string
   }, [searchParams, detail]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-6 max-w-[900px] mx-auto w-full">
+    // B6-c: 外边距由 PageLayout 统一提供, 页内不再重复 padding
+    <div className="flex flex-col gap-4 max-w-[900px] mx-auto w-full">
       {/* 页头 */}
       <header className="flex items-center gap-3">
         {onBack && (

@@ -115,6 +115,15 @@
 - **显式声明**: `LayerCard` / `TodoItem` 在 `src/` 内已无实际 import，导出面保留但**未删除**（超范围，待定夺）
 - **留痕**: 验证报告 §14；契约 §6 批次进度表 B6 行；DEV-0402
 
+### 前端重构 V1 · B6-c 工具页容器统一 (DEV-0404, 2026-11-19)
+- **病灶**: `PageLayout` 已统一提供 `max-w-1580 + px-4 sm:px-6 pt-4 pb-16`，3 个 skills 工具页又各自套 `p-4 md:p-6` → 双重内边距
+- **改动**: `SkillStore` / `SkillDetail` / `SkillBuilder` 各删重复 `p-4 md:p-6`，保留内容列宽 1400/900/800 与 `mx-auto w-full`；其余工具页无自有容器（全仓仅这 3 处），零改动
+- **口径**: owner 裁定 A（最小）—— 页边距归 PageLayout，内容列宽归业务页；不新增 `ToolPage` 抽象
+- **门禁**: `tsc` 0 · 110 文件 / **783 tests 全通过** · `vite build` 0 · `generate_meta --check` OK
+- **体积（观测项）**: 首屏 JS **88,314 → 88,294 B（−20 B）**，较 B0 累计 −4,704 B；全量 563,689 B / 76 chunk
+- **LCP**: with_fonts 中位 136–156 ms / no_fonts 124–128 ms，均 ≤ 201.6 ms 达标
+- **留痕**: 验证报告 §16；契约 §6 B6 行（四子批全部交付）；DEV-0404
+
 ### 前端重构 V1 · B6-d 壳层 / 资讯域 CSS 拆分 (DEV-0403, 2026-11-19)
 - **病灶**: `sentinel.css` 607 行被 `AppShell.tsx` 全局 import → 设置域 / 工具页被迫加载全部资讯域样式（「壳层硬性」）
 - **拆分**: 新建 `shell/shell.css` **275 行**（壳层 + 全站共享原子：`--sn-*` 别名层 / 元素重置 / masthead / cmdbar / bandnav / pressbar / 空态骨架 / 心跳漏斗 / 壳层响应式）；`sentinel.css` **358 行**（仅资讯域，由资讯域三页 import）；`AppShell.tsx` 改 import `./shell.css`。607 → 633（+26 为文件头 16 + 拆分的 `@media` 副本 7 + 分节注释 3，逐行多重集比对已核）

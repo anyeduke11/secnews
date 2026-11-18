@@ -67,6 +67,15 @@
 - **flaky 披露**：全量首跑 1 例失败 `settings/OpsRunsPanel.test.tsx` L42（停在「载入中…」）；单跑 5/5、该文件自 `7f65f1a` 后零改动、全量复跑全绿 → 判为负载敏感型既有抖动（同 DEV-0396 型），非本批引入
 - **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §9
 
+### 前端重构 V1 · B5 续拆（知识域 + 行动域剩余 9 个超限文件）(DEV-0398, 2026-11-18)
+- **触发**: owner 裁决「续拆 B5 剩余 9 个」（DEV-0397 收口时登记的 9 个域内超限文件）。同 §9 性质 = **结构性拆分**，非视觉重做、非数据层重写；DOM/class/`data-testid`/aria 逐字保留，取数原样搬运，未接 `useQuery`
+- **9 容器全部达标（38 新建，最大 246 行）**：`CaseDetail.tsx` 784→**226**（`caseDetail/` 10 件，含 `useCaseDetailMutations.ts` 205）· `ReviewMode.tsx` 658→**190**（`knowledge/review/` 5 件）· `KnowledgeImport.tsx` 538→**234**（`knowledge/import/` 5 件）· `ReviewOverlay.tsx` 584→**91**（4 件）· `ApprovalInbox.tsx` 449→**149**（4 件）· `KnowledgeCompoundingDashboard.tsx` 534→**110**（3 件）· `DeepReadMode.tsx` 503→**196**（4 件）· `KnowledgePlanningPanel.tsx` 388→**173**（2 件）· `AttentionHeatmap.tsx` 358→**153**（2 件）
+- **契约保持点**：导出名与文件路径全部不变（`ReviewOverlay` 再导出 `RvView`、`CaseDetail` 再导出 `Badge`，消费方 import 未改）；**R19.1 单点 aggregate 契约**保持（`getCaseAggregate` 仅容器一处调用，旧 5 个 N+1 端点零调用，`c11_aggregate_and_sse.test.tsx` 一行未改并通过）；**零新增 echarts import**（仍走 `shared/EChart` 单一入口）；**本组无任何测试文件改动**
+- **门禁（合并态统一复测，非子任务局部快照）**：`tsc` exit 0 · **110 文件 / 783 tests 全通过（0 失败，DEV-0397 的 OpsRunsPanel flaky 未复现）** · 覆盖率 **58.61 / 77.58 / 59.59 / 58.61**（较 B5 首批再升，≥ B0 基线，阈值未降）· `vite build` exit 0 · `generate_meta --check` OK
+- **体积**：首屏 JS gzip **92,776 B**（index 27,702 + vendor-react 53,816 + SentinelHomePage 11,258）—— 较首批 +4 B、较 D7 收口**累计 +18 B / +0.019%**（D8 量级未扩大；两域均 lazy 路由，不影响首屏关键路径）；入口 CSS 15,470 B；全量 JS 558,524 B / 75 chunk（+1,679 B，chunk 数持平）
+- **残留（不隐藏，登记于验证报告 §10.4）**：① 两域内仍有 7 个超限文件未拆（行动域 `EventsReviewPage` 341 / `WeeklyReport` 369 / `MonthlyReport` 368；知识域 `SkillBuilder` 552 / `DeepReaderPage` 495（**被源码守卫直读**）/ `Dashboard` 341；`shared/NoteEditor` 334 归属待确认）→ 建议并入 B6 或另开 B5.6 ② 契约 §2.1「≤300 行」与 §2.3「保留物」在类型/API 契约层自相冲突（`I18nContext` 957 / `types/index.ts` 907 / `api/settings.ts` 847 / `api/v1.ts` 762 等），**豁免口径须 owner 明确，不由实现侧自行决定** ③ LCP 仍未复测
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §10（§10.1 改动面 / §10.2 契约保持 / §10.3 门禁 / §10.4 残留）；§1 批次表 B5 记 ◐（点名 12 文件达标，域内余 7 项）
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

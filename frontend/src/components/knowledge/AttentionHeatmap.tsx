@@ -7,81 +7,22 @@
  * 数据来源: GET /api/attention/events?days=30
  * 若端点不存在，降级展示空网格。
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import { listAttentionEvents } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
-
-// ── 类型 ────────────────────────────────────────────────────
-
-interface AttentionDataPoint {
-  date: string;
-  hour: number;
-  count: number;
-}
-
-interface TooltipState {
-  date: string;
-  hour: number;
-  count: number;
-  x: number;
-  y: number;
-}
-
-/** GET /api/attention/events 响应: 裸数组或 {events|data} 包裹 */
-type AttentionEventsResponse = AttentionDataPoint[] | { events?: AttentionDataPoint[]; data?: AttentionDataPoint[] };
-
-// ── 常量 ────────────────────────────────────────────────────
-
-const HOURS = 24;
-const CELL_SIZE = 12;
-const CELL_SIZE_COMPACT = 8;
-const GRID_GAP = 2;
-const LABEL_COL_WIDTH = 64;
-const LABEL_COL_WIDTH_COMPACT = 52;
-const HEADER_ROW_HEIGHT = 20;
-const HEADER_ROW_HEIGHT_COMPACT = 16;
-
-// ── 工具函数 ────────────────────────────────────────────────
-
-/** 生成最近 N 天的日期字符串数组 (YYYY-MM-DD) */
-function getLastDays(n: number): string[] {
-  const result: string[] = [];
-  const today = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    result.push(`${y}-${m}-${day}`);
-  }
-  return result;
-}
-
-/** 格式化日期为 "Mon 7/14" 样式 */
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return `${dayNames[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-/**
- * 根据 count / maxCount 比率计算单元格颜色。
- * 0 → 透明底 (border-subtle)
- * 低 → 浅橙 hsl(28, 70%, 58%)
- * 高 → 深红 hsl(0, 100%, 30%)
- */
-function getCellColor(count: number, maxCount: number): string {
-  if (count === 0) return 'transparent';
-  const t = Math.min(count / maxCount, 1);
-  const hue = Math.round(28 - t * 28);
-  const sat = Math.round(70 + t * 30);
-  const lit = Math.round(58 - t * 28);
-  return `hsl(${hue}, ${sat}%, ${lit}%)`;
-}
-
-// ── 组件 ────────────────────────────────────────────────────
+import { AttentionHeatmapGrid } from './AttentionHeatmapGrid';
+import {
+  CELL_SIZE,
+  CELL_SIZE_COMPACT,
+  HEADER_ROW_HEIGHT,
+  HEADER_ROW_HEIGHT_COMPACT,
+  LABEL_COL_WIDTH,
+  LABEL_COL_WIDTH_COMPACT,
+  getLastDays,
+  type AttentionDataPoint,
+  type AttentionEventsResponse,
+} from './attentionModel';
 
 interface AttentionHeatmapProps {
   compact?: boolean;
@@ -91,7 +32,6 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
   const [data, setData] = useState<AttentionDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const DAYS = compact ? 14 : 30;
@@ -124,44 +64,7 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
       });
   }, []);
 
-  // ── 构建 30×24 网格 ───────────────────────────────────────
-
-  const grid = new Map<string, number>();
-  for (const date of dates) {
-    for (let h = 0; h < HOURS; h++) {
-      grid.set(`${date}|${h}`, 0);
-    }
-  }
-  for (const point of data) {
-    const key = `${point.date}|${point.hour}`;
-    if (grid.has(key)) {
-      grid.set(key, point.count);
-    }
-  }
-
-  const maxCount = Math.max(1, ...grid.values());
   const hasData = data.length > 0;
-
-  // ── 事件处理 ──────────────────────────────────────────────
-
-  const handleCellClick = (_date: string) => {
-    // 原 /knowledge/briefing?date= 路由已在 v0.7.0 删除 (死链)。
-    // 日期维度的下钻列表页尚未实现 (数据源 /api/attention/events)，
-    // 在此之前不导航避免死链; 数据细节由悬浮 tooltip 呈现。
-  };
-
-  const handleCellEnter = (
-    e: React.MouseEvent,
-    date: string,
-    hour: number,
-    count: number,
-  ) => {
-    setTooltip({ date, hour, count, x: e.clientX, y: e.clientY });
-  };
-
-  const handleCellLeave = () => {
-    setTooltip(null);
-  };
 
   // ── 渲染 ──────────────────────────────────────────────────
 
@@ -235,123 +138,14 @@ export function AttentionHeatmap({ compact = false }: AttentionHeatmapProps) {
             </p>
           )}
 
-          {/* 外容器：支持水平滚动 */}
-          <div className="relative" style={{ overflowX: 'auto' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `${labelColWidth}px repeat(${HOURS}, ${cellSize}px)`,
-                gridTemplateRows: `${headerRowHeight}px repeat(${DAYS}, ${cellSize}px)`,
-                gap: `${GRID_GAP}px`,
-                width: 'fit-content',
-              }}
-            >
-              {/* 左上角空位 */}
-              <div style={{ gridRow: 1, gridColumn: 1 }} />
-
-              {/* X 轴：小时标签 0-23 */}
-              {Array.from({ length: HOURS }, (_, h) => (
-                <div
-                  key={`x-${h}`}
-                  style={{
-                    gridRow: 1,
-                    gridColumn: h + 2,
-                    fontSize: 8,
-                    color: 'var(--text-muted)',
-                    textAlign: 'center',
-                    lineHeight: `${headerRowHeight}px`,
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  {h}
-                </div>
-              ))}
-
-              {/* Y 轴：日期标签 + 单元格行 */}
-              {dates.map((date, rowIdx) => (
-                <React.Fragment key={date}>
-                  {/* 日期标签 */}
-                  <div
-                    style={{
-                      gridRow: rowIdx + 2,
-                      gridColumn: 1,
-                      fontSize: 8,
-                      color: 'var(--text-secondary)',
-                      lineHeight: `${cellSize}px`,
-                      paddingRight: 4,
-                      textAlign: 'right',
-                      whiteSpace: 'nowrap',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {formatShortDate(date)}
-                  </div>
-
-                  {/* 24 个单元格 */}
-                  {Array.from({ length: HOURS }, (_, hour) => {
-                    const count = grid.get(`${date}|${hour}`) || 0;
-                    const active = count > 0;
-                    const isHovered =
-                      tooltip?.date === date && tooltip?.hour === hour;
-
-                    return (
-                      <div
-                        key={`${date}-${hour}`}
-                        data-cell={`${date}|${hour}`}
-                        style={{
-                          gridRow: rowIdx + 2,
-                          gridColumn: hour + 2,
-                          width: cellSize,
-                          height: cellSize,
-                          borderRadius: 2,
-                          backgroundColor: active
-                            ? getCellColor(count, maxCount)
-                            : 'var(--border-subtle)',
-                          outline: isHovered
-                            ? '1.5px solid var(--color-info)'
-                            : 'none',
-                          outlineOffset: -1,
-                          transition: 'outline 100ms ease',
-                        }}
-                        onClick={() => handleCellClick(date)}
-                        onMouseEnter={(e) =>
-                          handleCellEnter(e, date, hour, count)
-                        }
-                        onMouseLeave={handleCellLeave}
-                      />
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* Tooltip */}
-            {tooltip && (
-              <div
-                style={{
-                  position: 'fixed',
-                  left: tooltip.x,
-                  top: tooltip.y - 8,
-                  transform: 'translate(-50%, -100%)',
-                  backgroundColor: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '4px 8px',
-                  fontSize: 10,
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                  zIndex: 700,
-                  pointerEvents: 'none',
-                  fontFamily: 'var(--font-mono)',
-                  lineHeight: 1.4,
-                }}
-              >
-                {tooltip.date}{' '}
-                {String(tooltip.hour).padStart(2, '0')}:00 —{' '}
-                {tooltip.count} 次
-              </div>
-            )}
-          </div>
+          <AttentionHeatmapGrid
+            data={data}
+            dates={dates}
+            days={DAYS}
+            cellSize={cellSize}
+            labelColWidth={labelColWidth}
+            headerRowHeight={headerRowHeight}
+          />
         </>
       )}
     </div>

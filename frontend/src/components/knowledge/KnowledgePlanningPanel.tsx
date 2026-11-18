@@ -8,94 +8,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Icon } from '../Icon';
 import { listPlanningActions, updatePlanningActionStatus } from '../../api/action';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
-import { STAGE_COLORS, STAGE_LABELS } from './LifecycleProgress';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface PlanningAction {
-  id: number;
-  item_id: string;
-  action_type: 'read' | 'review' | 'link' | 'refine' | 'publish';
-  priority: number;
-  title: string;
-  description: string | null;
-  current_stage: string | null;
-  target_stage: string | null;
-  status: string;
-  created_at: string;
-  completed_at: string | null;
-  dismissed_at: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// Action type config
-// ---------------------------------------------------------------------------
-
-const ACTION_CONFIG: Record<string, { color: string; label: string }> = {
-  read:   { color: '#3b82f6', label: '阅读' },
-  review: { color: '#8b5cf6', label: '评审' },
-  link:   { color: '#22c55e', label: '关联' },
-  refine: { color: '#f97316', label: '精炼' },
-  publish:{ color: '#14b8a6', label: '发布' },
-};
-
-// ---------------------------------------------------------------------------
-// Action type icons (Lucide-style)
-// ---------------------------------------------------------------------------
-
-function ActionTypeIcon({ type }: { type: string }) {
-  switch (type) {
-    case 'read':
-      return (
-        <Icon size={13}>
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        </Icon>
-      );
-    case 'review':
-      return (
-        <Icon size={13}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        </Icon>
-      );
-    case 'link':
-      return (
-        <Icon size={13}>
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-        </Icon>
-      );
-    case 'refine':
-      return (
-        <Icon size={13}>
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-        </Icon>
-      );
-    case 'publish':
-      return (
-        <Icon size={13}>
-          <line x1="12" y1="19" x2="12" y2="5" />
-          <polyline points="5 12 12 5 19 12" />
-        </Icon>
-      );
-    default:
-      return (
-        <Icon size={13}>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </Icon>
-      );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+import { PlanningActionCard } from './PlanningActionCard';
+import type { PlanningAction } from './planningModel';
 
 export function KnowledgePlanningPanel() {
   const [actions, setActions] = useState<PlanningAction[]>([]);
@@ -146,17 +60,6 @@ export function KnowledgePlanningPanel() {
       }
     }
   }, [dead]);
-
-  // ── Render helpers ─────────────────────────────────────────────────────────
-  const renderStageLabel = (stage: string | null) => {
-    if (!stage) return '—';
-    return STAGE_LABELS[stage] || stage;
-  };
-
-  const renderStageColor = (stage: string | null) => {
-    if (!stage) return 'var(--text-muted)';
-    return STAGE_COLORS[stage] || 'var(--text-muted)';
-  };
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
@@ -256,132 +159,14 @@ export function KnowledgePlanningPanel() {
       </div>
 
       <div className="space-y-2">
-        {actions.map(action => {
-          const cfg = ACTION_CONFIG[action.action_type] || { color: 'var(--text-muted)', label: action.action_type };
-          const isUpdating = updatingIds.has(action.id);
-
-          return (
-            <div
-              key={action.id}
-              className="rounded-md p-2.5 transition-colors duration-150"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--bg-base) 50%, transparent)',
-                border: '1px solid var(--border-color)',
-                opacity: isUpdating ? 0.5 : 1,
-              }}
-            >
-              <div className="flex items-start gap-2.5">
-                {/* 动作类型徽章 */}
-                <div
-                  className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5"
-                  style={{
-                    backgroundColor: `color-mix(in srgb, ${cfg.color} 14%, transparent)`,
-                    color: cfg.color,
-                  }}
-                >
-                  <ActionTypeIcon type={action.action_type} />
-                </div>
-
-                {/* 内容区 */}
-                <div className="flex-1 min-w-0">
-                  {/* 标题行 */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      {action.title}
-                    </span>
-                    {/* 优先级徽章 */}
-                    <span
-                      className="text-[10px] font-semibold px-1 rounded"
-                      style={{
-                        backgroundColor: action.priority >= 8
-                          ? 'color-mix(in srgb, #ef4444 14%, transparent)'
-                          : action.priority >= 5
-                            ? 'color-mix(in srgb, #f59e0b 14%, transparent)'
-                            : 'color-mix(in srgb, #6b7280 14%, transparent)',
-                        color: action.priority >= 8
-                          ? '#ef4444'
-                          : action.priority >= 5
-                            ? '#f59e0b'
-                            : 'var(--text-muted)',
-                      }}
-                    >
-                      P{action.priority}
-                    </span>
-                  </div>
-
-                  {/* 描述 */}
-                  {action.description && (
-                    <p
-                      className="text-[11px] mt-0.5 leading-relaxed"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {action.description}
-                    </p>
-                  )}
-
-                  {/* 阶段流转 */}
-                  {(action.current_stage || action.target_stage) && (
-                    <div className="flex items-center gap-1 mt-1.5">
-                      {action.current_stage && (
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded"
-                          style={{
-                            backgroundColor: `color-mix(in srgb, ${renderStageColor(action.current_stage)} 12%, transparent)`,
-                            color: renderStageColor(action.current_stage),
-                          }}
-                        >
-                          {renderStageLabel(action.current_stage)}
-                        </span>
-                      )}
-                      <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>→</span>
-                      {action.target_stage && (
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                          style={{
-                            backgroundColor: `color-mix(in srgb, ${renderStageColor(action.target_stage)} 14%, transparent)`,
-                            color: renderStageColor(action.target_stage),
-                          }}
-                        >
-                          {renderStageLabel(action.target_stage)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 操作按钮 */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    className="text-[11px] px-2 py-1 rounded transition-colors duration-100"
-                    style={{
-                      backgroundColor: 'color-mix(in srgb, var(--area-accent) 10%, transparent)',
-                      color: 'var(--area-accent)',
-                    }}
-                    disabled={isUpdating}
-                    onClick={() => updateStatus(action.id, 'completed')}
-                    title="标记完成"
-                  >
-                    标记完成
-                  </button>
-                  <button
-                    className="text-[11px] px-2 py-1 rounded transition-colors duration-100"
-                    style={{
-                      color: 'var(--text-muted)',
-                    }}
-                    disabled={isUpdating}
-                    onClick={() => updateStatus(action.id, 'dismissed')}
-                    title="忽略"
-                  >
-                    忽略
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {actions.map(action => (
+          <PlanningActionCard
+            key={action.id}
+            action={action}
+            isUpdating={updatingIds.has(action.id)}
+            onUpdateStatus={updateStatus}
+          />
+        ))}
       </div>
     </div>
   );

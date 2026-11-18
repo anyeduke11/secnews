@@ -13,7 +13,7 @@
 | B2 | 壳原地替换 + 全局 Toast 提到根 | `nav4_shell` 改造后绿 / 三态主题可切换 / 旧页 `--sn-*` 正常渲染 | ✅ 2026-11-17（见 §3） |
 | B3 | `useQuery` + 域 API 模块 | 54 处直调降为 0 | ✅ 2026-11-17（见 §5） |
 | B4 | 资讯域 `/` 重写 | 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增 | ✅ 2026-11-18（见 §8；包体积于 §8.5 复测达标，D7 已关闭） |
-| B5 | 知识域 + 行动域重写（owner 点名三超限文件） | 同上 | ◐ 2026-11-18（见 §9；三文件已达标，**域内其余超限文件未覆盖**，见 §9.5） |
+| B5 | 知识域 + 行动域重写（owner 裁决范围 = 12 个超限文件） | 同上 | ◐ 2026-11-18（见 §9 + §10；**点名的 12 文件全部达标**，两域内仍有 7 个超限未拆 → §10.4 残留，建议并入 B6） |
 | B6 | 设置域 + 工具页 + 旧 CSS 删除 + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ⏳ 未开始 |
 
 ## 2. B1 验证证据
@@ -367,5 +367,65 @@ python scripts/generate_meta.py --check             # OK (56/19/99/155 · core_r
 | 全量 JS / chunk 数 | 555,341 B / 75 | **556,845 B / 75** | +1,504 B / chunk 持平 |
 
 - **偏差 D8（新增，负向）**：B5 退出条件 3「包体积不增」严格未达成 —— 首屏 JS **+14 B（+0.015%）**。归因：新增 12 个模块使入口 chunk 的模块 id 与图序位移，entry +11 B、页 chunk +3 B；无新依赖、无新增首屏代码路径（`/action` 与 `/knowledge/graph` 均为 lazy 路由，CaseQueuePanel 落进行动域 chunk）。量级在 gzip 噪声内，但按纪律登记为偏差，**不声称达标**。
-- **B5 范围偏差（需 owner 裁决）**：契约 §6 的 B5 写的是「知识域 `/knowledge` + 行动域 `/action` 重写」，本轮按 owner 点名的**三个超限文件**执行。拆分后**两域内仍有超限文件未覆盖**：行动域 `review/ReviewOverlay.tsx` 584 / `action/ApprovalInbox.tsx` 449 / `v1/CaseDetail.tsx` 784；知识域 `knowledge/ReviewMode.tsx` 658 / `KnowledgeImport.tsx` 538 / `KnowledgeCompoundingDashboard.tsx` 534 / `DeepReadMode.tsx` 503 / `KnowledgePlanningPanel.tsx` 388 / `AttentionHeatmap.tsx` 358。故 §1 本批状态记为 **◐ 部分达标**，不记 ✅。
+
+- **B5 范围（已由 owner 裁决为 12 文件）**：契约 §6 的 B5 原文是「知识域 + 行动域重写」，本轮按 owner 两次裁决执行「点名三超限 + 续拆剩余 9 个」共 12 个文件；域内其余超限项见 §10.4 残留清单。
+
+## 10. B5 续拆验证证据（owner 裁决「续拆剩余 9 个」，2026-11-18）
+
+> 同 §9 性质：结构性拆分，DOM/class/`data-testid`/aria 逐字保留，取数原样搬运，未接 `useQuery`。5 路子任务并行执行，**所有数字由主会话在合并态统一复测**（子任务自验仅为局部快照）。
+
+### 10.1 改动面（38 新建 + 9 容器改写）
+
+| 原文件 | 原行数 | 现行数 | 拆出 |
+|---|---|---|---|
+| `v1/CaseDetail.tsx` | 784 | **226** | `caseDetail/` 10 件：ActionsSection 206 / `useCaseDetailMutations.ts` 205 / KnowledgeSection 94 / JudgmentsSection 92 / CaseDetailHeader 69 / RecallKnowledgeSection 56 / EvidenceSection 42 / caseDetailModel 35 / WalkthroughPathsCard 29 / CaseBadge 22 |
+| `knowledge/ReviewMode.tsx` | 658 | **190** | `knowledge/review/` 5 件：ReviewFlipCard 234 / ReviewStates 100 / ReviewComplete 85 / reviewModel 58 / ReviewHeader 29 |
+| `knowledge/KnowledgeImport.tsx` | 538 | **234** | `knowledge/import/` 5 件：SourceCards 156 / CuboxImportCard 111 / ImportStatusBar 77 / ImportHero 45 / importModel 40 |
+| `knowledge/KnowledgeCompoundingDashboard.tsx` | 534 | **110** | CompoundingCards 246 / compoundingDashboardModel 234 / CompoundingStates 80 |
+| `knowledge/DeepReadMode.tsx` | 503 | **196** | DeepReadArticle 178 / DeepReadSidebar 126 / DeepReadHeader 52 / deepReadModeModel 33 |
+| `sentinel/review/ReviewOverlay.tsx` | 584 | **91** | ReviewSessionView 175 / ReviewManageView 165 / reviewModel 102 / ReviewDataView 90 |
+| `action/ApprovalInbox.tsx` | 449 | **149** | ApprovalDraftCard 231 / ApprovalFailedList 57 / approvalModel 46 / ApprovalBadge 18 |
+| `knowledge/KnowledgePlanningPanel.tsx` | 388 | **173** | PlanningActionCard 183 / planningModel 69 |
+| `knowledge/AttentionHeatmap.tsx` | 358 | **153** | AttentionHeatmapGrid 178 / attentionModel 91 |
+
+38 个新建非测试文件最大 246 行，**全部 ≤300**；9 个容器最大 234 行。
+
+### 10.2 契约保持点（子任务声明 + 主会话复核）
+
+- **导出名与文件路径全部不变**；`ReviewOverlay` 以 `export type { RvView }` 再导出、`CaseDetail` 以 `export { Badge }` 再导出，消费方（`SentinelActionPage` / `ReviewStackPanel` / `V1Prototype`）import 路径未改。
+- **R19.1 N+1 契约**：`CaseDetail` 拆分后 `getCaseAggregate` 仍只在容器调用一处，`getCase/listJudgments/listActions/listRuns/listArtifacts` 零调用；`c11_aggregate_and_sse.test.tsx` **未改一行**并通过（主会话全量复测含该文件）。
+- **echarts 单一入口**：新增区块文件**零新增 echarts import**，图表仍经 `shared/EChart` 统一入口（契约 §2.1 硬规则 4）。
+- **测试文件零改动**：`git status` 复核 —— 本组 9 个改动文件全为 `M` 源码，**无任何测试文件出现在改动集中**（不同于 §9.3 的追加用例，本组连追加都没有）。
+
+### 10.3 门禁实测（合并态统一复测）
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0（全仓，非局部快照）
+cd frontend && npx vitest run --coverage         # 110 文件 / 783 tests 全通过
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK · AGENTS 7/7
+```
+
+- 覆盖率 **58.61 / 77.58 / 59.59 / 58.61**（Stmts/Branch/Funcs/Lines）—— 高于 B5 首批 58.38/77.48/58.82/58.38、B4 态 58.16/77.36/58.39/58.16 与 B0 基线 57.05/76.39/57.42/57.05；阈值未下调。
+- 本轮全量并发跑 **0 失败**（§9.4 的 `OpsRunsPanel` flaky 未复现，仍按既有抖动登记）。
+- 体积：首屏 JS 口径 A **92,776 B**（index 27,702 + vendor-react 53,816 + SentinelHomePage 11,258）；入口 CSS 15,470 B；全量 JS **558,524 B / 75 chunk**。
+  - 较 B5 首批 92,772 **+4 B**；较 D7 收口 92,758 累计 **+18 B / +0.019%**（D8 仍在，未扩大）。
+  - 全量较首批 +1,679 B、较 D7 累计 +3,183 B，chunk 数保持 75（拆分只改源码结构，未新增路由 chunk）。
+  - 归因：38 个新模块进入各自路由 chunk 的图序与 import 样板；首屏两域均为 lazy 路由，**不影响首屏关键路径**。
+
+### 10.4 B5 残留（不隐藏；建议并入 B6 或另开 B5.6）
+
+owner 裁决范围为「9 个续拆项」，已全部完成。但按契约 §6「知识域 + 行动域重写」与 §2.1 全站硬规则，两域内**仍有超限文件未拆**：
+
+| 域 | 文件 | 行数 |
+|---|---|---|
+| 行动 | `components/events/EventsReviewPage.tsx`（`/action/events`） | 341 |
+| 行动 | `components/report/WeeklyReport.tsx` / `MonthlyReport.tsx`（`/report`） | 369 / 368 |
+| 知识 | `components/skills/SkillBuilder.tsx`（`/skill-store/new`） | 552 |
+| 知识 | `components/reader/DeepReaderPage.tsx`（`/reader/:id`，**被源码守卫直读**） | 495 |
+| 知识 | `components/dashboard/Dashboard.tsx`（`/dashboard`） | 341 |
+| 归属待确认 | `components/shared/NoteEditor.tsx` | 334 |
+
+另：契约 §2.3「保留物」里的契约层文件仍超长（`contexts/I18nContext.tsx` 957 / `types/index.ts` 907 / `api/settings.ts` 847（= G5）/ `api/v1.ts` 762 / `api/knowledge.ts` 572 / `types/codegarden.ts` 453 / `api/secnews.ts` 420 / `api/codegarden.ts` 375 / `hooks/realtime.ts` 315），这些属**类型与 API 契约层**，§2.1 的 ≤300 行规则与 §2.3 保留条款本身相冲突，需要 owner 明确豁免口径，不由实现侧自行决定。
+
 

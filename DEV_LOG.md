@@ -1,4 +1,30 @@
 
+## [DEV-0398] refactor(fe): 前端重构 V1 B5 续拆 — 知识域 + 行动域剩余 9 个超限文件拆分达标
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B5 续拆（owner 裁决「续拆 B5 剩余 9 个」，承接 DEV-0397 §范围偏差）；退出条件同 B5（首屏区块全保留 / 单文件 ≤300 行 / 包体积不增）
+- **性质声明**: **结构性拆分**（容器 + 纯展示区块），非视觉重做、非数据层重写；DOM/class/`data-testid`/aria 逐字保留，取数逻辑原样搬运，**未接 `hooks/useQuery`**、未改任何请求 URL/顺序/次数
+- **改动面（9 容器改写 + 38 新建，均在 `frontend/src/components/`）**:
+  - `v1/CaseDetail.tsx` 784 → **226**；拆出 `v1/caseDetail/` 10 件：ActionsSection 206 / `useCaseDetailMutations.ts` 205 / KnowledgeSection 94 / JudgmentsSection 92 / CaseDetailHeader 69 / RecallKnowledgeSection 56 / EvidenceSection 42 / caseDetailModel 35 / WalkthroughPathsCard 29 / CaseBadge 22
+  - `knowledge/ReviewMode.tsx` 658 → **190**；拆出 `knowledge/review/` 5 件：ReviewFlipCard 234 / ReviewStates 100 / ReviewComplete 85 / reviewModel 58 / ReviewHeader 29
+  - `knowledge/KnowledgeImport.tsx` 538 → **234**；拆出 `knowledge/import/` 5 件：SourceCards 156 / CuboxImportCard 111 / ImportStatusBar 77 / ImportHero 45 / importModel 40
+  - `sentinel/review/ReviewOverlay.tsx` 584 → **91**；拆出 ReviewSessionView 175 / ReviewManageView 165 / reviewModel 102 / ReviewDataView 90
+  - `action/ApprovalInbox.tsx` 449 → **149**；拆出 ApprovalDraftCard 231 / ApprovalFailedList 57 / approvalModel 46 / ApprovalBadge 18
+  - `knowledge/KnowledgeCompoundingDashboard.tsx` 534 → **110**；拆出 CompoundingCards 246 / compoundingDashboardModel 234 / CompoundingStates 80
+  - `knowledge/DeepReadMode.tsx` 503 → **196**；拆出 DeepReadArticle 178 / DeepReadSidebar 126 / DeepReadHeader 52 / deepReadModeModel 33
+  - `knowledge/KnowledgePlanningPanel.tsx` 388 → **173**；拆出 PlanningActionCard 183 / planningModel 69
+  - `knowledge/AttentionHeatmap.tsx` 358 → **153**；拆出 AttentionHeatmapGrid 178 / attentionModel 91
+  - 38 个新建非测试文件最大 **246** 行、9 个容器最大 **234** 行，全部 ≤300；导出名与文件路径全部不变（`ReviewOverlay` 以 `export type { RvView }` 再导出、`CaseDetail` 以 `export { Badge }` 再导出，消费方 `SentinelActionPage` / `ReviewStackPanel` / `V1Prototype` 的 import 路径未改）
+- **实现方式**: 5 路并行子任务（行动域两件 / CaseDetail / 知识域复习+导入 / 看板+深读 / 规划+热力）。**所有门禁数字由主会话在合并态统一复测**，子任务自验仅作局部快照（实现与验证分离）
+- **契约保持点（本批最高风险项 = R19.1）**: `CaseDetail` 拆分**不得让子区块各自取数**（否则退化为 1+N）。实测：`getCaseAggregate` 仅容器一处调用，`getCase/listJudgments/listActions/listRuns/listArtifacts` 零调用；`v1/__tests__/c11_aggregate_and_sse.test.tsx`（R19.1 + c10 R14.5 mount 期 aggregate 恰 2 次）**一行未改**且通过。另：新增区块文件**零新增 echarts import**（仍经 `shared/EChart` 单一入口，契约 §2.1 硬规则 4 未破）
+- **实测门禁（全绿）**:
+  - `npx tsc --noEmit` exit 0（全仓，非局部快照）
+  - `npx vitest run --coverage` **110 文件 / 783 tests 全通过，0 失败**；覆盖率 Stmts 58.61 / Branch 77.58 / Funcs 59.59 / Lines 58.61（B5 首批 58.38/77.48/58.82/58.38、B4 态 58.16/77.36/58.39/58.16、B0 基线 57.05/76.39/57.42/57.05，阈值未下调）；**DEV-0397 披露的 `OpsRunsPanel` flaky 本轮未复现**（既有抖动登记保留，治理仍留 B6）
+  - `npx vite build --logLevel error` exit 0；`python scripts/generate_meta.py --check` OK（56/19/99/155 · core_routers 67 · AGENTS 7/7，纯前端改动架构数字未变）
+  - 组件层直调 grep（`getJSON|postJSON|apiFetch` → `lib/api`）保持 0
+- **偏差 D8 延续（负向）**: 首屏 JS gzip **92,776 B**（index 27,702 + vendor-react 53,816 + SentinelHomePage 11,258）—— 较 B5 首批 92,772 **+4 B**，较 D7 收口 92,758 **累计 +18 B / +0.019%**。「包体积不增」仍严格未达成，但归因不变：两域均为 lazy 路由，38 个新模块只改变各自路由 chunk 的图序与 import 样板，**未新增首屏关键路径代码**。入口 CSS 15,470 B；全量 JS 558,524 B / 75 chunk（较首批 +1,679 B、较 D7 累计 +3,183 B，chunk 数持平）
+- **残留（不隐藏）**: ① 两域内**仍有 7 个超限文件未拆** —— 行动域 `events/EventsReviewPage.tsx` 341 / `report/WeeklyReport.tsx` 369 / `report/MonthlyReport.tsx` 368；知识域 `skills/SkillBuilder.tsx` 552 / `reader/DeepReaderPage.tsx` 495（**被源码文本守卫直读，拆前须先处理守卫**）/ `dashboard/Dashboard.tsx` 341；`shared/NoteEditor.tsx` 334 域归属待确认 → 建议并入 B6 或另开 B5.6，**不由实现侧自行扩批** ② **契约内在冲突需 owner 裁决**：§2.1 硬规则 3「单文件 ≤300 行」与 §2.3「保留物（不重写）」在类型/API 契约层直接冲突 —— `contexts/I18nContext.tsx` 957 / `types/index.ts` 907 / `api/settings.ts` 847（= 缺口 G5）/ `api/v1.ts` 762 / `api/knowledge.ts` 572 / `types/codegarden.ts` 453 / `api/secnews.ts` 420 / `api/codegarden.ts` 375 / `hooks/realtime.ts` 315 全部 >300，须明确豁免口径而非静默绕过 ③ LCP 仍未复测（B5.5 瘦身批 + B6 收口时统一用 `perf/lcp_probe.mjs` 同脚本同夹具复测）
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §10（§10.1 改动面 / §10.2 契约保持点 / §10.3 门禁实测 / §10.4 B5 残留）+ §1 批次表 B5 更新为 ◐；§9.5 范围偏差条目改为「已由 owner 裁决为 12 文件」；CHANGELOG B5 续拆小节
+
 ## [DEV-0397] refactor(fe): 前端重构 V1 B5 — 知识域图谱 + 行动域拆分（三超限文件达标）+ R1 补挂 CaseQueuePanel
 - **时间**: 2026-11-18
 - **类型**: 绞杀者 B5（退出条件 = 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增；第 3 项严格未达成 → 偏差 D8）+ owner 裁决 R1 落地

@@ -35,6 +35,19 @@ cd frontend && npx vite build --logLevel error
 
 ### 2.1 首屏 `/` 路由 JS（gzip 字节）
 
+> **两套口径定义**（2026-11-18 DEV-0396 固化；此前各批只用前者，且采集工具不一）：
+>
+> | 口径 | 定义 | 用途 |
+> |---|---|---|
+> | **A. 首屏 JS（3 chunk）** | `index-*.js` + `vendor-react-*.js` + `SentinelHomePage-*.js` 三者 gzip 之和 | 与本基线逐批可比；**批次退出条件「包体积不增」的判定口径** |
+> | **B. 首屏 eager 闭包** | 以 `dist/index.html` 的 `<script>` / `<link modulepreload>` 为种子，递归**静态** `from"..."` import 闭包（含路由 chunk），排除仅被 `__vite__mapDeps` / `import()` 引用的懒加载 chunk | 浏览器首屏真实下载量（含共享 chunk） |
+>
+> 采集工具统一 **Node `zlib.gzipSync`（level 6）**。⚠️ `gzip -c` CLI 结果**不可比** —— 它把文件名写进头部，实测每 chunk 多约 147 B。
+>
+> 采样对象 = `frontend/dist`（`npm run build` 产物）。口径 B 的判定注意点：路由 chunk 若只被 `__vite__mapDeps` + `import()` 引用则**不属于**首屏（反之会虚高）。
+
+口径 A（本节数字即此口径）：
+
 | 组成 | gzip |
 |---|---|
 | `index-*.js`（应用入口 + 路由壳） | 27,119 |

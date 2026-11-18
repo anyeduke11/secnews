@@ -36,6 +36,26 @@
 - **门禁与体积**：`tsc` exit 0；**109 文件 / 770 tests 全通过**，覆盖率 statements 58.03 / branches 77.13 / functions 58.16 / lines 58.03（≥ B0）；`vite build` exit 0，首屏 JS gzip **93,517 B**（基线 92,998，**+519 B / +0.56%** — 本批唯一负向项，域模块被壳常驻 hook 静态引用）、首屏 CSS 16,684 B（+177 B）、全量 JS 552,383 B / 73 chunk
 - **留痕**：验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §5；缺口 G5（`api/settings.ts` 847 行待拆）/ G6（`useQuery` 待接线）登记于 §4；契约偏差 D1–D5 见 §5.5
 
+### 前端重构 V1 · B4 资讯域重写 (DEV-0395, 2026-11-18)
+- **资讯域 `/` 拆为容器 + 7 区块**：`SentinelHomePage.tsx` 808 → **299 行**（容器：状态/取数/组合），区块落 `components/sentinel/feed/`：`feedModel.ts`(102) · `FeedAtoms.tsx`(102) · `UrlImport.tsx`(66) · `FeedControls.tsx`(118) · `FeedStates.tsx`(46) · `FeedMustRead.tsx`(96) · `FeedStream.tsx`(192)；DOM/class/`data-testid` 逐字保留，870 行页面测试断言零改动
+- **G6 关闭（useQuery 首个生产消费者）**：`useQuery('feed:quality')` + `useQuery('feed:picked', enabled=scan)` 替换手写 effect；`bindInvalidateOn(COLLECT_DONE, 'feed:', {throttleMs:10_000})` 整域失效；主列仍走 `useHotspotData` 3s 防抖
+- **退出条件**：首屏区块全保留 ✅ / 单文件 ≤300 行 ✅（最大 299）/ 包体积不增 ❌（**+1,193 B / +1.28%**，见 D7）
+- **门禁与体积**：`tsc` exit 0；**110 文件 / 782 tests 全通过**，覆盖率 58.16 / 77.33 / 58.43 / 58.16（≥ B3）；首屏 JS gzip **94,710 B**（index 27,609 + vendor-react 53,763 + SentinelHomePage 13,338）；首屏 CSS 16,605 B（−79）；全量 JS 554,417 B / 73 chunk（+0.37%）
+- **偏差 D7（负向）**：`useQuery` 此前被 tree-shake 出产物，B4 是其首个生产消费者（G6 强制项），模块本体整段进入页 chunk —— 拆分本身不增代码；20% 目标仍由 B6 承担。**偏差 D6**：`PriorityDigestCard` 保留手写 fetch（`force=true` 无法用现有 `useQuery.refetch()` 表达）
+- **留痕**：验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §8
+
+### 前端重构 V1 · B4 包体积修复（DEV-0396, 2026-11-18）
+- **动机**: 关闭偏差 D7（B4「包体积不增」未达成，首屏 +1,193 B）。**归因先行**（sourcemap VLQ 逐字节归因）：路由 chunk 36,979 → 40,443 raw，其中 `useQuery` +2,109 raw 为 G6 强制的**唯一内容**、feed/ 拆分胶水 +1,353 raw 为**重复内容**；而 gzip 对重复文本几乎免费（去重 3,637 raw 仅换 −596 B）→ 策略定为**把唯一内容移出首屏包**
+- **口径修正**: 台账原用 `gzip -c` CLI（含文件名头）；统一改 Node `zlib.gzipSync`（与 B0 基线脚本同口径），B3 复测 93,517 B 逐字一致、B4 复测 94,857 B（+147 B 即头差），D7 结论不变。固化两套首屏口径定义（3 chunk / eager 闭包）入基线 §2.1
+- **7 项手段**: `useQuery` entry 自带 `fetcher`/`isEmpty`（删旁路注册表）· 四态面板收敛为单一 `FeedPanel`（圆环 SVG 各留一份）· `HeatCells`/`PracticeTag` 行级原子 · `tagColorOf` 复用 `CHANNEL_DEFS` 色板 + 箭头 path 共用 · 静态行内 style 下沉 CSS · **`NewsAlertList` 与完整「受管信号」面板改 `lazy()`**（前者仅 alert 模式渲染；后者位于主列之后 = 首屏之下，右栏只读摘要拆为独立模块 `SignalPanelCompact` 保持同步加载）
+- **行为变更声明**: 两处新增 Suspense（回退占位，页面测试零断言改动通过）；`SignalPanel` 移除 `compact` prop（迁移至 `SignalPanelCompact`，2 条 compact 用例改渲染新模块）；检索条 sticky `top` 仍留行内（DEV-0188 契约断言 `bars[1].style.top`）
+- **容器守线**: 第 7 项一度把容器推到 310 行，遂将 `RailWithPipe` + `SignalPanelLazy` 抽入新增 `sentinel/SentinelHomeAux.tsx`（26 行），容器回落 **296 行**，≤300 硬约束保持
+- **实测门禁**: `tsc` exit 0 · **110 文件 / 782 tests 全通过**，覆盖率 58.16 / 77.36 / 58.39 / 58.16（另一轮 58.22 / 77.46 / 58.35 / 58.22，均 ≥ 基线与阈值）· `vite build` exit 0 · `generate_meta.py --check` OK
+- **flaky 披露**: 一轮全量并发跑出现 1 例超时（`SentinelHomePage.test.tsx > 赞/踩链路`，5s timeout），单跑与复跑均绿 —— 判为负载敏感型既有抖动、非本批引入，已记入验证报告 §8.3
+- **体积**: 首屏 JS gzip **92,758 B**（index 27,686 + vendor-react 53,816 + SentinelHomePage 11,256；**较 B3 −759 B / −0.81%**）；首屏 eager 闭包 98,532 B（−847 B）；首屏 CSS 16,831 B（+147 B，行内 style 下沉代价）；全量 JS 555,341 B / 75 chunk（残留：懒加载 chunk 边界开销 +924 B + `useQuery` 实体化 +2,109 raw，留 B6）
+- **显式缺口**: LCP 未复测（基线本身未采集），不得声称新增 2 处 Suspense 未影响 LCP
+- **留痕**: 验证报告 §8.5
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

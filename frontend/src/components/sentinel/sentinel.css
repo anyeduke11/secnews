@@ -586,3 +586,22 @@ html[data-theme="paper"] .sentinel .tb-paper{display:block}
    色彩随主题自动切换, 这里只接管标题排版层级 */
 .sentinel .sentinel-main h2{font-family:var(--sn-serif);font-weight:900;letter-spacing:-.01em}
 .sentinel .sentinel-main h3{font-family:var(--sn-serif);font-weight:700}
+
+/* ===== D7 收口 (2026-11-18): 静态布局值从行内 style 下沉 CSS =====
+   资讯域拆成 8 个区块文件后, 每个区块都自带一份行内 style 字面量;
+   行内 style 同时违宪 (AGENTS: 行内 style 仅允许 dynamic 计算值) 且占首屏 JS 体积。
+   动态色值 (tag 色 / 兴趣域命中色) 仍留在行内, 由 --sn-* token 驱动。 */
+/* 检索条 (第二条 controlbar): 双类提高特异性, 压过窄屏媒体查询里的 padding 覆盖 */
+.sentinel .controlbar.controlbar-search{
+  z-index:49;height:auto;min-height:52px;padding:10px 32px;gap:12px;flex-wrap:wrap;
+}
+.sentinel .search-box.search-box-feed{max-width:320px;width:auto;flex:1 1 220px;min-width:180px}
+.sentinel .search-box .search-icon-feed{display:flex;align-items:center}
+.sentinel .time-range{display:flex;align-items:center;gap:4px}
+.sentinel .feed-scope{margin-left:auto}
+/* 游标分页行 (FeedQueue) */
+.sentinel .pagination-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding-top:18px}
+/* 次级重点区的分类标签: 描边变体 */
+.sentinel .ftag-outline{background:transparent;border:1px solid var(--sn-line)}
+/* URL 导入输入框定宽 */
+.sentinel .sn-import-input{width:260px}

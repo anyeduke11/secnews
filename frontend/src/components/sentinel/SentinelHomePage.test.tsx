@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { __resetQueryCache } from '../../hooks/useQuery';
 
 // Mock EventSource (useSSE 依赖)
 class MockEventSource {
@@ -182,6 +183,11 @@ function callsWith(fetchMock: ReturnType<typeof mockFetch>, path: string, method
     c => c[0] === path && ((c[1]?.method ?? 'GET').toUpperCase() === method),
   );
 }
+
+/** useQuery 是模块级缓存 — B4 接入后每个用例前清空, 避免跨用例串数据 */
+beforeEach(() => {
+  __resetQueryCache();
+});
 
 describe('SentinelHomePage — 哨兵终端首页', () => {
   let fetchMock: ReturnType<typeof mockFetch>;

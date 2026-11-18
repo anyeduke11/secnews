@@ -7,6 +7,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../Toast';
 import { SignalPanel } from './SignalPanel';
+import { SignalPanelCompact } from './SignalPanelCompact';
 
 vi.mock('../../../api/v1', async () => {
   const actual = await vi.importActual<typeof import('../../../api/v1')>('../../../api/v1');
@@ -92,7 +93,7 @@ describe('SignalPanel', () => {
         subject_name: '网关',
       }],
     } as any);
-    render(ui(<SignalPanel compact />));
+    render(ui(<SignalPanelCompact />));
     expect(await screen.findByText('今日信号: 某网关未授权访问')).toBeTruthy();
     expect(mockListSignals).toHaveBeenCalledWith({ days: 1, limit: 3 });
     // 摘要栏不得发起立项 (立项是完整面板的能力)
@@ -102,7 +103,7 @@ describe('SignalPanel', () => {
 
   it('compact 空/失败: 空态与未就绪占位, 不伪造信号', async () => {
     mockListSignals.mockResolvedValue({ version: 'v1', total: 0, items: [] } as any);
-    render(ui(<SignalPanel compact />));
+    render(ui(<SignalPanelCompact />));
     expect(await screen.findByText(/今日暂无受管信号/)).toBeTruthy();
   });
 });

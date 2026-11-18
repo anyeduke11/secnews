@@ -49,6 +49,26 @@
 | DATA-18 | 类型识别 → 预填事项草案 | `/`（立项）、`/knowledge`（转 Case） | `components/v1/panels/SignalPanel.tsx`（信号→立项）+ `components/knowledge/KnowledgeActionBar.tsx`（知识→Case） | `components/v1/panels/SignalPanel.test.tsx`、`components/knowledge/KnowledgeActionBar.test.tsx` | B4：`/` SignalPanel 区块；B5：知识转 Case 动作条 |
 | DATA-19 | 采集供给验收（源矩阵/存活卡） | `/secnews/pipeline` | `components/secnews/pipeline/PipelineView.tsx` + `SourceMatrixCard.tsx` + `AliveCard.tsx` | `components/secnews/pipeline/SourceMatrixCard.test.tsx` | B6：设置侧采集工具页（不新增入口） |
 
+#### 2.1.1 B4 交付后落点复核（2026-11-18）
+
+`SentinelHomePage.tsx` 808 → 299 行（容器），区块落 `components/sentinel/feed/`（`feedModel.ts` / `FeedAtoms.tsx` / `UrlImport.tsx` / `FeedControls.tsx` / `FeedStates.tsx` / `FeedMustRead.tsx` / `FeedStream.tsx`）。上表「组件路径」列中 `SentinelHomePage.tsx` 的引用一律以该目录为准，其余路径未动。
+
+| DATA | B4 复核结论 | 证据 |
+|---|---|---|
+| DATA-1 质量门禁可解释 | ✅ 保留 | 右栏 `RailWithPipe` + `SignalPanel compact`；`/quality` 工具页未动 |
+| DATA-2 四阅读模式 | ✅ 保留 | `FeedControls.tsx` 的 `FeedModeBar`（简报/速览/深读/告警） |
+| DATA-3 pick_score 精选 | ✅ 保留 | `FeedStream.tsx` 的 `FeedPicked`（`useQuery('feed:picked')`） |
+| DATA-5 赞/踩 | ✅ 保留 | `FeedAtoms.tsx` 的 `FeedRowBinding.onReact` 三挂载点（must-read/queue/read） |
+| DATA-6 兴趣引擎三层归因 | ✅ 保留 | 容器 `star()` 内 `trackInterest(item.id,'favorite')` |
+| DATA-9 SK-01 优先情报 | ✅ 保留 | 默认分支 `<PriorityDigestCard />`（**未接 useQuery**，偏差 D6） |
+| DATA-10 摘要降级可见性 | ◐ 原状（部分覆盖） | 随 DATA-9 未改动；降级标识仍缺 |
+| DATA-18 类型识别→立项 | ✅ 保留 | `/` 两处 `<SignalPanel>`（rail compact + 正文全量） |
+| DATA-4 告警收窄 | 不属于本批 | `NewsAlertList.tsx` 未改动 |
+| DATA-7 内容偏好 | 不属于本批 | `ContentPreferencesCard.tsx`（B6）+ feed 消费逻辑未改 |
+| DATA-16/17/19 | 不属于本批 | 分别归 B5 / B5 / B6 |
+
+> 未列出的 DATA-8/11/12/13/14/15 与 B4 无关（未实现或非资讯域）。本复核只证明「区块仍在、可定位」，不构成视觉/交互验收。
+
 ### 2.2 知识域 `/knowledge`（KNOW-1 ~ KNOW-14，B5 承接）
 
 | 编号 | 能力 | 路由 | 当前落点（文件 · 区块） | 测试 | B4–B6 目标承载 |

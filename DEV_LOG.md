@@ -1,4 +1,48 @@
 
+## [DEV-0396] perf(fe): 前端重构 V1 B4 包体积修复 — 关闭偏差 D7（首屏 JS −759 B）
+- **时间**: 2026-11-18
+- **类型**: 负向指标修复（B4 退出条件 3「包体积不增」；修复前 +1,193 B / +1.28%）
+- **归因先行（决定策略的关键证据）**: `vite build --sourcemap` + 自写 VLQ 解码把 chunk 产出逐字节归因到源文件 —— 路由 chunk 36,979 → 40,443 raw，其中 **`hooks/useQuery` +2,109 raw 是唯一内容**（G6 强制、此前被 tree-shake 掉），feed/ 拆分胶水 +1,353 raw 是**重复内容**；实测**去掉 3,637 raw 重复只换 −596 B gzip**（gzip 对重复文本几乎免费）→ 策略定为**把唯一内容移出首屏包**，而非继续去重
+- **口径修正**: 台账原用 `gzip -c` CLI（含文件名头）；统一改 Node `zlib.gzipSync`（与 B0 基线脚本同口径）—— B3 复测 93,517 B 与台账逐字一致、B4 复测 94,857 B（+147 B 即 CLI 头差），**D7 为真实回归**。固化「首屏 JS（3 chunk）」与「首屏 eager 闭包」两套口径入基线 §2.1
+- **改动面**:
+  - `hooks/useQuery.ts`：entry 自带 `fetcher`/`isEmpty`，删旁路注册表（`fetchers`/`emptiness` 两个 Map + `entryFetcher`/`entryIsEmpty`/`remember` 三函数）；公共 API 与 10 tests 不变（−260 raw）
+  - `components/sentinel/feed/FeedStates.tsx`：四态收敛为单一 `FeedPanel`（星形/时钟圆环 SVG 各留一份），四处空态/错误态复用（−745 raw）
+  - `feed/FeedAtoms.tsx`：新增 `HeatCells` / `PracticeTag` 行级原子，替代三处重复（−320 raw）
+  - `feed/feedModel.ts`：`tagColorOf` 复用 `CHANNEL_DEFS` 色板；箭头 path 字面量抽 `ICON_ARROW_D` 三处共用（−390 raw）
+  - `feed/FeedControls.tsx` / `FeedStream.tsx` / `FeedMustRead.tsx` / `UrlImport.tsx` + `sentinel.css`：静态布局值下沉 CSS 类，动态色值仍留行内（JS −845 raw / CSS +700）
+  - `feed/FeedStream.tsx`：`NewsAlertList` 改 `lazy()` + Suspense（仅 alert 模式渲染，回退 DOM 与组件自身载入态一致）（−2,352 raw）
+  - `components/v1/panels/SignalPanel.tsx` 移除 `compact` prop；新建 `SignalPanelCompact.tsx`（右栏只读摘要，**同步**加载）；`sentinel/SentinelHomePage.tsx` 完整面板改 `lazy()`（位于主列之后 = 首屏之下）（−5,700 raw）
+  - `components/v1/panels/SignalPanel.test.tsx`：2 条 compact 用例改渲染 `SignalPanelCompact`
+  - 新增 `components/sentinel/SentinelHomeAux.tsx`（26）：收容 `RailWithPipe` + `SignalPanelLazy` —— 否则第 7 项把容器推到 310 行，违反「单文件 ≤300 行」硬约束；容器回落到 **296 行**
+- **行为变更声明（owner 需知情）**: ① 两处新增 Suspense，首帧回退占位；`SentinelHomePage.test.tsx` 页面级测试**零断言改动**通过（alert 用例原本即 `waitFor` 异步）。② `SignalPanel` 的 `compact` prop 已删除（迁至新模块，同一数据源 `listSignals`，DOM/行为逐字保留）。③ 检索条 sticky `top` 仍留行内 style（DEV-0188 契约测试断言的就是 `bars[1].style.top`）
+- **实测门禁**（全绿）:
+  - `npx tsc --noEmit` exit 0
+  - `npx vitest run --coverage` **110 文件 / 782 tests 全通过**（末次复跑 exit 0）；覆盖率 58.16 / 77.36 / 58.39 / 58.16（另一轮 58.22 / 77.46 / 58.35 / 58.22，两轮均 ≥ 基线 57.05/76.39/57.42/57.05 与 thresholds）
+  - ⚠️ **flaky 披露**: 一轮全量并发跑出现 1 例超时失败（`SentinelHomePage.test.tsx > 赞/踩链路 (DEV-0311)`，`Test timed out in 5000ms`）；同文件单跑 31/31 通过、随后全量复跑整轮通过。判定为负载敏感型既有抖动（该用例与体积/懒加载无因果关系），非本批引入；已记入验证报告 §8.3，若 B6 频率升高须单独治理
+  - `npx vite build --logLevel error` exit 0；首屏 JS gzip **92,758 B**（index 27,686 + vendor-react 53,816 + SentinelHomePage 11,256；**较 B3 93,517 −759 B / −0.81%**）；首屏 eager 闭包 98,532 B（−847 B）；首屏 CSS 16,831 B（+147 B）；全量 JS 555,341 B / 75 chunk
+  - `python scripts/generate_meta.py --check` OK（纯前端改动，架构数字未变）
+- **残留（不隐藏，显式登记）**: 全量 JS 较 B3 **+2,958 B / +2 chunk**（懒加载 chunk 边界开销 +924 B + `useQuery` 实体化 +2,109 raw）→ 留给 B6（旧页删除 + 懒加载回收）；首屏 CSS +147 B 为行内 style 下沉代价；**LCP 未复测**（基线本身未采集），不得声称新增 2 处 Suspense 未影响 LCP
+- **留痕**: 验证报告 `docs/audit/FRONTEND_REWRITE_VERIFY_2026-11-17.md` §8.5；CHANGELOG B4 小节
+
+## [DEV-0395] refactor(fe): 前端重构 V1 B4 — 资讯域 `/` 拆分为容器 + 7 区块文件，接入 useQuery（G6 关闭）
+- **时间**: 2026-11-18
+- **类型**: 绞杀者 B4（退出条件 = 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增；**第 3 项未达成**，见偏差 D7 → 已由 DEV-0396 关闭）
+- **关联文件**（全部 `frontend/src/components/sentinel/`）:
+  - `SentinelHomePage.tsx`：808 → **299 行**，退化为容器（状态 / 取数 / 区块组合），DOM / class / `data-testid` 逐字保留
+  - `feed/feedModel.ts`（102）：频道 / 时间窗常量 + `tagColorOf` / `labelOf` / `relTime` / `heatOf` / `heatCells` / `safeHref`
+  - `feed/FeedAtoms.tsx`（102）：`FeedRowBinding` / `StarButton` / `DeepReadChip` / `FlashRow`
+  - `feed/UrlImport.tsx`（66）/ `feed/FeedControls.tsx`（118）/ `feed/FeedStates.tsx`（46）/ `feed/FeedMustRead.tsx`（96）/ `feed/FeedStream.tsx`（192）
+  - `feed/feedModel.test.ts`（90，新建）：12 tests —— `safeHref` 拒 `javascript:`/`data:`（XSS 边界）/ `relTime` 非法→`--` / `heatOf` 夹取 0–5 / 分类标签 / 频道表已剔除 bid / 时间窗仅 4 个合法枚举
+  - `SentinelHomePage.test.tsx`：**仅** 追加 `beforeEach(__resetQueryCache())`，31 tests 断言零改动
+- **G6 关闭**: `useQuery('feed:quality')` + `useQuery('feed:picked', enabled=scan)` 替换手写 `loadSide` / picked effect；`bindInvalidateOn(SSE_EVENTS.COLLECT_DONE, 'feed:', {throttleMs: 10_000})` 整域失效（与既有 collect_done 节流测试一致）；主列仍走 `useHotspotData` 3s 防抖合并；「立即采集」= `refresh()` + `qualityQuery.refetch()` + `reloadPipe()`
+- **实测门禁**:
+  - `npx tsc --noEmit` exit 0（首跑 2 错：`ReactionType` 误从 `ReactionButtons` 导入、`FeedRowBinding.onReact` 收窄为 `HotspotItem` 与 `PickedItem` 冲突 → 改指 `hooks/useReactions` 的 `ReactionTarget`）
+  - `npx vitest run --coverage` **110 文件 / 782 tests 全通过**；覆盖率 58.16 / 77.33 / 58.43 / 58.16（B3：58.03 / 77.13 / 58.16 / 58.03，未降阈值）
+  - `npx vite build --logLevel error` exit 0；首屏 JS gzip **94,710 B**（index 27,609 + vendor-react 53,763 + SentinelHomePage 13,338；B3 93,517，**+1,193 B / +1.28%**）；首屏 CSS 16,605 B（−79）；全量 JS 554,417 B / 73 chunk（+0.37%）
+- **偏差 D7（负向，需 owner 知情）**: 「包体积不增」未达成。根因：`useQuery` 此前被 tree-shake 出产物，B4 是其首个生产消费者（G6 强制项），模块本体整段进入页 chunk；拆分本身不增代码。20% 目标仍由 B6 承担
+- **偏差 D6（新增）**: `PriorityDigestCard` 保留手写 fetch ——「刷新按钮发 `force=true`」无法用现有 `useQuery.refetch()` 表达（无参数化 key），强行接入会变行为
+- **Rule 6 预算声明**: 本批多次大段 Read 被清空导致重复读取，估算超出 repo-wide 15,000/任务口径（见收尾汇报）
+
 ## [DEV-0394] refactor(fe): 前端重构 V1 B3 — useQuery 查询工厂 + 域 API 模块收敛（54 处直调清零）
 - **时间**: 2026-11-17
 - **类型**: 数据层收敛（绞杀者 B3；退出条件 = 直调计数降为 0（grep 断言）/ 无回归）

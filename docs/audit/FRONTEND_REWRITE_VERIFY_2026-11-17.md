@@ -12,7 +12,7 @@
 | B1 | `tokens.css` 单一源 + L1 primitives 八件 + coverage.thresholds | 每原子 ≥1 测试 / 无业务依赖 / token 重复定义归零 | ✅ 2026-11-17 |
 | B2 | 壳原地替换 + 全局 Toast 提到根 | `nav4_shell` 改造后绿 / 三态主题可切换 / 旧页 `--sn-*` 正常渲染 | ✅ 2026-11-17（见 §3） |
 | B3 | `useQuery` + 域 API 模块 | 54 处直调降为 0 | ✅ 2026-11-17（见 §5） |
-| B4 | 资讯域 `/` 重写 | 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增 | ⏳ 未开始 |
+| B4 | 资讯域 `/` 重写 | 首屏区块全保留 / 单文件 ≤300 行 / 包体积不增 | ✅ 2026-11-18（见 §8；包体积于 §8.5 复测达标，D7 已关闭） |
 | B5 | 知识域 + 行动域重写 | 同上 | ⏳ 未开始 |
 | B6 | 设置域 + 工具页 + 旧 CSS 删除 + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ⏳ 未开始 |
 
@@ -214,3 +214,99 @@ LCP 元素来源：[`SentinelHomePage.tsx#L648`](../../frontend/src/components/s
 1. **D3 / ACT-17（高）**：`components/v1/panels/CaseQueuePanel.tsx` 有组件、有测试，但 `/action` 只挂 `ExecOverviewPanel`，完整队列实际不可达；而 `ROUTE_REGISTRY.md` 声称「P1 CaseQueue 迁入 `/action` ✅ 完成」。B5 前须裁决：**漏挂（需补挂）** 还是 **有意收敛（需更正 registry）**。
 2. **24 条未定位中 17 条属后端/工程纪律能力**：前端重写不承载；若重写期临时想补可见性，只能作为四菜单内区块，禁止新增一级入口。
 3. **3 处零测试：SET-5（sync）/ SET-14（dsh）/ XF-15**：按「有测试=安全」推进会静默丢功能，B6 须补测试或写入显式豁免清单。
+## 8. B4 验证证据（资讯域 `/`，2026-11-18）
+
+### 8.1 改动面（9 文件，均为 `frontend/src/components/sentinel/`）
+
+| 文件 | 行数 | 职责 |
+|------|------|------|
+| `SentinelHomePage.tsx` | 299 | **容器**：状态 / 取数 / 区块组合（原 808 行） |
+| `feed/feedModel.ts` | 102 | 纯常量 + 纯函数（频道 / 时间窗 / `safeHref` / `relTime` / `heatOf`） |
+| `feed/FeedAtoms.tsx` | 102 | 行级原子：`FeedRowBinding` / `StarButton` / `DeepReadChip` / `FlashRow` |
+| `feed/UrlImport.tsx` | 66 | `POST /api/kl/import/url`（自挡非 http(s)） |
+| `feed/FeedControls.tsx` | 118 | 模式条 + 检索条 |
+| `feed/FeedStates.tsx` | 46 | 骨架 / 错误 / 空态 |
+| `feed/FeedMustRead.tsx` | 96 | 今日必读（头条 + 次级重点） |
+| `feed/FeedStream.tsx` | 192 | 精选 / 深度 / 待读（含告警） / 已读 |
+| `feed/feedModel.test.ts` | 90 | 12 tests（新增） |
+
+### 8.2 退出条件逐条
+
+1. **首屏区块全保留** ✅ — `SentinelHomePage.test.tsx`（31 tests）原样通过，零断言改动；仅 `beforeEach` 追加 `__resetQueryCache()`（模块级缓存隔离）。覆盖：头条 `h1.headline`、今日一句话、今日必读、待读→已读递进、collect_done 三分支节流、精选/深度/告警视图、粘性 controlbar。
+2. **单文件 ≤300 行** ✅ — 修复后容器 **296 行**（懒加载辅助片段抽到 `SentinelHomeAux.tsx`，26 行），其余 62–243 行；无超限文件。
+3. **包体积不增** ✅（**修复后**，详见 §8.5）— 首屏 JS gzip **92,758 B**（index 27,686 + vendor-react 53,816 + SentinelHomePage 11,256），相对 B3 **93,517 B 降 −759 B / −0.81%**。修复前为 **94,857 B**（同口径复测；台账原记 94,710 B，差异来自 gzip 工具口径，见 §8.5.1），相对 B3 +1,340 B → 登记偏差 **D7**，已于 §8.5 关闭。首屏 CSS 16,831 B（+147 B，行内 style 下沉 CSS 的代价，已声明）；全量 JS 555,341 B / 75 chunk（残留项，见 §8.5.4）。
+4. **G6 接线** ✅ — `useQuery('feed:quality')` + `useQuery('feed:picked', enabled: mode==='scan')` 替换手写 `loadSide` / picked effect；`useEffect(() => bindInvalidateOn(SSE_EVENTS.COLLECT_DONE, 'feed:', { throttleMs: SIDE_RELOAD_GATE_MS }), [])` 整域失效，10s 节流与 collect_done 测试期望一致；主列仍由 `useHotspotData` 3s 防抖合并。
+
+### 8.3 门禁实测
+
+- `npx tsc --noEmit` exit 0
+- `npx vitest run --coverage` **110 文件 / 782 tests 全通过**（exit 0）；末次复跑 statements **58.16** / branches **77.36** / functions **58.39** / lines **58.16**（另一轮复跑 58.22 / 77.46 / 58.35 / 58.22；两轮均高于基线 57.05 / 76.39 / 57.42 / 57.05 与 thresholds 57.05 / 57.05 / 57.42 / 76.39）
+- ⚠️ **flaky 披露（Rule 12，不隐藏）**：其中一轮全量并发跑出现 1 例超时失败 —— `SentinelHomePage.test.tsx > 赞/踩链路 (DEV-0311)`（`Test timed out in 5000ms`），同文件单跑 31/31 通过、随后全量复跑整轮通过。判据：该用例断言的是赞踩 POST/DELETE 链路，与本次改动（体积/懒加载）无因果关系；失败发生在全量并发高负载下且未复现。**结论为负载敏感型既有抖动，非本批引入**，但按「失败必须显式声明」记录于此；若 B6 复现频率升高，应单独治理（提高该用例 timeout 或减少并发）。
+- `npx vite build --logLevel error` exit 0（体积见 8.2-3 与 8.5.4）
+- `python scripts/generate_meta.py --check` exit 0（架构数字未变，本批为纯前端改动）
+
+> 本节为 **2026-11-18 包体积修复批** 的复测结果；修复前的同名数字见 git history 与 §8.5.4 对照列。
+
+### 8.4 偏差登记
+
+- **D7（新增，负向）→ 已关闭（§8.5）**：B4「包体积不增」未达成（+1,193 B / +1.28%，台账口径），代价为 G6 `useQuery` 首次进入产物；2026-11-18 包体积修复批后首屏 JS gzip 降至 **92,758 B**（较 B3 93,517 −759 B / −0.81%）。20% 目标仍由 B6 承担（旧页删除 + 懒加载回收）。
+- **D6（新增，沿用缺口）**：`PriorityDigestCard` 保留手写 fetch 未接 `useQuery` —— 其「刷新按钮发 `force=true` 请求」语义无法用现有 `useQuery` 表达（`refetch` 不携带参数），强行接入会改变行为；等 `useQuery` 支持参数化 key 时再收。
+
+### 8.5 D7 关闭记录（2026-11-18，包体积修复批）
+
+#### 8.5.1 口径修正（先于结论）
+
+台账 B4 原记「首屏 JS gzip 94,710 B」用 `gzip -c` CLI 采集（含文件名头）；本批统一改用 Node `zlib.gzipSync`（level 6，与 B0 基线采集脚本同口径）：B3 复测 **93,517 B**（与台账逐字一致，口径校验通过），B4 复测 **94,857 B**（较原记 +147 B，即 CLI 头差）。**结论不变：D7 是真实回归。**
+
+本次固化两个首屏口径（采样对象均为 `frontend/dist`）：
+
+| 口径 | 定义 | 用途 |
+|---|---|---|
+| 首屏 JS（3 chunk） | `index-*.js` + `vendor-react-*.js` + `SentinelHomePage-*.js` 的 gzip 之和 | 与 B0/B3 台账可比；**D7 判定口径** |
+| 首屏 eager 闭包 | 以 `dist/index.html` 的 `<script>` / `<link modulepreload>` 为种子，递归**静态** `from"..."` import 闭包（含路由 chunk） | 浏览器首屏真实下载量；含共享 chunk，排除仅被 `import()` 引用的懒加载 chunk |
+
+两口径差异：3 chunk 口径不含路由 chunk 之外的共享 chunk（`realtime` / `ReactionButtons` / `secnews` / `v1` / `action` / `panelShell` / `useAbortGuard`），eager 闭包口径含。两者在 B4 修复前分别为 94,857 / 100,795 B。
+
+#### 8.5.2 归因（sourcemap VLQ 逐字节归因到源文件）
+
+| 项 | B3 | B4 修复前 | 差 |
+|---|---|---|---|
+| 路由 chunk 归因总量（raw） | 36,979 | 40,443 | **+3,464** |
+| 其中 `hooks/useQuery`（G6 强制，首个生产消费者，此前被 tree-shake 掉） | 0 | 2,109 | +2,109（**唯一内容**） |
+| 其中 feed/ 拆分胶水（8 文件 vs 1 文件） | — | +1,353 | +1,353（**重复内容**） |
+
+**关键结论（决定修复策略）**：gzip 对**重复文本几乎免费** —— 去掉 3,637 raw 的重复内容只换来 −596 B gzip；唯一内容才按 ~0.35 的比例折算。因此本批不靠「继续去重」，而是**把唯一内容移出首屏包**。
+
+#### 8.5.3 改动面（7 项，1 项为 `useQuery` 内部重构）
+
+| # | 手段 | 文件 | 性质 | raw 影响 |
+|---|---|---|---|---|
+| 1 | `useQuery` 精简：entry 自带 `fetcher`/`isEmpty`，删旁路注册表（`fetchers`/`emptiness` 两个 Map + 3 个函数） | `hooks/useQuery.ts` | 内部重构，公共 API 与 10 tests 不变 | −260 |
+| 2 | 四态面板收敛为单一 `FeedPanel`（星形 / 时钟圆环 SVG 各留一份，四处空态/错误态复用） | `feed/FeedStates.tsx` + `feed/FeedStream.tsx` | 结构去重，DOM 不变 | −745 |
+| 3 | `HeatCells` / `PracticeTag` 行级原子（热度格与实践域标签原各三处重复） | `feed/FeedAtoms.tsx` | 结构去重 | −320 |
+| 4 | `tagColorOf` 改复用 `CHANNEL_DEFS` 色板；箭头 path 字面量三处共用一份 `ICON_ARROW_D` | `feed/feedModel.ts` | 常量归并 | −390 |
+| 5 | 静态行内 style 下沉 CSS 类（动态色值仍留行内） | `feed/FeedControls.tsx` / `FeedStream.tsx` / `FeedMustRead.tsx` / `UrlImport.tsx` + `sentinel.css` | 合规（AGENTS：行内 style 仅允许 dynamic 计算值） | JS −845 / CSS +700 |
+| 6 | `NewsAlertList` 改按需加载（仅 alert 模式渲染） | `feed/FeedStream.tsx` | **行为变更**，见下 | −2,352 |
+| 7 | 完整「受管信号」面板改按需加载（位于主列之后 = 首屏之下）；右栏只读摘要拆为独立模块保持**同步**加载 | `v1/panels/SignalPanel.tsx` + 新增 `v1/panels/SignalPanelCompact.tsx` + `sentinel/SentinelHomePage.tsx` | **行为变更 + API 变更**，见下 | −5,700 |
+| 8 | 容器内的两处辅助片段（`RailWithPipe` / `SignalPanelLazy`）抽为独立文件 —— 否则第 7 项会把容器推过 ≤300 行硬约束 | 新增 `sentinel/SentinelHomeAux.tsx` | 结构搬家，零行为变化 | −55（仅体积口径里的归属位移） |
+
+**行为变更声明（owner 需知情）**
+
+1. `NewsAlertList` 与完整 `SignalPanel` 改为 `React.lazy` + `Suspense`：两者首帧渲染回退占位（`NewsAlertList` 回退与组件自身载入态 DOM 一致：`news-alert-list > na-empty`；`SignalPanel` 回退为「载入中…」）。页面级测试**零断言改动**通过（alert 用例原本就是 `waitFor` 异步断言；页面上无任何测试断言完整 `SignalPanel`）。
+2. `SignalPanel` 的 `compact` prop 已移除 —— 右栏摘要迁至新模块 `SignalPanelCompact`（同一数据源 `listSignals`，DOM 与行为逐字保留）；`SignalPanel.test.tsx` 中 2 条 compact 用例改为渲染 `SignalPanelCompact`，其余断言不动。
+3. 检索条的 sticky `top` 仍留行内 style（DEV-0188 契约测试断言的就是 `bars[1].style.top`，不能下沉 CSS）；其余静态布局值下沉。
+
+#### 8.5.4 实测（`node zlib.gzipSync`，同机同命令）
+
+| 口径 | B0 基线 | B3 | B4 修复前 | B4 修复后 | vs B3 |
+|---|---|---|---|---|---|
+| 首屏 JS（3 chunk，D7 判定口径） | 92,998 | 93,517 | 94,857 | **92,758** | **−759 / −0.81%** |
+| 首屏 eager 闭包 | — | 99,379 | 100,795 | **98,532** | **−847 / −0.85%** |
+| 首屏 CSS | 16,507 | 16,684 | 16,605 | 16,831 | +147 |
+| 全量 JS / chunk 数 | 549,589 / 69 | 552,383 / 73 | 554,417 / 73 | 555,341 / 75 | +2,958 / +2 chunk |
+
+**残留（不隐藏）**
+
+- **全量 JS 555,341 B / 75 chunk**（较 B3 +2,958 B）：其中 **+924 B 是 2 个懒加载 chunk 的边界开销**（同一份代码拆成独立 chunk 后各自带一份压缩字典与 import 样板，代码体积本身未增），另 +2,109 raw 是 G6 强制的 `useQuery` 实体化。**留给 B6（旧页删除 + 懒加载回收）**。
+- **首屏 CSS +147 B**（较 B3）：行内 style 下沉 CSS 的代价；JS 侧省下的更多，首屏 JS+CSS 合计较 B3 净 −594 B。
+- **LCP 未复测**：基线本身仍未采集（§2.4 缺口），本次新增 2 处 Suspense，**不得声称 LCP 未受影响**。

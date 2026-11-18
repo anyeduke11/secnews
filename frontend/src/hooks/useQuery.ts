@@ -1,11 +1,12 @@
 /**
  * useQuery — 统一查询工厂 (FRONTEND_REWRITE_V1_PLAN §5)
  *
- * 目标: 消除 54 处 "组件内 useEffect + 三个 useState + 手写三态" 的重复,
+ * 目标: 消除 "组件内 useEffect + 三个 useState + 手写三态" 的重复,
  * 让同一 key 的并发消费者共享一次请求与一份缓存。
  *
  * 设计:
  *   - 模块级缓存 Map<key, entry>, entry 持有不可变快照 (useSyncExternalStore 要求)
+ *   - entry 自带取数函数 / 空判定 / 订阅者, invalidate 不依赖旁路注册表
  *   - 同一 key 有在途请求时, 后来者复用同一 Promise (去抖 + 去重)
  *   - 命中缓存立即返回数据 (无 loading 闪烁); refetch / invalidate 才重新拉取
  *   - state 取值与 primitives/AsyncState 的 AsyncStatus 对齐:
@@ -15,7 +16,7 @@
  *   - bindInvalidateOn(events, prefix) 复用 hooks/realtime.ts 的 SSE 事件名,
  *     由域层在 B4/B5 挂载时绑定 collect_done 等事件 (本文件不含域策略)
  */
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { registerInvalidate, type RealtimeTimingOptions } from './realtime';
 
 export type QueryState = 'loading' | 'ready' | 'empty' | 'error';
@@ -39,9 +40,12 @@ export interface UseQueryOptions<T> {
 }
 
 interface QueryEntry<T> {
+  key: string;
   snapshot: QuerySnapshot<T>;
   listeners: Set<() => void>;
   promise: Promise<void> | null;
+  fetcher: (() => Promise<T>) | null;
+  isEmpty: (data: T) => boolean;
   lastUsed: number;
 }
 
@@ -67,9 +71,12 @@ function ensureEntry<T>(key: string): QueryEntry<T> {
   let entry = entries.get(key) as QueryEntry<T> | undefined;
   if (!entry) {
     entry = {
+      key,
       snapshot: { data: undefined, state: 'loading', error: null },
       listeners: new Set(),
       promise: null,
+      fetcher: null,
+      isEmpty: defaultIsEmpty as (data: T) => boolean,
       lastUsed: Date.now(),
     };
     entries.set(key, entry as QueryEntry<unknown>);
@@ -80,7 +87,7 @@ function ensureEntry<T>(key: string): QueryEntry<T> {
 
 function evictIfNeeded(): void {
   if (entries.size <= MAX_ENTRIES) return;
-  const idle = [...entries.entries()]
+  const idle = [...entries]
     .filter(([, e]) => e.listeners.size === 0)
     .sort((a, b) => a[1].lastUsed - b[1].lastUsed);
   for (const [key] of idle) {
@@ -97,26 +104,26 @@ function publish<T>(key: string, snapshot: QuerySnapshot<T>): void {
   for (const listener of entry.listeners) listener();
 }
 
-async function load<T>(key: string, fetcher: () => Promise<T>, isEmpty: (d: T) => boolean): Promise<void> {
-  const entry = entries.get(key) as QueryEntry<T> | undefined;
-  if (!entry) return;
+async function load<T>(entry: QueryEntry<T>): Promise<void> {
   if (entry.promise) return entry.promise;
+  const fetcher = entry.fetcher;
+  if (!fetcher) return;
+  const isEmpty = entry.isEmpty;
 
   // 已有数据时保持当前状态 (避免重拉导致闪白); 首次加载才置 loading
   if (entry.snapshot.data === undefined && entry.snapshot.state !== 'error') {
-    publish(key, { data: undefined, state: 'loading', error: null });
+    publish(entry.key, { data: undefined, state: 'loading', error: null });
   }
 
   entry.promise = (async () => {
     try {
       const data = await fetcher();
-      publish<T>(key, { data, state: isEmpty(data) ? 'empty' : 'ready', error: null });
+      publish<T>(entry.key, { data, state: isEmpty(data) ? 'empty' : 'ready', error: null });
     } catch (e: unknown) {
       const message = e instanceof Error && e.message ? e.message : '请求失败';
-      publish<T>(key, { data: entry.snapshot.data, state: 'error', error: message });
+      publish<T>(entry.key, { data: entry.snapshot.data, state: 'error', error: message });
     } finally {
-      const current = entries.get(key) as QueryEntry<T> | undefined;
-      if (current) current.promise = null;
+      entry.promise = null;
     }
   })();
   return entry.promise;
@@ -127,36 +134,15 @@ async function load<T>(key: string, fetcher: () => Promise<T>, isEmpty: (d: T) =
  * 有订阅者的条目立即重拉; 无订阅者的条目被淘汰, 下次挂载重新请求。
  */
 export function invalidate(keyOrPrefix: string): void {
-  const keys = [...entries.keys()].filter(
-    (key) => key === keyOrPrefix || key.startsWith(keyOrPrefix),
-  );
-  for (const key of keys) {
-    const entry = entries.get(key);
-    if (!entry) continue;
+  for (const [key, entry] of entries) {
+    if (key !== keyOrPrefix && !key.startsWith(keyOrPrefix)) continue;
     if (entry.listeners.size === 0) {
       entries.delete(key);
       continue;
     }
     if (entry.promise) continue;
-    void load(key, entryFetcher(key), entryIsEmpty(key));
+    void load(entry as QueryEntry<unknown>);
   }
-}
-
-// invalidate 需要在条目上记住取数函数, 否则订阅者重拉时无从下手
-const fetchers = new Map<string, () => Promise<unknown>>();
-const emptiness = new Map<string, (d: unknown) => boolean>();
-
-function entryFetcher(key: string): () => Promise<never> {
-  return (fetchers.get(key) ?? (() => Promise.reject(new Error('查询未注册')))) as () => Promise<never>;
-}
-
-function entryIsEmpty(key: string): (d: never) => boolean {
-  return (emptiness.get(key) ?? defaultIsEmpty) as (d: never) => boolean;
-}
-
-function remember(key: string, fetcher: () => Promise<unknown>, isEmpty: (d: unknown) => boolean): void {
-  fetchers.set(key, fetcher);
-  emptiness.set(key, isEmpty);
 }
 
 /**
@@ -183,12 +169,8 @@ export function useQuery<T>(
   fetcher: () => Promise<T>,
   options: UseQueryOptions<T> = {},
 ): QueryResult<T> {
-  const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
-  const isEmptyRef = useRef(options.isEmpty ?? (defaultIsEmpty as (d: T) => boolean));
-  isEmptyRef.current = options.isEmpty ?? (defaultIsEmpty as (d: T) => boolean);
-
   const enabled = key !== null && (options.enabled ?? true);
+  const isEmpty = options.isEmpty ?? (defaultIsEmpty as (data: T) => boolean);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -197,8 +179,7 @@ export function useQuery<T>(
       entry.listeners.add(onStoreChange);
       entry.lastUsed = Date.now();
       if (entry.snapshot.data === undefined && entry.snapshot.state !== 'error' && !entry.promise) {
-        remember(key, fetcherRef.current as () => Promise<unknown>, isEmptyRef.current as (d: unknown) => boolean);
-        void load(key, fetcherRef.current, isEmptyRef.current);
+        void load(entry);
       }
       return () => {
         entries.get(key)?.listeners.delete(onStoreChange);
@@ -214,11 +195,20 @@ export function useQuery<T>(
 
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  // 取数函数随渲染写入 entry —— invalidate 需要它才能重拉
+  if (enabled && key) {
+    const entry = ensureEntry<T>(key);
+    entry.fetcher = fetcher;
+    entry.isEmpty = isEmpty;
+  }
+
   const refetch = useCallback(() => {
     if (!enabled || !key) return;
-    remember(key, fetcherRef.current as () => Promise<unknown>, isEmptyRef.current as (d: unknown) => boolean);
-    void load(key, fetcherRef.current, isEmptyRef.current);
-  }, [key, enabled]);
+    const entry = ensureEntry<T>(key);
+    entry.fetcher = fetcher;
+    entry.isEmpty = isEmpty;
+    void load(entry);
+  }, [key, enabled, fetcher, isEmpty]);
 
   return { ...snapshot, refetch };
 }
@@ -226,6 +216,4 @@ export function useQuery<T>(
 /** 仅供测试: 清空模块级缓存 */
 export function __resetQueryCache(): void {
   entries.clear();
-  fetchers.clear();
-  emptiness.clear();
 }

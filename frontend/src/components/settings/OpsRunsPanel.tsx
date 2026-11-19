@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LayerTable, type LayerTableColumn } from '../layout/LayerTable';
 import { getOpsRuns } from '../../api/settings';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
+import { StatusBadge, type StatusTone } from '../../primitives/StatusBadge';
 
 interface RunRow {
   id: number;
@@ -42,9 +43,10 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
 const STATUS_LABEL: Record<RunRow['status'], string> = {
   failed: '失败', missed: '错过', ok: '成功', running: '进行中',
 };
-/** st-chip 四态: failed=bad / missed=warn / ok=ok / running=mute */
-const STATUS_CHIP: Record<RunRow['status'], string> = {
-  failed: 'bad', missed: 'warn', ok: 'ok', running: 'mute',
+/** 状态四态: failed / missed / ok / running
+ *  B10: 收敛到 StatusBadge 的 StatusTone —— failed→risk / missed→warn / ok→ok / running→neutral */
+const STATUS_CHIP: Record<RunRow['status'], StatusTone> = {
+  failed: 'risk', missed: 'warn', ok: 'ok', running: 'neutral',
 };
 
 function fmtDuration(ms: number | null): string {
@@ -84,9 +86,7 @@ export function OpsRunsPanel() {
       <span className="font-mono text-xs" title={row.job_id}>{row.job_type}</span>
     ) },
     { key: 'status', header: '状态', render: row => (
-      <span className={`st-chip ${STATUS_CHIP[row.status]}`}>
-        <i />{STATUS_LABEL[row.status]}
-      </span>
+      <StatusBadge tone={STATUS_CHIP[row.status]} dot>{STATUS_LABEL[row.status]}</StatusBadge>
     ) },
     { key: 'duration_ms', header: '耗时', render: row => (
       <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -111,14 +111,13 @@ export function OpsRunsPanel() {
       <div className="flex flex-wrap items-center gap-2 mb-2">
         {s && (
           <>
-            <span className="st-chip bad"><i />失败 {s.failed}</span>
-            <span className="st-chip warn"><i />错过 {s.missed}</span>
-            <span className="st-chip ok"><i />成功 {s.ok}</span>
-            <span className="st-chip mute"><i />进行 {s.running}</span>
+            <StatusBadge tone="risk" dot>失败 {s.failed}</StatusBadge>
+            <StatusBadge tone="warn" dot blink>错过 {s.missed}</StatusBadge>
+            <StatusBadge tone="ok" dot>成功 {s.ok}</StatusBadge>
+            <StatusBadge tone="neutral" dot>进行 {s.running}</StatusBadge>
             {s.stale_running > 0 && (
-              <span className="st-chip warn" title="running 超 2h 未收尾 — 疑似进程崩溃残留">
-                <i />僵尸 {s.stale_running}
-              </span>
+              <StatusBadge tone="warn" dot blink title="running 超 2h 未收尾 — 疑似进程崩溃残留">僵尸 {s.stale_running}
+              </StatusBadge>
             )}
           </>
         )}

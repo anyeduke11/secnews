@@ -3,6 +3,7 @@
  *
  * 拆分自 DatabaseMaintenance.tsx, 纯展示子组件, 不含请求与状态.
  */
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 type Duplicates = { hotspots?: any[]; knowledge_items?: any[] } | null;
 
@@ -37,9 +38,8 @@ export function DuplicateDetail({ duplicates, dupCount, kiDupCount }: DuplicateD
                 {duplicates.hotspots.slice(0, 5).map((d: any, i: number) => (
                   <tr key={i}>
                     <td style={{ width: 56 }}>
-                      <span className="st-chip bad">
-                        <i /> {d.count}×
-                      </span>
+                      <StatusBadge tone="risk" dot>{d.count}×
+                      </StatusBadge>
                     </td>
                     <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-3)' }}>
                       {d.url?.substring(0, 80)}
@@ -67,9 +67,8 @@ export function DuplicateDetail({ duplicates, dupCount, kiDupCount }: DuplicateD
                 {duplicates.knowledge_items.slice(0, 5).map((d: any, i: number) => (
                   <tr key={i}>
                     <td style={{ width: 56 }}>
-                      <span className="st-chip bad">
-                        <i /> {d.count}×
-                      </span>
+                      <StatusBadge tone="risk" dot>{d.count}×
+                      </StatusBadge>
                     </td>
                     <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11, color: 'var(--sn-ink-3)' }}>
                       {d.title}

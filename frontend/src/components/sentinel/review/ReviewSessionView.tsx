@@ -138,7 +138,7 @@ export function ReviewSessionView({ onDataChanged }: { onDataChanged: () => void
           <div className="ac-rv-face">
             <div className="ac-rv-fmeta">
               <span className="ac-cdeck">{cur!.entity_type.toUpperCase()}</span>
-              {cur!.category && <span className="ac-badge">{cur!.category}</span>}
+              {cur!.category && <span className="tag">{cur!.category}</span>}
             </div>
             <h3 className="ac-rv-title">{rvTitle(cur!)}</h3>
             <p className="ac-rv-eid num" title={cur!.entity_id}>{cur!.entity_id}</p>

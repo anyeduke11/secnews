@@ -132,8 +132,8 @@ export default function KnowledgeFavoritesView() {
               <article key={item.id} className="feed-row">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
                   <span
-                    className="editorial-badge source-type-tag"
-                    style={{ color: SOURCE_TYPE_COLORS[item.source_type] || 'var(--text-muted)', borderColor: 'currentColor' }}
+                    className="tag"
+                    style={{ color: SOURCE_TYPE_COLORS[item.source_type] || 'var(--text-muted)' }}
                   >
                     {item.source_name}
                   </span>

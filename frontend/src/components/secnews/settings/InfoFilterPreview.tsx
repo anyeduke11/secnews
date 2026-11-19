@@ -4,6 +4,7 @@
  */
 import type { PreviewResult } from '../../../api/secnews';
 import type { TFn } from './infoFilter.types';
+import { StatusBadge } from '../../../primitives/StatusBadge';
 
 interface InfoFilterPreviewProps {
   t: TFn;
@@ -62,12 +63,12 @@ export function InfoFilterPreview({
         </button>
         {result && (
           <div style={{ marginTop: 12 }}>
-            <span className={`st-chip ${
-              result.verdict === 'deny' ? 'bad'
-                : result.verdict === 'allow' ? 'ok' : 'mute'
-            }`}>
+            <StatusBadge tone={
+              result.verdict === 'deny' ? 'risk'
+                : result.verdict === 'allow' ? 'ok' : 'neutral'
+            }>
               {t('info_filter.verdict')}: {result.verdict}
-            </span>
+            </StatusBadge>
             {result.matched_rule && (
               <span style={{
                 marginLeft: 8,

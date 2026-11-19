@@ -6,7 +6,7 @@
  *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
  *  - 默认 cat=overview (哨兵式首屏体检: 6 张 st-tile 跳转 + 系统子状态)
  *  - 各区段 (7 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
- *    --sn-* token 与 st-rule / st-card / st-chip 等原子样式
+ *    --sn-* token 与 st-rule / st-card 等原子样式 (状态徽章走 L1 StatusBadge)
  *
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
  *       v0.7.x SettingsHub 合并采集/哨兵设置与图片模型三页;
@@ -43,6 +43,7 @@ import { OpsRunsPanel } from './OpsRunsPanel';
 import { SettingsDashboard } from './SettingsDashboard';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import './settings-shell.css';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function SettingsPage() {
   // 壳品牌 / 资料层 tab 已能回首页, 页级按钮做智能返回 (有来路回上一页)
@@ -120,7 +121,7 @@ export function SettingsPage() {
 
   return (
     // v0.7.x SettingsHub V2: 全部 7 cat 共享 .settings-shell 作用域
-    // settings-shell.css 提供 --sn-* token 与 st-rule / st-card / st-chip 等原子样式
+    // settings-shell.css 提供 --sn-* token 与 st-rule / st-card 等原子样式 (状态徽章走 L1 StatusBadge)
     <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
       {/* V2 头部 — st-head 双列: 标题 + 副标题 / 状态徽章 + 操作 */}
       <header className="st-head">
@@ -132,9 +133,8 @@ export function SettingsPage() {
           <p className="st-sub2">{active?.desc ?? '系统设置 · 配置中心'}</p>
         </div>
         <div className="st-headops">
-          <span className="st-chip ok" aria-label="设置已就绪">
-            <i aria-hidden />就绪
-          </span>
+          <StatusBadge tone="ok" dot aria-label="设置已就绪">就绪
+          </StatusBadge>
           <button
             type="button"
             className="st-btn ghost"

@@ -4,6 +4,7 @@
  */
 import type { DshStatus, ProcessSnapshot } from '../../../api/secnews';
 import type { TFn } from './dshControlCard.types';
+import { StatusBadge, type StatusTone } from '../../../primitives/StatusBadge';
 
 const STATUS_I18N: Record<DshStatus['status'], string> = {
   connected: 'dsh.connected',
@@ -12,10 +13,11 @@ const STATUS_I18N: Record<DshStatus['status'], string> = {
   not_configured: 'dsh.not_configured',
 };
 
-const STATUS_TONE: Record<DshStatus['status'], 'ok' | 'warn' | 'mute' | 'bad'> = {
+/** B10: 收敛到 StatusBadge 的 StatusTone —— mute→neutral / bad→risk */
+const STATUS_TONE: Record<DshStatus['status'], StatusTone> = {
   connected: 'ok',
   starting: 'warn',
-  stopped: 'mute',
+  stopped: 'neutral',
   not_configured: 'warn',
 };
 
@@ -36,7 +38,7 @@ export function DshControlCardHeader({
   opBusy,
   onOp,
 }: DshControlCardHeaderProps) {
-  const tone = status ? STATUS_TONE[status.status] : 'mute';
+  const tone: StatusTone = status ? STATUS_TONE[status.status] : 'neutral';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -53,9 +55,8 @@ export function DshControlCardHeader({
         {t('dsh.cognitive_brain')}
         {status && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--sn-fs-mute)' }}>
-            <span className={`st-chip ${tone}`}>
-              <i /> {t(STATUS_I18N[status.status])}
-            </span>
+            <StatusBadge tone={tone} dot>{t(STATUS_I18N[status.status])}
+            </StatusBadge>
             {status.endpoint_reachable && status.status === 'connected' && (
               <span style={{ color: 'var(--sn-mint)', fontFamily: 'var(--sn-mono)' }}>· endpoint OK</span>
             )}

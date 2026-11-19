@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAutoIntake, patchAutoIntake } from '../../api/settings';
 import type { AutoIntakeConfig } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function AutoIntakeCard() {
   const [cfg, setCfg] = useState<AutoIntakeConfig | null>(null);
@@ -55,13 +56,11 @@ export function AutoIntakeCard() {
       <h3>自动入管</h3>
       <p className="st-section-desc">
         高质量资讯自动进入 KL 管线 (每日限量防风暴); 收藏通道不受上限约束。
-        {saving && <span className="st-chip"><i aria-hidden />保存中…</span>}
-        {savedFlash && !saving && <span className="st-chip ok"><i aria-hidden />已保存</span>}
+        {saving && <StatusBadge tone="neutral" dot>保存中…</StatusBadge>}
+        {savedFlash && !saving && <StatusBadge tone="ok" dot>已保存</StatusBadge>}
         {saveError && (
-          <span className="st-chip warn">
-            <i aria-hidden />
-            {saveMsg || '保存失败'}
-          </span>
+          <StatusBadge tone="warn" dot blink>{saveMsg || '保存失败'}
+          </StatusBadge>
         )}
       </p>
       {loadError ? (

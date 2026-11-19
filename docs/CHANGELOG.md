@@ -134,6 +134,16 @@
 - **显式不做**: `--sn-*` 别名层保留 / `st-*` 去前缀不做（纯改名、零功能收益、高回归风险）/ `sentinel-action.css` 与 `sentinel-graph.css` 不搬目录（已页级 scoped）
 - **留痕**: 验证报告 §15；契约 §6 批次进度表 B6 行；DEV-0403
 
+### 前端重构 V1 · B10 可见视觉落地：壳层构图 + 页面族词汇 + 徽章/标签统一 (DEV-0408, 2026-11-19)
+- **触发与第一性原理归因**: owner 重启后反馈「UI 并没有发生变化」→ B0–B9 各批契约**均明写/机检「视觉零变化」**（B1 token 仅归一 / B2 不做页面重写 / B3 只改取数入口 / B9 逐字节验证像素零变化），R-2 只补了 `.badge` 一族且仅 `/sync` 可见；`design/redesign-v1` demo 的**构图词汇**（56px 报头 / sans 22px 页面头 / pill 版面条 / 44px 表格行 / sans 按钮 / 纵向印务块）从未移植进生产 → **结构重构成功 ≠ 界面变样**。附加事实：`frontend/dist` 曾落后于 `src`
+- **a 壳层构图（`shell/shell.css`，全站每页可见）**: `.masthead` → sticky **56px 定高** + `--sn-bg-panel` 卡片底 + sans 15px；四菜单 `.nv-main` serif 16/700 → **sans 15/600**、`.nv-sub` mono 9px 大写；`.bandnav` sticky top 56px、`.bn-chip` 改 **999px pill**（current 态 accent 描边 + `--accent-soft` 底）；`.pressbar` `min-height:40px`、`.pipe-block` 改**纵向 column + 左 border + min-width 120px**（demo `.sn-mast` / `.sn-press`）
+- **b 页面族（`shared/editorial/pages.css`）**: `.ed-h1` serif clamp 900 → **sans 22px 800**（paper 主题回衬线）；`.ed-head` `3px double` → **`2px solid`**（**保持块级**，不引入 demo 两栏 flex，避免破坏 PageHeader 纵向多段结构）；`.ed-sechead` serif 16px+底边 → **sans 13px 700 + `::after` 弹性分隔线**；`.ed-table` 表头 **uppercase** 10.5px、td **44px** 行高；`.ed-btn` mono → **sans 600 12.5px**
+- **c 徽章收敛（`primitives/StatusBadge.tsx` + 设置域 30 文件）**: 设置域自建 `st-chip` 四态徽章 **76 站点** 收敛到 L1 原语 `StatusBadge`（语气映射 ok→ok / warn→warn / bad→risk / mute→neutral），原语补 `blink` / `className` / `style` / `aria-label` / `data-testid`；`settings-shell.css` 的 `.st-chip` 样式块**物理删除**（已无消费者）
+- **d 标签统一**: `index.css` 的 `.editorial-badge` 删除 → 资讯卡 / 知识库收藏 / feed / review 统一到 `.tag` 词汇（redesign-v1 §3）；快讯栏头 `.flash-head h2` serif 17px → **sans 13px 700**、`.flash-title` 500 → **700**
+- **门禁**: `tsc --noEmit` exit 0 · **111 文件 / 791 tests 全通过** · `vite build` exit 0 · `dist/index.html` 已刷新（修掉 dist 落后 src）
+- **生效方式**: owner 访问 **8898 vite dev server**（后端 8000 独立，不托管 dist）→ HMR 刷新即见；`dist` 亦已同步，preview 同样生效
+- **显式不做**: G7 全量（18 文件自写 `<table>` / 108 文件自写四态 / 7 处域内标签）留待分域分批；未做浏览器逐像素走查（本轮以产物静态核验 + 单测为准）；资讯流卡片版式保留生产 grid，未替换为 demo `.feed-card`
+
 ### 前端重构 V1 · B9 遗留项收口批：设置域合并 + 页头原子 + 视觉回归机检 (DEV-0407, 2026-11-19)
 - **a 设置域子模块 11 → 5（按业务域合并）**: `core` 197 / `ops` 200 / `security` 201 / `intelligence` 257 / `knowledge` 34 行（全部 ≤300）；**零丢失三重校验** —— 导出函数 82 → 82、导出类型全集一致、**端点 URL 全集 53 个一致**；barrel `export *` 转发，**126 处消费方 import 路径不变**；`nav4_shell` 的 `SETTINGS_MODULES` 清单同步为 5 个模块名（5 条断言逐条保留，61 tests 全通过）
 - **b 新增 L1 原子 `primitives/ToolPageHeader.tsx`（77 行 + 7 用例）**: 两种体例 —— **compact**（`/tags` `/search` `/extract` 紧凑头，三页经 `diff` 实测除前缀 TAG/FIND/EXT 与标题外**逐字相同**）+ **bar**（skills 三页横条头：`SkillStore` / `SkillDetail` / `SkillBuilder`）；DOM 与类名逐字复刻原页内实现，随收敛清理三页失效的 `Icon` import

@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { getCurrentMode, getModes, switchMode } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 const MODE_LABELS: Record<string, string> = {
   brief: '简报',
@@ -59,9 +60,8 @@ export function ModeSwitcher() {
       <h3>
         工作模式
         {current && (
-          <span className="st-chip ok" title={`当前: ${current}`}>
-            <i aria-hidden />{MODE_LABELS[current] ?? current}
-          </span>
+          <StatusBadge tone="ok" dot title={`当前: ${current}`}>{MODE_LABELS[current] ?? current}
+          </StatusBadge>
         )}
       </h3>
       <p className="st-section-desc">切换模式会同时标记简报已读 (PRD §4.2)。</p>

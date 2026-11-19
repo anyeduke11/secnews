@@ -158,25 +158,12 @@
 .settings-shell .st-checkbox:disabled,
 .settings-shell .st-radio:disabled{opacity:.5;cursor:not-allowed}
 
-/* ===== 状态徽章 (st-chip) — 四态 ok/warn/bad/mute ===== */
-.settings-shell .st-chip{
-  display:inline-flex;align-items:center;gap:5px;
-  font-family:var(--sn-mono);font-size:10.5px;letter-spacing:.04em;
-  color:var(--sn-ink-2);
-  border:1px solid var(--sn-line);border-radius:var(--sn-radius-sm);
-  padding:2px 8px;line-height:1.4;
-  background:var(--sn-bg-panel);
-}
-.settings-shell .st-chip>i{width:6px;height:6px;border-radius:50%;background:var(--sn-ink-3);display:inline-block}
-.settings-shell .st-chip.ok{color:var(--sn-mint);border-color:color-mix(in srgb,var(--sn-mint) 28%,transparent)}
-.settings-shell .st-chip.ok>i{background:var(--sn-mint)}
-.settings-shell .st-chip.warn{color:var(--sn-amber);border-color:color-mix(in srgb,var(--sn-amber) 28%,transparent)}
-.settings-shell .st-chip.warn>i{background:var(--sn-amber);animation:st-warn-blink 1.6s ease-in-out infinite}
-.settings-shell .st-chip.bad{color:var(--sn-red);border-color:color-mix(in srgb,var(--sn-red) 32%,transparent)}
-.settings-shell .st-chip.bad>i{background:var(--sn-red)}
-.settings-shell .st-chip.mute>i{background:var(--sn-ink-3)}
-@keyframes st-warn-blink{0%,100%{opacity:1}50%{opacity:.4}}
-@media(prefers-reduced-motion:reduce){.settings-shell .st-chip.warn>i{animation:none}}
+/* ===== 状态徽章 (st-chip) — 四态 ok/warn/bad/mute =====
+   B10 (2026-11-19): 设置域自建的 st-chip 徽章族 (76 站点) 收敛到 L1 原语
+   primitives/StatusBadge (design/redesign-v1 §3 的 `.badge` + `.b-*` 词汇) ——
+   语气映射 ok→b-ok / warn→b-none / bad→b-red / mute→b-disc。
+   本块样式随之物理删除 (无消费者), 前置圆点改由原语的 dot/blink prop 承担。
+   ===================================================== */
 
 /* ===== 行式布局 (.rule) — 哨兵 212px 标签列 + 控件列 ===== */
 .settings-shell .st-rule{

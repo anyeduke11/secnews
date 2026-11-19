@@ -1,11 +1,12 @@
 /**
  * settings/SyncSettings — 跨端同步设置卡片 (V2 哨兵化)
  *
- * v0.7.x SettingsHub V2: st-section + st-chip + st-switch
+ * v0.7.x SettingsHub V2: st-section + st-switch (状态徽章走 L1 StatusBadge)
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSyncStatus, setSyncAuto } from '../../api/settings';
+import { StatusBadge, type StatusTone } from '../../primitives/StatusBadge';
 
 export function SyncSettings() {
   const navigate = useNavigate();
@@ -30,17 +31,17 @@ export function SyncSettings() {
     } catch {}
   };
 
-  const autoChip = status?.configured && status.auto_sync_enabled ? 'st-chip ok' : 'st-chip mute';
-  const lastSyncChip = status?.last_sync_status === 'success' ? 'st-chip ok' : 'st-chip mute';
+  const autoTone: StatusTone = status?.configured && status.auto_sync_enabled ? 'ok' : 'neutral';
+  const lastSyncTone: StatusTone = status?.last_sync_status === 'success' ? 'ok' : 'neutral';
 
   return (
     <section className="st-section" aria-label="跨端同步" data-testid="sync-settings">
       <h3>
         跨端同步
         {status?.configured && (
-          <span className={autoChip}>
-            <i aria-hidden />{status.auto_sync_enabled ? '自动' : '手动'}
-          </span>
+          <StatusBadge tone={autoTone} dot>
+            {status.auto_sync_enabled ? '自动' : '手动'}
+          </StatusBadge>
         )}
       </h3>
       <p className="st-section-desc">
@@ -56,10 +57,9 @@ export function SyncSettings() {
               <p className="st-key" title={status.webdav_url}>{status.webdav_url}</p>
             </div>
             <div className="st-ctrl">
-              <span className={lastSyncChip}>
-                <i aria-hidden />
+              <StatusBadge tone={lastSyncTone} dot>
                 {status.last_sync_at ? `上次: ${status.last_sync_at.slice(0, 10)}` : '未同步'}
-              </span>
+              </StatusBadge>
             </div>
           </div>
         )}

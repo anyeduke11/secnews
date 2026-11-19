@@ -24,6 +24,7 @@ import type {
   InterestDrift as DriftInfo,
   InterestWeightEntry as WeightEntry,
 } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function PracticeDomainsCard() {
   const { t } = useI18n();
@@ -112,9 +113,9 @@ export function PracticeDomainsCard() {
       <h3>{t('settings.practice_domains.title')}</h3>
       <p className="st-section-desc">
         {t('settings.practice_domains.desc')}
-        {saving && <span className="st-chip"><i aria-hidden />{t('settings.practice_domains.saving')}</span>}
-        {savedFlash && !saving && <span className="st-chip ok"><i aria-hidden />{t('settings.practice_domains.saved')}</span>}
-        {error && <span className="st-chip warn"><i aria-hidden />{t('settings.practice_domains.save_failed')}</span>}
+        {saving && <StatusBadge tone="neutral" dot>{t('settings.practice_domains.saving')}</StatusBadge>}
+        {savedFlash && !saving && <StatusBadge tone="ok" dot>{t('settings.practice_domains.saved')}</StatusBadge>}
+        {error && <StatusBadge tone="warn" dot blink>{t('settings.practice_domains.save_failed')}</StatusBadge>}
       </p>
       <div className="st-section-body">
         {loading ? (
@@ -157,7 +158,7 @@ export function PracticeDomainsCard() {
             </button>
             {pendingRecs.map((d) => (
               <div key={d} className="flex items-center gap-2" style={{ marginBottom: 4 }}>
-                <span className="st-chip"><i aria-hidden />{options.find((o) => o.id === d)?.label || d}</span>
+                <StatusBadge tone="neutral" dot>{options.find((o) => o.id === d)?.label || d}</StatusBadge>
                 <span className="st-key" style={{ flex: 1 }}>{recs.reasons[d] || ''}</span>
                 <button
                   type="button"

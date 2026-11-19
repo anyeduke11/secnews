@@ -185,13 +185,7 @@
 .sentinel .ac-dbody{min-width:0;flex:1}
 .sentinel .ac-dt{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;font-weight:600;line-height:1.5;color:var(--sn-ink)}
 .sentinel .ac-dtitle{min-width:0;word-break:break-word}
-.sentinel .ac-badge{
-  flex:none;font-family:var(--sn-mono);font-size:11px;font-weight:500;
-  padding:1px 6px;border-radius:6px;margin-top:2px;
-  color:var(--sn-ink-3);border:1px solid var(--sn-line-strong);
-}
-.sentinel .ac-badge.hot{color:var(--sn-mint);border-color:var(--sn-mint-dim);background:var(--sn-mint-dim)}
-.sentinel .ac-badge.warm{color:var(--sn-amber);border-color:var(--sn-amber-dim);background:var(--sn-amber-dim)}
+/* B10 (2026-11-19): 分类标签 `.ac-badge` 统一到 L1 原语词汇 `.tag` —— 本块随之删除。 */
 .sentinel .ac-dm{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3);margin-top:4px;

@@ -20,6 +20,7 @@ import {
   resetSourceHealth,
   toggleCustomSource,
 } from '../../api/sources';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 interface SourceSettingsProps {
   open: boolean;
@@ -152,12 +153,12 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
           </p>
           <div className="st-section-body">
             <div className="st-ctrlrow" style={{ gap: 8 }}>
-              <span className="st-chip ok"><i aria-hidden />活跃 {healthStats.active ?? 0}</span>
-              {(healthStats.grace ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />观察 {healthStats.grace}</span>}
-              {(healthStats.stale ?? 0) > 0 && <span className="st-chip warn"><i aria-hidden />滞后 {healthStats.stale}</span>}
-              {(healthStats.dead ?? 0) > 0 && <span className="st-chip bad"><i aria-hidden />失效 {healthStats.dead}</span>}
-              {(healthStats.unknown ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />待定 {healthStats.unknown}</span>}
-              {(healthStats.disabled ?? 0) > 0 && <span className="st-chip mute"><i aria-hidden />禁用 {healthStats.disabled}</span>}
+              <StatusBadge tone="ok" dot>活跃 {healthStats.active ?? 0}</StatusBadge>
+              {(healthStats.grace ?? 0) > 0 && <StatusBadge tone="neutral" dot>观察 {healthStats.grace}</StatusBadge>}
+              {(healthStats.stale ?? 0) > 0 && <StatusBadge tone="warn" dot blink>滞后 {healthStats.stale}</StatusBadge>}
+              {(healthStats.dead ?? 0) > 0 && <StatusBadge tone="risk" dot>失效 {healthStats.dead}</StatusBadge>}
+              {(healthStats.unknown ?? 0) > 0 && <StatusBadge tone="neutral" dot>待定 {healthStats.unknown}</StatusBadge>}
+              {(healthStats.disabled ?? 0) > 0 && <StatusBadge tone="neutral" dot>禁用 {healthStats.disabled}</StatusBadge>}
             </div>
             {deadSources.length > 0 && (
               <table className="st-table" aria-label="失效/滞后源明细">
@@ -169,9 +170,8 @@ export function SourceSettings({ open, onRefreshIntervalChange }: SourceSettings
                     <tr key={s.id || `${s.category}/${s.name}`} className={s.status === 'dead' ? 'is-warn' : ''}>
                       <td>
                         <span className="st-nm">{s.category}/{s.name}</span>
-                        <span className={`st-chip ${s.status === 'dead' ? 'bad' : 'warn'}`} style={{ marginLeft: 8 }}>
-                          <i aria-hidden />{s.status}
-                        </span>
+                        <StatusBadge tone={s.status === 'dead' ? 'risk' : 'warn'} dot style={{ marginLeft: 8 }}>{s.status}
+                        </StatusBadge>
                       </td>
                       <td style={{ color: 'var(--sn-ink-3)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
                           title={s.last_error ?? ''}>

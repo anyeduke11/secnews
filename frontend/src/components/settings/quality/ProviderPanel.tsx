@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import { getLlmStatus } from '../../../api/settings';
 import { postLlmProvider } from '../../../api/settingsQuality';
+import { StatusBadge, type StatusTone } from '../../../primitives/StatusBadge';
 
 export interface ProviderPanelProps {
   providerOptions: string[];
@@ -51,11 +52,11 @@ export function ProviderPanel({
     }
   }, [defaultProvider, onChange, onSource]);
 
-  const chipClass =
-    providerSource === 'env' ? 'st-chip ok'
-    : providerSource === 'settings.kv' ? 'st-chip ok'
-    : providerSource === 'router' ? 'st-chip warn'
-    : 'st-chip mute';
+  const chipTone: StatusTone =
+    providerSource === 'env' ? 'ok'
+    : providerSource === 'settings.kv' ? 'ok'
+    : providerSource === 'router' ? 'warn'
+    : 'neutral';
 
   return (
     <section className="st-section" aria-label="默认 LLM Provider" data-testid="provider-panel">
@@ -83,9 +84,9 @@ export function ProviderPanel({
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
-              <span className={chipClass} title={`config_source: ${providerSource}`}>
-                <i aria-hidden />{providerSource}
-              </span>
+              <StatusBadge tone={chipTone} dot title={`config_source: ${providerSource}`}>
+                {providerSource}
+              </StatusBadge>
             </div>
           </div>
         </div>

@@ -119,7 +119,7 @@
 /* 快讯流 */
 .sentinel .flash-head{
   display:flex;align-items:baseline;gap:12px;
-  padding:26px 0 12px;border-bottom:2px solid var(--sn-line-strong);
+  padding:26px 0 10px;border-bottom:1px solid var(--sn-line);
 }
 .sentinel .flash-head h2{font-size:15px;font-weight:700;letter-spacing:.02em}
 .sentinel .flash-count{font-family:var(--sn-mono);font-size:11.5px;color:var(--sn-ink-3)}
@@ -151,12 +151,11 @@
 .sentinel .flash-item:hover{background:var(--sn-bg-lift)}
 .sentinel .flash-time{font-family:var(--sn-mono);font-size:12px;color:var(--sn-ink-3)}
 .sentinel .flash-body{min-width:0}
-.sentinel .flash-title{font-size:14.5px;font-weight:500;line-height:1.5;color:var(--sn-ink);transition:color .15s ease}
+.sentinel .flash-title{font-size:14.5px;font-weight:700;line-height:1.5;color:var(--sn-ink);transition:color .15s ease}
 .sentinel .flash-item a:hover .flash-title{color:var(--sn-mint)}
 .sentinel .flash-tags{display:inline-flex;gap:6px;margin-left:8px;vertical-align:1px}
-.sentinel .ftag{font-size:11px;padding:1px 7px;border-radius:3px;font-family:var(--sn-mono)}
-/* 精选徽章 + pick_score (P2 2026-09-27 四模式): 复用 mint 强调色与 mono 数字风格 */
-.sentinel .pick-badge{font-size:11px;padding:1px 7px;border-radius:3px;font-family:var(--sn-mono);background:var(--sn-mint-dim);color:var(--sn-mint);font-weight:600}
+/* B10 (2026-11-19): 分类标签 `.ftag` 与精选徽章 `.pick-badge` 统一到 L1 原语词汇 ——
+   分类标签 → `.tag`; 精选(状态) → `.badge b-ok`。两块样式随之删除。 */
 .sentinel .pick-score{font-size:11px;font-family:var(--sn-mono);color:var(--sn-ink-3)}
 .sentinel .flash-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .sentinel .flash-src{font-family:var(--sn-mono);font-size:11px;color:var(--sn-ink-3)}
@@ -324,7 +323,7 @@ html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
 .sentinel .sub-title{
   font-family:var(--sn-serif);font-weight:600;letter-spacing:-.005em;
 }
-.sentinel .flash-head h2{font-family:var(--sn-serif);font-weight:700;font-size:17px;letter-spacing:-.005em}
+.sentinel .flash-head h2{font-family:var(--sn-sans);font-weight:700;font-size:13px;letter-spacing:.02em}
 .sentinel .rail-mod h3{font-family:var(--sn-serif);font-weight:700;font-size:14px;letter-spacing:.01em}
 /* 头条区: 编辑部「 lead story」双细线收尾 + 摘要行高放宽 */
 .sentinel .story-top{border-bottom:3px double var(--sn-line-strong)}
@@ -353,7 +352,6 @@ html[data-theme="paper"] .sentinel .readmore{border-color:rgba(45,36,26,.35)}
 .sentinel .feed-scope{margin-left:auto}
 /* 游标分页行 (FeedQueue) */
 .sentinel .pagination-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding-top:18px}
-/* 次级重点区的分类标签: 描边变体 */
-.sentinel .ftag-outline{background:transparent;border:1px solid var(--sn-line)}
+/* B10: `.ftag-outline` 描边变体随之删除 (次级重点区改用 `.tag` + 行内 transparent 背景)。 */
 /* URL 导入输入框定宽 */
 .sentinel .sn-import-input{width:260px}

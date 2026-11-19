@@ -24,6 +24,7 @@ import type {
 import {
   VISIBLE_SOURCES, labelOfCategory, LevelPicker, AutoChips,
 } from './ContentPreferencesCardParts';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function ContentPreferencesCard() {
   const { t } = useI18n();
@@ -134,9 +135,9 @@ export function ContentPreferencesCard() {
       <h3>{t('settings.content_prefs.title')}</h3>
       <p className="st-section-desc">
         {t('settings.content_prefs.desc')}
-        {saving && <span className="st-chip"><i aria-hidden />{t('settings.content_prefs.saving')}</span>}
-        {savedFlash && !saving && <span className="st-chip ok"><i aria-hidden />{t('settings.content_prefs.saved')}</span>}
-        {error && <span className="st-chip warn"><i aria-hidden />{t('settings.content_prefs.save_failed')}</span>}
+        {saving && <StatusBadge tone="neutral" dot>{t('settings.content_prefs.saving')}</StatusBadge>}
+        {savedFlash && !saving && <StatusBadge tone="ok" dot>{t('settings.content_prefs.saved')}</StatusBadge>}
+        {error && <StatusBadge tone="warn" dot blink>{t('settings.content_prefs.save_failed')}</StatusBadge>}
       </p>
       <div className="st-section-body">
         {loading ? (
@@ -177,14 +178,10 @@ export function ContentPreferencesCard() {
               ) : (
                 pendingRecs.map((r) => (
                   <div key={`${r.axis}:${r.key}`} className="flex items-center gap-2" style={{ marginBottom: 4 }}>
-                    <span
-                      className="st-chip"
-                      style={r.level === 'less'
+                    <StatusBadge tone="neutral" dot style={r.level === 'less'
                         ? { color: 'var(--sn-cat-sec, #d4574e)', borderColor: 'currentColor' }
-                        : { color: 'var(--sn-mint, #00e5a0)', borderColor: 'currentColor' }}
-                    >
-                      <i aria-hidden />{r.label} · {t(`settings.content_prefs.levels.${r.level}`)}
-                    </span>
+                        : { color: 'var(--sn-mint, #00e5a0)', borderColor: 'currentColor' }}>{r.label} · {t(`settings.content_prefs.levels.${r.level}`)}
+                    </StatusBadge>
                     <span className="st-key" style={{ flex: 1 }}>{recs?.reasons[r.key] || ''}</span>
                     <button type="button" className="st-btn" disabled={saving} onClick={() => adopt(r.axis, r.key, r.level)}>
                       {t('settings.content_prefs.adopt')}
@@ -203,7 +200,7 @@ export function ContentPreferencesCard() {
               data-testid="content-prefs-advanced-toggle"
             >
               {advancedOpen ? '▾' : '▸'} {t('settings.content_prefs.advanced')}
-              {selectedCount > 0 && <span className="st-chip" style={{ marginLeft: 6 }}>{selectedCount}</span>}
+              {selectedCount > 0 && <StatusBadge tone="neutral" style={{ marginLeft: 6 }}>{selectedCount}</StatusBadge>}
             </button>
             {advancedOpen && (
               <div data-testid="content-prefs-advanced" style={{ marginTop: 8 }}>

@@ -4,7 +4,7 @@
  * 用途:
  *  - 默认 cat=overview, 不点进各分类也能看到"系统还好吗"
  *  - 4 张系统子状态卡 (DB / 采集 / 凭据 / 调度) + 6 张区段跳转 tile + 版本/运行状态卡 + 最近 24h 统计
- *  - 借 settings-shell.css 的 st-card / st-cellgrid / st-tilegrid / st-chip
+ *  - 借 settings-shell.css 的 st-card / st-cellgrid / st-tilegrid (状态徽章走 L1 StatusBadge)
  *
  * 数据源 (与哨兵面板一致, 直接 fetch 而非 usePipe):
  *  - GET /api/health        → db.ok / scheduler.jobs / collectors / version / status
@@ -21,6 +21,7 @@ import { getHealth, getSecretsStatus, getSourcesHealth, getStats } from '../../a
 import { QUICK_JUMPS } from './SettingsDashboard.types';
 import type { HealthPayload, Props, SecretsStatus, StatsPayload, SourcesHealth } from './SettingsDashboard.types';
 import { fmtInt, fmtMs, fmtPct, fmtUptime } from './SettingsDashboard.format';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function SettingsDashboard({ onJump }: Props) {
   const [health, setHealth] = useState<HealthPayload | null>(null);
@@ -173,9 +174,8 @@ export function SettingsDashboard({ onJump }: Props) {
             </div>
             <div className="st-cell" data-testid="dash-version-status">
               <span className="st-cellk">运行状态</span>
-              <span className={`st-chip ${health?.ok ? 'ok' : 'warn'}`}>
-                <i /> {health?.ok ? '在线' : '状态未知'}
-              </span>
+              <StatusBadge tone={health?.ok ? 'ok' : 'warn'} dot>{health?.ok ? '在线' : '状态未知'}
+              </StatusBadge>
             </div>
             <div className="st-cell" data-testid="dash-version-uptime">
               <span className="st-cellk">已运行</span>

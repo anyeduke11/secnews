@@ -1,13 +1,14 @@
 /**
  * settings/GeneralSettings — 通用设置 (主题 / 自动刷新) (V2 哨兵化)
  *
- * v0.7.x SettingsHub V2: 走 settings-shell.css 的 st-rule / st-btn / st-chip;
+ * v0.7.x SettingsHub V2: 走 settings-shell.css 的 st-rule / st-btn;
  *                        主题按钮改双 chip + 自动刷新按钮改 st-cellgrid
  * v0.8.5 P2 (2026-09-13): 主题升级 3 chip — 日报 (light) / 夜读 (dark) / 纸面 (paper),
  *                         onThemeChange 直接 setTheme(m), 不再走 toggle 二态循环
  */
 import { useRefreshInterval } from '../../hooks/useRefreshInterval';
 import type { ThemeMode } from '../../contexts/ThemeContext';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; aria: string }[] = [
   { mode: 'light', label: '日报版', aria: '日报版 (light)' },
@@ -58,7 +59,7 @@ export function GeneralSettings({
       <section className="st-section" aria-label="自动刷新">
         <h3>自动刷新</h3>
         <p className="st-section-desc">
-          控制采集面板的轮询频率; 当前 <span className="st-chip ok"><i aria-hidden />{currentLabel}</span>
+          控制采集面板的轮询频率; 当前 <StatusBadge tone="ok" dot>{currentLabel}</StatusBadge>
         </p>
         <div className="st-cellgrid">
           {refreshOptions.map(opt => {

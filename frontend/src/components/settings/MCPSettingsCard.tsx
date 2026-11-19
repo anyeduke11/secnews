@@ -9,7 +9,7 @@
  * 不调 LLM, 同步直返, 全部本地 SQLite 读 mcp_tool_registry 表。
  *
  * V2 设计:
- * - st-head 头部 + st-chip 状态徽章
+ * - st-head 头部 + StatusBadge 状态徽章 (B10: st-chip → L1 原语)
  * - st-rule: 启用 toggle / transport hints / 复制按钮
  * - st-section 列表展示工具, 读 / 写分类
  * - Sentinel 5 disciplines: zero-neon / semantic-3-color / mono-data / mute-text / reduced-motion
@@ -19,6 +19,7 @@ import { getMCPConfig, getMCPStatus, getMCPTools, putMCPEnabled } from '../../ap
 import type { MCPTool } from '../../api/settings';
 import { Icon } from '../../primitives/Icon';
 import '../settings/settings-shell.css';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 interface MCPSettingsCardProps {
   open: boolean;
@@ -140,9 +141,8 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
           stdio 用于本地 IDE, sse 用于远端调用。
         </p>
         <div className="st-headops">
-          <span className={`st-chip ${enabled ? 'ok' : 'mute'}`}>
-            <i /> {enabled ? '已启用' : '已禁用'}
-          </span>
+          <StatusBadge tone={enabled ? 'ok' : 'neutral'} dot>{enabled ? '已启用' : '已禁用'}
+          </StatusBadge>
         </div>
       </div>
 
@@ -220,34 +220,30 @@ export function MCPSettingsCard({ open }: MCPSettingsCardProps) {
               {readTools.map(t => (
                 <tr key={t.name}>
                   <td>
-                    <span className="st-chip ok">
-                      <i /> READ
-                    </span>
+                    <StatusBadge tone="ok" dot>READ
+                    </StatusBadge>
                   </td>
                   <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11 }} title={t.description}>
                     {t.name}
                   </td>
                   <td>
-                    <span className={`st-chip ${t.enabled ? 'ok' : 'mute'}`}>
-                      <i /> {t.enabled ? 'ON' : 'OFF'}
-                    </span>
+                    <StatusBadge tone={t.enabled ? 'ok' : 'neutral'} dot>{t.enabled ? 'ON' : 'OFF'}
+                    </StatusBadge>
                   </td>
                 </tr>
               ))}
               {writeTools.map(t => (
                 <tr key={t.name}>
                   <td>
-                    <span className="st-chip warn">
-                      <i /> WRITE
-                    </span>
+                    <StatusBadge tone="warn" dot blink>WRITE
+                    </StatusBadge>
                   </td>
                   <td style={{ fontFamily: 'var(--sn-mono)', fontSize: 11 }} title={t.description}>
                     {t.name}
                   </td>
                   <td>
-                    <span className={`st-chip ${t.enabled ? 'ok' : 'mute'}`}>
-                      <i /> {t.enabled ? 'ON' : 'OFF'}
-                    </span>
+                    <StatusBadge tone={t.enabled ? 'ok' : 'neutral'} dot>{t.enabled ? 'ON' : 'OFF'}
+                    </StatusBadge>
                   </td>
                 </tr>
               ))}

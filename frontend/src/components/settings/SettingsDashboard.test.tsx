@@ -138,11 +138,12 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
       expect(screen.getByTestId('dash-version')).toBeInTheDocument();
     });
 
-    // 版本号文本可见 + 在线 chip 可见 (health.ok=true → st-chip ok)
+    // 版本号文本可见 + 在线 chip 可见 (health.ok=true → StatusBadge tone=ok)
     expect(screen.getByTestId('dash-version-tag')).toHaveTextContent('v0.8.5');
     const statusCell = screen.getByTestId('dash-version-status');
     expect(statusCell).toHaveTextContent('在线');
-    expect(statusCell.querySelector('.st-chip.ok')).toBeInTheDocument();
+    // B10: st-chip → primitives/StatusBadge 收敛后, 断言改用语义钩子 data-tone
+    expect(statusCell.querySelector('[data-tone="ok"]')).toBeInTheDocument();
     expect(screen.getByTestId('dash-version-uptime')).toHaveTextContent('1h 0m');
   });
 

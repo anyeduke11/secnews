@@ -19,6 +19,7 @@ import {
 } from '../../api/settings';
 import type { PoolPlatform, PoolRouting, PoolSnapshot } from '../../api/settings';
 import { PoolPlatformRow } from './ModelPoolPanelParts';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function ModelPoolPanel() {
   const [snap, setSnap] = useState<PoolSnapshot | null>(null);
@@ -206,7 +207,7 @@ export function ModelPoolPanel() {
                   <p className="st-key">{key}</p>
                 </div>
                 <div className="st-ctrl">
-                  <span className="st-chip ok"><i aria-hidden />{r.provider ?? '—'} / {r.model ?? '—'}</span>
+                  <StatusBadge tone="ok" dot>{r.provider ?? '—'} / {r.model ?? '—'}</StatusBadge>
                 </div>
               </div>
             ))}
@@ -225,7 +226,7 @@ export function ModelPoolPanel() {
                   <p className="st-key">{a.desc}</p>
                 </div>
                 <div className="st-ctrl">
-                  <span className="st-chip warn"><i aria-hidden />Agent 通道</span>
+                  <StatusBadge tone="warn" dot blink>Agent 通道</StatusBadge>
                 </div>
               </div>
             ))}

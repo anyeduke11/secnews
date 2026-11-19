@@ -24,3 +24,41 @@
 .sentinel .badge.b-none { color: var(--amber); border-color: var(--amber); background: var(--amber-weak); border-style: dashed; }
 .sentinel .badge.b-disc { color: var(--ink-3); border-color: var(--line-strong); }
 .sentinel .badge.b-red { color: var(--red); border-color: var(--red); background: var(--red-weak); }
+
+/* 前置圆点 (B10: 沿用设置域 st-chip 的 6px 圆点语义; 色随语气 currentColor 由内联样式给出) */
+.sentinel .badge > .badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+/* 告警圆点闪烁 (B10: 保留 st-chip 的 st-warn-blink 提示行为, 按需开启) */
+.sentinel .badge > .badge-dot.is-blink { animation: badge-warn-blink 1.6s ease-in-out infinite; }
+@keyframes badge-warn-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sentinel .badge > .badge-dot.is-blink { animation: none; }
+}
+
+/* —— 分类标签 (Tag) —— B10 新增 (redesign-v1 §3 词汇表: `.tag` + `.cat-*` 色变体)
+   用途: 分类/类型/来源类标签 (与状态徽章 `.badge` 分族 —— 徽章表状态, 标签表分类)。
+   色变体复用生产既有 `--color-*` 分类色板 (B7 决定: 不另建 `--cat-*` 双轨)。
+   动态分类色由业务方以行内 style 覆盖 text color (同蓝本 `.tag.cat-*` 语义)。 */
+.sentinel .tag {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.sentinel .tag.cat-security { color: var(--color-security); }
+.sentinel .tag.cat-ai { color: var(--color-ai); }
+.sentinel .tag.cat-finance { color: var(--color-finance); }
+.sentinel .tag.cat-startup { color: var(--color-startup); }
+.sentinel .tag.cat-bid { color: var(--color-bid); }
+.sentinel .tag.cat-general { color: var(--color-general); }

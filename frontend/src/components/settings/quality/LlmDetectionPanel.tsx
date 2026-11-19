@@ -12,6 +12,7 @@
  * 无需任何面板开关。
  */
 import { useState } from 'react';
+import { StatusBadge } from '../../../primitives/StatusBadge';
 
 export interface LlmDetectionStatus {
   gate_detect_available: boolean;
@@ -41,13 +42,14 @@ export function LlmDetectionPanel({ status, loading }: LlmDetectionPanelProps) {
     <section className="st-section" aria-label="LLM AI 内容检测" data-testid="llm-detection-panel">
       <h3>
         LLM AI 内容检测
-        <span
-          className={loading ? 'st-chip mute' : available ? 'st-chip ok' : 'st-chip mute'}
+        <StatusBadge
+          tone={loading ? 'neutral' : available ? 'ok' : 'neutral'}
+          dot
           title={loading ? '检测中' : `gate_detect_available: ${available}`}
           data-testid="llm-detect-state"
         >
-          <i aria-hidden />{loading ? '检测中' : available ? '检测中' : '未启用'}
-        </span>
+          {loading ? '检测中' : available ? '检测中' : '未启用'}
+        </StatusBadge>
       </h3>
       <p className="st-section-desc">
         启用后, 采集管线会用 LLM 对通过质量规则的热点做二次 AI 批量/软文识别

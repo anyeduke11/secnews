@@ -1,12 +1,13 @@
 /**
  * settings/SecretsStatusCard — 密钥管理器状态卡片 (V2 哨兵化)
  *
- * v0.7.x SettingsHub V2: st-section + st-cellgrid + st-chip + st-btn
+ * v0.7.x SettingsHub V2: st-section + st-cellgrid + st-btn (状态徽章走 L1 StatusBadge)
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSecrets, getSecretsStatus, lockSecrets } from '../../api/settings';
 import type { SecretsStatusPayload } from '../../api/settings';
+import { StatusBadge, type StatusTone } from '../../primitives/StatusBadge';
 
 export function SecretsStatusCard() {
   const navigate = useNavigate();
@@ -23,14 +24,14 @@ export function SecretsStatusCard() {
   }, []);
 
   const remain = status?.remaining_seconds;
-  const ttlChip: string | undefined = remain == null ? undefined
-    : remain < 300 ? 'st-chip bad'
-    : remain < 600 ? 'st-chip warn'
-    : 'st-chip ok';
+  const remainTone: StatusTone | undefined = remain == null ? undefined
+    : remain < 300 ? 'risk'
+    : remain < 600 ? 'warn'
+    : 'ok';
 
-  const statusChip = status?.unlocked ? 'st-chip ok'
-    : status?.setup ? 'st-chip warn'
-    : 'st-chip mute';
+  const statusTone: StatusTone = status?.unlocked ? 'ok'
+    : status?.setup ? 'warn'
+    : 'neutral';
 
   const totalItems = status?.total ?? items.length;
 
@@ -38,15 +39,15 @@ export function SecretsStatusCard() {
     <section className="st-section" aria-label="密钥管理器" data-testid="secrets-status-card">
       <h3>
         密钥管理器
-        <span className={statusChip}>
-          <i aria-hidden />{status?.unlocked ? '已解锁' : status?.setup ? '已锁定' : '未设置'}
-        </span>
+        <StatusBadge tone={statusTone} dot>
+          {status?.unlocked ? '已解锁' : status?.setup ? '已锁定' : '未设置'}
+        </StatusBadge>
       </h3>
       <p className="st-section-desc">
         设置主密钥以安全存储 LLM API Key 等敏感凭据。
         {status?.unlocked && remain != null && (
           <span style={{ marginLeft: 8, color: 'var(--sn-ink-3)' }}>
-            剩余 <span className={ttlChip}><i aria-hidden />{Math.floor(remain / 60)}:{String(remain % 60).padStart(2, '0')}</span>
+            剩余 {remainTone && <StatusBadge tone={remainTone} dot>{Math.floor(remain / 60)}:{String(remain % 60).padStart(2, '0')}</StatusBadge>}
           </span>
         )}
       </p>

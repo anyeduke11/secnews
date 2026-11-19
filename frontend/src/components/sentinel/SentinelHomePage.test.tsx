@@ -765,8 +765,8 @@ describe('SentinelHomePage — 精选/深度视图 (P2 2026-09-27)', () => {
     expect(screen.getByText('精选条目二')).toBeInTheDocument();
     // pick_score 数值直读后端落列值
     expect(screen.getByText('92.5')).toBeInTheDocument();
-    // 精选徽章: 每行一个 (模式按钮之外的 .pick-badge)
-    const badges = document.querySelectorAll('.pick-badge');
+    // 精选徽章: 每行一个 (B10: pick-badge → 状态徽章族 `.badge b-ok`)
+    const badges = document.querySelectorAll('.badge.b-ok');
     expect(badges.length).toBe(2);
     // 常规 feed (头条 h1 / 快讯) 不与精选混排
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();

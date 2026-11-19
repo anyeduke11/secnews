@@ -52,22 +52,24 @@
    衬线品牌字 + 四菜单排版式导航 (active = accent 下划线) + 控制 (主题/时钟/设置)。
    色板全部走 --sn-* 转发: 亮/暗主题保持哨兵色相, paper 主题自动获得编辑部暖色。 */
 .sentinel .masthead{
-  position:relative;z-index:5;
-  display:flex;align-items:stretch;gap:26px;
-  padding:10px 32px 0;
-  background:var(--sn-bg-lift);
+  /* redesign-v1 §2: 56px 定高 sticky 报头, 底色 var(--sn-bg-panel) (demo var(--card)) */
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:stretch;gap:24px;
+  height:56px;padding:0 24px;
+  background:var(--sn-bg-panel);
   border-bottom:1px solid var(--sn-line-strong);
+  font-family:var(--sn-sans);font-size:15px;
 }
 .sentinel .mh-brand{
   display:flex;align-items:baseline;gap:10px;min-width:0;
   align-self:center;text-decoration:none;
 }
 .sentinel .mh-title{
-  font-family:var(--sn-serif);font-weight:900;font-size:22px;line-height:1.15;
-  letter-spacing:-.01em;transition:color .15s ease;
+  font-family:var(--sn-serif);font-weight:900;font-size:21px;line-height:1.15;
+  letter-spacing:-.02em;transition:color .15s ease;
 }
 .sentinel .mh-brand:hover .mh-title{color:var(--sn-accent)}
-.sentinel .mh-sub{font-family:var(--sn-mono);font-size:10px;letter-spacing:.22em;color:var(--sn-ink-3)}
+.sentinel .mh-sub{font-family:var(--sn-mono);font-size:10px;letter-spacing:.14em;color:var(--sn-ink-3);text-transform:uppercase}
 
 /* 四菜单导航 (排版式 nv, 替代旧 icon chip) */
 .sentinel .mh-nav{display:flex;align-items:stretch;min-width:0}
@@ -76,8 +78,8 @@
   padding:9px 0 10px;text-decoration:none;
 }
 .sentinel .nv + .nv{margin-left:20px;padding-left:20px;border-left:1px solid var(--sn-line)}
-.sentinel .nv-main{font-family:var(--sn-serif);font-size:16px;font-weight:700;color:var(--sn-ink-2);transition:color .15s ease}
-.sentinel .nv-sub{font-size:10px;letter-spacing:.1em;color:var(--sn-ink-3);white-space:nowrap}
+.sentinel .nv-main{font-family:var(--sn-sans);font-size:15px;font-weight:600;color:var(--sn-ink-2);transition:color .15s ease}
+.sentinel .nv-sub{font-family:var(--sn-mono);font-size:9px;letter-spacing:.14em;color:var(--sn-ink-3);white-space:nowrap;text-transform:uppercase}
 .sentinel .nv::after{
   content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--sn-accent);
   transform:scaleX(0);transform-origin:left;transition:transform .16s ease;
@@ -131,24 +133,23 @@
 /* ===== 版面条 bandnav (二级域 chip, 对齐方案A 原型) =====
    当前菜单的子域入口; sticky 吸顶; current = accent 下划线。 */
 .sentinel .bandnav{
-  position:sticky;top:0;z-index:4;
-  display:flex;align-items:center;flex-wrap:wrap;
-  padding:0 32px;
+  position:sticky;top:56px;z-index:190;
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  padding:6px 24px;
   background:var(--sn-bg);
-  border-bottom:1px solid var(--sn-line-strong);
+  border-bottom:1px solid var(--sn-line);
 }
 .sentinel .bn-chip{
   position:relative;display:inline-flex;align-items:baseline;gap:6px;
-  padding:8px 6px 9px;font-size:12px;color:var(--sn-ink-2);
+  padding:2px 12px;
+  border:1px solid var(--sn-line-strong);border-radius:999px;
+  font-size:11.5px;color:var(--sn-ink-2);
   text-decoration:none;white-space:nowrap;
-  transition:color .12s ease,background .12s ease;
+  transition:color .12s ease,border-color .12s ease,background .12s ease;
 }
-.sentinel .bn-chip:hover{color:var(--sn-ink);background:var(--sn-bg-lift)}
-.sentinel .bn-chip::after{
-  content:'';position:absolute;left:6px;right:6px;bottom:0;height:2px;background:transparent;
-}
-.sentinel .bn-chip.current{color:var(--sn-ink);font-weight:600}
-.sentinel .bn-chip.current::after{background:var(--sn-accent)}
+.sentinel .bn-chip:hover{color:var(--sn-ink);border-color:var(--sn-ink-3)}
+.sentinel .bn-chip::after{content:none}
+.sentinel .bn-chip.current{color:var(--sn-accent);border-color:var(--sn-accent);background:var(--accent-soft);font-weight:600}
 
 /* A7 (DEV-0188): 版面条收起态 — 高度联动 --sn-bandnav-h, 保留单按钮可再展开 */
 .sentinel.bandnav-collapsed{--sn-bandnav-h:24px}
@@ -173,16 +174,17 @@
 .sentinel .pressbar{
   position:relative;z-index:3;
   display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
-  padding:7px 32px;
-  background:var(--sn-bg-lift);
+  padding:0 24px;min-height:40px;
+  background:var(--sn-bg-panel);
   border-bottom:1px solid var(--sn-line);
+  overflow-x:auto;
 }
-.sentinel .pipe-block{display:flex;align-items:baseline;gap:8px;padding:3px 20px 3px 0;margin-right:20px;border-right:1px solid var(--sn-line);flex:0 0 auto;white-space:nowrap}
-.sentinel .pipe-block:last-child{border-right:0}
-.sentinel .pipe-k{font-size:11px;color:var(--sn-ink-3);letter-spacing:.05em;white-space:nowrap}
-.sentinel .pipe-v{font-family:var(--sn-mono);font-size:14px;font-weight:500;display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.sentinel .pipe-block{display:flex;flex-direction:column;justify-content:center;gap:1px;padding:6px 20px;border-left:1px solid var(--sn-line);flex:0 0 auto;white-space:nowrap;min-width:120px}
+.sentinel .pipe-block:first-child{border-left:0;padding-left:0}
+.sentinel .pipe-k{font-size:9.5px;color:var(--sn-ink-3);letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+.sentinel .pipe-v{font-family:var(--sn-mono);font-size:12.5px;font-weight:500;display:flex;align-items:baseline;gap:6px;white-space:nowrap;margin-top:1px}
 .sentinel .pipe-v .delta{font-size:11px;color:var(--sn-mint);font-weight:400}
-.sentinel .pipe-live{margin-left:auto;padding:3px 0 3px 20px;border-left:1px solid var(--sn-line);display:flex;align-items:center;gap:14px;min-width:0}
+.sentinel .pipe-live{margin-left:auto;padding:6px 0 6px 20px;border-left:1px solid var(--sn-line);display:flex;align-items:center;gap:14px;min-width:0}
 .sentinel .pulse{width:7px;height:7px;border-radius:50%;background:var(--sn-mint);position:relative;flex:none}
 .sentinel .pulse::after{
   content:'';position:absolute;inset:-4px;border-radius:50%;

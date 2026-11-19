@@ -53,9 +53,9 @@ export function FeedPicked({ state, items, binding }: {
                   <span className="flash-title">{item.title}</span>
                 )}
                 <span className="flash-tags">
-                  <span className="pick-badge">精选</span>
+                  <span className="badge b-ok">精选</span>
                   <span className="pick-score num" title="pick_score = 质量 + 关注域 + 收藏源 + 时效">{item.pick_score}</span>
-                  <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+                  <span className="tag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
                 </span>
               </div>
               <div className="flash-side">

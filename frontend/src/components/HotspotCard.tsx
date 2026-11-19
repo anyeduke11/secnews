@@ -35,8 +35,8 @@ export function HotspotCard({ item, index, isFavorited = false, onToggleFavorite
     >
       <div className="flex items-start justify-between gap-2 px-3.5 pt-3 pb-2">
         <span
-          className="editorial-badge"
-          style={{ backgroundColor: `color-mix(in srgb, ${color} 9%, transparent)`, color }}
+          className="tag"
+          style={{ color }}
         >
           {getCategoryLabel(item.category)}
         </span>

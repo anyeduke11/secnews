@@ -110,7 +110,7 @@ export function ReviewManageView({ onDataChanged }: { onDataChanged: () => void 
             return (
               <li key={key}>
                 <span className="ac-rv-hit-t">{h.title}</span>
-                <span className="ac-badge">{h.entity_type}</span>
+                <span className="tag">{h.entity_type}</span>
                 {inStack
                   ? <span className="ac-rv-sop num is-undone">在册</span>
                   : (

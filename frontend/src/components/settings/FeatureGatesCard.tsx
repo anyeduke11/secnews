@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../../lib/api';
 import { getFeatureGates, putFeatureGate } from '../../api/settings';
 import type { FeatureGate } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 type GateItem = FeatureGate;
 
@@ -109,7 +110,7 @@ export function FeatureGatesCard() {
                     aria-label={`${k}：${on ? '已启用' : '已停用'}${envLocked ? '（env 覆盖，只读）' : ''}`}
                     onClick={() => { void toggle(gate); }}
                   />
-                  <span className={`st-chip${on ? ' ok' : ''}`}><i aria-hidden />{on ? 'ON' : 'OFF'}</span>
+                  <StatusBadge tone={on ? 'ok' : 'neutral'} dot>{on ? 'ON' : 'OFF'}</StatusBadge>
                 </div>
                 {note && (
                   <p className="st-cellnote" role="status" style={note.kind === 'error' ? { color: 'var(--sn-red, #c0392b)' } : undefined}>

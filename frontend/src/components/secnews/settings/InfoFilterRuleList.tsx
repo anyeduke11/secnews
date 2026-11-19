@@ -4,6 +4,7 @@
  */
 import type { FilterRule } from '../../../api/secnews';
 import type { TFn } from './infoFilter.types';
+import { StatusBadge } from '../../../primitives/StatusBadge';
 
 interface InfoFilterRuleListProps {
   t: TFn;
@@ -30,10 +31,10 @@ export function InfoFilterRuleList({
         {rules.map(r => (
           <div key={r.id} className="st-card" style={{ marginBottom: 8 }}>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`st-chip ${r.rule_type === 'deny' ? 'bad' : 'ok'}`}>
+              <StatusBadge tone={r.rule_type === 'deny' ? 'risk' : 'ok'}>
                 {r.rule_type}
-              </span>
-              <span className="st-chip">{r.match_kind}</span>
+              </StatusBadge>
+              <StatusBadge tone="neutral">{r.match_kind}</StatusBadge>
               <code style={{ fontFamily: 'var(--sn-mono)', color: 'var(--sn-ink)' }}>
                 {r.match_value}
               </code>

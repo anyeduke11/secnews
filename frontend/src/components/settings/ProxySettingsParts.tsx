@@ -10,6 +10,7 @@ import type {
   ProxyProbeResult as ProbeResult,
   ProxyTestResult as TestResult,
 } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export type ProxyMode = 'off' | 'builtin' | 'auto' | 'manual';
 export type ProxyMessage = { type: 'ok' | 'error' | 'mute'; text: string } | null;
@@ -209,9 +210,8 @@ export function ProxyProbeTable({ results }: { results: TestResult[] }) {
                   {probeText(r.proxy)}
                 </td>
                 <td>
-                  <span className={`st-chip ${r.ok ? 'ok' : 'bad'}`}>
-                    <i /> {r.ok ? 'OK' : 'FAIL'}
-                  </span>
+                  <StatusBadge tone={r.ok ? 'ok' : 'risk'} dot>{r.ok ? 'OK' : 'FAIL'}
+                  </StatusBadge>
                 </td>
               </tr>
             ))}

@@ -1,4 +1,19 @@
 
+## [DEV-0408] feat(fe): redesign-v1 可见视觉落地 — 壳层构图 + 页面族词汇对齐 demo（UI 重构"未生效"根因修复）
+- **时间**: 2026-11-19
+- **类型**: 视觉实施批（承接 B7 R-1/R-2 的"契约层"成果，把 demo 的构图词汇真正移植为生产可见样式）
+- **问题描述**: owner 重启后反馈「UI 并没有发生变化」。**第一性原理归因**：B0–B9 各批契约均明写/机检「视觉零变化」（B1 token 仅归一、B2 不做页面重写、B3 仅改取数入口、B9 甚至逐字节验证像素零变化），R-2 只补了 `.badge` 一族且仅 `/sync` 可见；`design/redesign-v1` demo 的**构图词汇**（56px 报头 / sans 22px 页面头 / pill 版面条 / 44px 表格行 / sans 按钮 / 纵向印务块）从未移植进生产 → **结构重构成功 ≠ 界面变样**。附加事实：`frontend/dist` 曾落后于 `src`。
+- **关联文件**:
+  - `frontend/src/shell/shell.css`: 报头 `.masthead` → sticky 56px 定高 + `var(--sn-bg-panel)` + sans 15px（demo `.sn-mast`）；`.mh-title` 21px / `.mh-sub` 大写 .14em；四菜单 `.nv-main` serif 16px 700 → **sans 15px 600**、`.nv-sub` mono 9px 大写；版面条 `.bandnav` sticky top **56px** + `.bn-chip` 改 **999px pill**（border + `--accent-soft` 底 current 态，去下划线伪元素）；印务条 `.pressbar` `min-height:40px` + `var(--sn-bg-panel)` + `.pipe-block` 改**纵向 column + 左 border + min-width 120px**、`.pipe-k` 9.5px 大写、`.pipe-v` 12.5px（demo `.sn-press/.pipe-block`）
+  - `frontend/src/components/shared/editorial/pages.css`: `.ed-h1` serif `clamp(24,2.6vw,32)` 900 → **sans 22px 800**（paper 主题回衬线）；`.ed-head` `3px double` → **`2px solid`** + padding 12/margin 20（**保持块级**，不引入 demo 两栏 flex，避免破坏 PageHeader 纵向多段结构）；`.ed-sechead` serif 16px+底边 → **sans 13px 700 + `::after` 弹性分隔线**（`.ed-note` `order:2` 靠右，9 处使用结构一致已核验）；`.ed-card` padding 16px 20px；`.ed-table` th **uppercase** 10.5px/.1em + td **44px** 行高；`.ed-btn` mono 11.5px → **sans 600 12.5px** + 卡片底、`.primary` dark 文字 `#06231a`；`.ed-wrap` padding 24/24/40
+  - `frontend/src/components/sentinel/sentinel.css`: 快讯栏头 `.flash-head h2` serif 17px → **sans 13px 700** + 分隔线 2px→1px；`.flash-title` 500 → **700**（demo `.sec-title` / `.feed-title`）。不推翻既有 grid 快讯实现（Rule 3/11）
+- `frontend/src/primitives/StatusBadge.tsx` + `primitives/primitives.css`: 原语补 `blink` / `className` / `style` / `aria-label` / `data-testid`，前置圆点由行内 Tailwind 类改 **`.badge-dot`（可选 `is-blink`）**；`frontend/src/components/settings/`（30 文件）+ `settings-shell.css`: 设置域自建 `st-chip` 四态徽章 **76 站点** 收敛到本原语（ok→ok / warn→warn / bad→risk / mute→neutral），`.st-chip` 样式块物理删除
+  - `frontend/src/index.css` + 资讯/知识/feed/review 组件: 删除 `.editorial-badge`（无消费者），分类标签统一到 `.tag` 词汇（redesign-v1 §3）
+- **门禁**: `tsc --noEmit` exit 0 · **111 文件 / 791 tests 全通过** · `vite build` exit 0 · `dist/index.html` 刷新至 19:26（修掉 dist 落后 src）
+- **产物核验**: shell chunk 含 `top:56px` / `min-height:40px`；pages chunk 含 `font-weight:800;font-size:22px` / `height:44px` / `text-transform:uppercase` / `ed-sechead:after`；sentinel chunk 含新栏头与 700 标题
+- **生效方式**: owner 访问 **8898 vite dev server**（后端 8000 独立，不托管 dist）→ CSS HMR 刷新即见；若走 preview/dist 则已同步
+- **未做（显式声明）**: G7 全量（18 文件自写 `<table>` / 108 文件自写四态 / 7 处域内标签）仍留待分域分批；未做浏览器逐像素走查（本轮以产物静态核验 + 单测为准）；资讯流卡片版式保留生产 grid，未替换为 demo `.feed-card`
+
 ## [DEV-0407] refactor(fe): 前端重构 V1 B9 — 遗留项收口批（设置域合并 + 页头原子 + 视觉机检）
 - **时间**: 2026-11-19
 - **类型**: 遗留项收口批（承接 §19.7 遗留清单 + B8 复核发现的 R-2 剩余面）。三子批：**a** 设置域子模块 11 → 5 合并（回收 Rollup 共享 chunk）/ **b** 新增 L1 原子 `ToolPageHeader` + 6 页工具页头收敛 / **c** 视觉回归机检工具入仓（补齐仓库无视觉基线的空缺）

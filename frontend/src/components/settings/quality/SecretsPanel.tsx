@@ -5,7 +5,7 @@
  * 写入: POST/DELETE /api/secrets, PATCH /api/secrets/{id},
  *       POST /api/secrets/unlock /lock /{id}/reveal /{id}/test
  *
- * 设计: 沿用 settings-shell.css 的 st-section / st-table / st-chip / st-btn;
+ * 设计: 沿用 settings-shell.css 的 st-section / st-table / st-btn (状态徽章走 L1 StatusBadge);
  *       key_source 徽章三档: env / secrets / none (灰);
  *       密钥表格见 SecretsPanelTable, 主密钥 prompt / reveal / upsert 三个 modal
  *       见 SecretsPanelKeyModals / SecretsPanelForm。
@@ -26,6 +26,7 @@ import { SecretsPanelTable } from './SecretsPanelTable';
 import { SecretsPanelMasterKeyModal, SecretsPanelRevealModal } from './SecretsPanelKeyModals';
 import { SecretsPanelForm } from './SecretsPanelForm';
 import type { SecretsPanelKeyPrompt, SecretsPanelMsg, SecretsPanelUpsertState } from './SecretsPanel.types';
+import { StatusBadge, type StatusTone } from '../../../primitives/StatusBadge';
 
 export interface SecretsPanelProps {
   providerOptions: string[];
@@ -160,17 +161,17 @@ export function SecretsPanel({ providerOptions, initialKeySource = 'none' }: Sec
     }
   }, [upsertModal, upsert]);
 
-  const keySourceChip = keySource === 'env' ? 'st-chip ok'
-    : keySource === 'secrets' ? 'st-chip ok'
-    : 'st-chip mute';
+  const keySourceTone: StatusTone = keySource === 'env' ? 'ok'
+    : keySource === 'secrets' ? 'ok'
+    : 'neutral';
 
   return (
     <section className="st-section" aria-label="LLM 密钥管理" data-testid="secrets-panel">
       <h3>
         🔐 LLM 密钥管理 (加密保险箱)
-        <span className={keySourceChip} title={`key_source: ${keySource}`}>
-          <i aria-hidden />{keySource}
-        </span>
+        <StatusBadge tone={keySourceTone} dot title={`key_source: ${keySource}`}>
+          {keySource}
+        </StatusBadge>
       </h3>
       <p className="st-section-desc">
         密钥 Fernet 加密 (PBKDF2 600k 派生主密钥); reveal/test 写 audit_log;

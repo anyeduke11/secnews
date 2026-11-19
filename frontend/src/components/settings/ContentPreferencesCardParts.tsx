@@ -11,6 +11,7 @@ import type {
   ContentPrefTable as PrefTable,
 } from '../../api/settings';
 import { CATEGORIES } from '../../types';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 export const LEVELS: Level[] = ['more', 'normal', 'less'];
 export const VISIBLE_SOURCES = 40;
@@ -59,17 +60,11 @@ export function AutoChips({ table }: { table: PrefTable }) {
   return (
     <span className="flex items-center gap-2" style={{ flexWrap: 'wrap', gap: 6 }}>
       {Object.entries(table).map(([key, lv]) => (
-        <span
-          key={key}
-          className="st-chip"
-          style={lv === 'less'
+        <StatusBadge tone="neutral" dot title={t('settings.content_prefs.auto_chip_title')} style={lv === 'less'
             ? { color: 'var(--sn-cat-sec, #d4574e)', borderColor: 'currentColor' }
-            : { color: 'var(--sn-mint, #00e5a0)', borderColor: 'currentColor' }}
-          title={t('settings.content_prefs.auto_chip_title')}
-        >
-          <i aria-hidden />{labelOfCategory(key) || key}
+            : { color: 'var(--sn-mint, #00e5a0)', borderColor: 'currentColor' }}>{labelOfCategory(key) || key}
           {' · '}{t(`settings.content_prefs.levels.${lv}`)}
-        </span>
+        </StatusBadge>
       ))}
     </span>
   );

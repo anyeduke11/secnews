@@ -8,7 +8,7 @@
  * 行为:
  * - gate off → 显示禁用提示卡 (与 dsh 同模式)
  * - gate on → 显示规则列表 + 新增/编辑/启停/删除 + 实时预览
- * - V2: 全部走 settings-shell.css 的 st-cellgrid / st-section / st-rule / st-chip
+ * - V2: 全部走 settings-shell.css 的 st-cellgrid / st-section / st-rule (状态徽章走 L1 StatusBadge)
  *
  * 拆分 (前端重构 V1 B6-b, 单文件 ≤300 行): 三个展示区块移至同目录
  * InfoFilterAddForm / InfoFilterRuleList / InfoFilterPreview, 共享类型在 infoFilter.types。

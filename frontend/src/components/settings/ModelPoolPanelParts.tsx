@@ -4,21 +4,22 @@
  * 从 ModelPoolPanel.tsx 原样搬运, 仅 props 化; 行为 / DOM / 文案零变更。
  */
 import type { PoolPlatform } from '../../api/settings';
+import { StatusBadge } from '../../primitives/StatusBadge';
 
 function PlatformChip({ p }: { p: PoolPlatform }) {
   if (!p.configured) {
-    return <span className="st-chip mute"><i aria-hidden />未配置</span>;
+    return <StatusBadge tone="neutral" dot>未配置</StatusBadge>;
   }
   if (p.available === true) {
-    return <span className="st-chip ok"><i aria-hidden />可用 {p.model_count} 款模型</span>;
+    return <StatusBadge tone="ok" dot>可用 {p.model_count} 款模型</StatusBadge>;
   }
   if (p.available === false && p.error === 'no_key') {
-    return <span className="st-chip mute"><i aria-hidden />未配置</span>;
+    return <StatusBadge tone="neutral" dot>未配置</StatusBadge>;
   }
   if (p.available === false) {
-    return <span className="st-chip bad"><i aria-hidden />{p.error?.startsWith('HTTP 40') ? '密钥无效' : '不可达'}</span>;
+    return <StatusBadge tone="risk" dot>{p.error?.startsWith('HTTP 40') ? '密钥无效' : '不可达'}</StatusBadge>;
   }
-  return <span className="st-chip warn"><i aria-hidden />已配置 · 未知</span>;
+  return <StatusBadge tone="warn" dot blink>已配置 · 未知</StatusBadge>;
 }
 
 const TIER_OPTIONS: Array<{ key: string; label: string }> = [

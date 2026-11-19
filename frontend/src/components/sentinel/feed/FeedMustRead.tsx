@@ -78,7 +78,7 @@ export function FeedMustRead({ lead, secondaries, itemsCount, binding }: {
                     <span className="mini-heat" aria-hidden="true">
                       <HeatCells n={heatOf(item)} />
                     </span>
-                    <span className="ftag ftag-outline" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+                    <span className="tag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
                     {item.practice_domain && (
                       <PracticeTag
                         domain={item.practice_domain}

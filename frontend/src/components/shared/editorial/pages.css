@@ -12,7 +12,7 @@
 /* ===== 页面骨架 ===== */
 .sentinel .ed-wrap{
   max-width:1580px;margin:0 auto;
-  padding:22px 24px 64px;
+  padding:24px 24px 40px;
 }
 /* B4/B5 (DEV-0192): 编辑部排版 opt-in 类 — Tailwind token 页 (review/skills/reports)
    根元素挂 .ed-typo 即获得衬线标题层级; 色彩仍走全局 token 随主题翻转 */
@@ -22,33 +22,44 @@
   font-family:var(--sn-serif);
   letter-spacing:-.01em;
 }
-.sentinel .ed-typo h1{font-weight:900}
+.sentinel .ed-typo h1{
+  font-family:var(--sn-sans);
+  letter-spacing:-.01em;
+  font-weight:800;
+}
+:root[data-theme='paper'] .sentinel .ed-typo h1{font-family:var(--sn-serif)}
 .sentinel .ed-typo h2,
 .sentinel .ed-typo h3{font-weight:700}
 .sentinel .ed-kicker{
   display:inline-flex;align-items:center;gap:7px;
-  font-family:var(--sn-mono);font-size:11px;letter-spacing:.14em;
+  font-family:var(--sn-mono);font-size:11px;letter-spacing:.18em;
   color:var(--sn-ink-3);margin-bottom:8px;
 }
 .sentinel .ed-kicker::before{content:'';width:6px;height:6px;border-radius:1px;background:var(--sn-accent);flex:none}
+/* redesign-v1 §5: 页面主标题对齐 demo .pg-title — 无衬线 22px 800 (paper 主题回衬线) */
 .sentinel .ed-h1{
-  font-family:var(--sn-serif);font-weight:900;font-size:clamp(24px,2.6vw,32px);
-  line-height:1.2;letter-spacing:-.015em;color:var(--sn-ink);
+  font-family:var(--sn-sans);font-weight:800;font-size:22px;
+  line-height:1.2;letter-spacing:-.01em;color:var(--sn-ink);
 }
-.sentinel .ed-sub{font-size:13px;color:var(--sn-ink-2);margin-top:6px;max-width:70ch}
+:root[data-theme='paper'] .sentinel .ed-h1{font-family:var(--sn-serif)}
+.sentinel .ed-sub{font-size:12.5px;color:var(--sn-ink-2);margin-top:6px;max-width:72ch}
+/* redesign-v1 §5: 页头对齐 demo .pg-head 的边框与间距 —
+   保持块级纵向流 (PageHeader 为 kicker/标题/描述/尾注多行), 不改 demo 的两栏 flex 结构 */
 .sentinel .ed-head{
-  padding-bottom:18px;margin-bottom:22px;
-  border-bottom:3px double var(--sn-line-strong);
+  padding-bottom:12px;margin-bottom:20px;
+  border-bottom:2px solid var(--sn-line-strong);
 }
 
 /* ===== 栏头 (SectionHead 同语言) ===== */
+/* redesign-v1 §5: 对齐 demo .sec-title — sans 13px 700 + ::after 分隔线 */
 .sentinel .ed-sechead{
-  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-  font-family:var(--sn-serif);font-size:16px;font-weight:700;color:var(--sn-ink);
-  padding-bottom:8px;margin:22px 0 12px;
-  border-bottom:1px solid var(--sn-line);
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--sn-sans);font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--sn-ink);
+  margin:32px 0 12px;
 }
+.sentinel .ed-sechead::after{content:'';flex:1;border-top:1px solid var(--sn-line)}
 .sentinel .ed-sechead .ed-note{
+  order:2;
   font-family:var(--sn-mono);font-size:11px;font-weight:400;color:var(--sn-ink-3);letter-spacing:.04em;
 }
 
@@ -61,7 +72,7 @@
   display:flex;flex-direction:column;gap:6px;
   background:var(--sn-bg-panel);
   border:1px solid var(--sn-line);border-radius:10px;
-  padding:14px 16px;min-width:0;
+  padding:16px 20px;min-width:0;
 }
 .sentinel .ed-card.click{cursor:pointer;transition:border-color .15s ease,background .15s ease}
 .sentinel .ed-card.click:hover{border-color:var(--sn-accent);background:var(--sn-bg-lift)}
@@ -71,30 +82,33 @@
 .sentinel .ed-card .t{font-family:var(--sn-serif);font-size:14.5px;font-weight:700;color:var(--sn-ink)}
 .sentinel .ed-card .d{font-size:12px;color:var(--sn-ink-2);line-height:1.6}
 
-/* ===== 表格 (编目室/通稿) ===== */
-.sentinel .ed-table{width:100%;border-collapse:collapse;font-size:13px}
+/* ===== 表格 (编目室/通稿) — redesign-v1 §6 对齐 demo .tbl (uppercase 表头 + 44px 行) ===== */
+.sentinel .ed-table{width:100%;border-collapse:collapse;font-size:12.5px}
 .sentinel .ed-table th{
-  text-align:left;font-family:var(--sn-mono);font-size:11px;font-weight:600;
-  letter-spacing:.08em;color:var(--sn-ink-3);
-  padding:8px 10px;border-bottom:2px solid var(--sn-line-strong);white-space:nowrap;
+  text-align:left;font-family:var(--sn-mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.1em;color:var(--sn-ink-3);text-transform:uppercase;
+  padding:8px 12px;border-bottom:1px solid var(--sn-line-strong);white-space:nowrap;
 }
 .sentinel .ed-table td{
-  padding:10px;border-bottom:1px solid var(--sn-line);
-  color:var(--sn-ink);vertical-align:top;
+  padding:11px 12px;height:44px;border-bottom:1px solid var(--sn-line);
+  color:var(--sn-ink);vertical-align:middle;
 }
 .sentinel .ed-table tr:hover td{background:var(--sn-bg-lift)}
 .sentinel .ed-table .mono{font-family:var(--sn-mono);font-size:12px;color:var(--sn-ink-2)}
 
-/* ===== 按钮 (hairline 语言) ===== */
+/* ===== 按钮 — redesign-v1 §6 对齐 demo .btn (无衬线 600 12.5px, 卡片底) ===== */
 .sentinel .ed-btn{
-  font-family:var(--sn-mono);font-size:11.5px;padding:5px 12px;border-radius:6px;
-  border:1px solid var(--sn-line-strong);color:var(--sn-ink-2);background:transparent;
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--sn-sans);font-size:12.5px;font-weight:600;
+  padding:5px 14px;border-radius:6px;
+  border:1px solid var(--sn-line-strong);color:var(--sn-ink-2);background:var(--sn-bg-panel);
   cursor:pointer;white-space:nowrap;
-  transition:background .15s ease,border-color .15s ease,color .15s ease;
+  transition:background .12s ease,border-color .12s ease,color .12s ease;
 }
-.sentinel .ed-btn:hover:not(:disabled){border-color:var(--sn-accent);color:var(--sn-accent);background:var(--sn-bg-lift)}
+.sentinel .ed-btn:hover:not(:disabled){border-color:var(--sn-accent);color:var(--sn-accent)}
 .sentinel .ed-btn:disabled{opacity:.5;cursor:not-allowed}
 .sentinel .ed-btn.primary{border-color:var(--sn-accent);color:#fff;background:var(--sn-accent)}
+:root[data-theme='dark'] .sentinel .ed-btn.primary{color:#06231a}
 .sentinel .ed-btn.primary:hover:not(:disabled){opacity:.88;color:#fff}
 .sentinel .ed-btn.warn{color:var(--sn-amber);border-color:var(--sn-amber)}
 .sentinel .ed-btn.warn:hover:not(:disabled){background:var(--sn-amber-dim);color:var(--sn-amber)}

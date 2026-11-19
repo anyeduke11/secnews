@@ -37,13 +37,13 @@ export function PracticeTag({ domain, hit, outlined }: { domain: string; hit: bo
   const title = hit ? '命中你的兴趣方向, 已优先展示' : '实践域';
   if (outlined) {
     return (
-      <span className="ftag" title={title} style={hit
+      <span className="tag" title={title} style={hit
         ? { color: 'var(--sn-mint, #00e5a0)', background: 'transparent', border: '1px solid var(--sn-mint, #00e5a0)' }
         : { color: 'var(--sn-text-dim)', background: 'transparent', border: '1px solid var(--sn-line)' }}>{label}</span>
     );
   }
   return (
-    <span className="ftag" title={title} style={hit
+    <span className="tag" title={title} style={hit
       ? { color: 'var(--sn-mint, #00e5a0)', border: '1px solid var(--sn-mint, #00e5a0)' }
       : undefined}>{label}</span>
   );
@@ -105,7 +105,7 @@ export function FlashRow({ item, binding, onOpen }: {
           <span className="flash-title">{item.title}</span>
         )}
         <span className="flash-tags">
-          <span className="ftag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
+          <span className="tag" style={{ color: tagColorOf(item.category) }}>{labelOf(item.category)}</span>
           {item.practice_domain && (
             <PracticeTag domain={item.practice_domain} hit={binding.interestDomains.includes(item.practice_domain)} />
           )}

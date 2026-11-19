@@ -12,6 +12,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useSkillDetail } from '../../hooks/useSkillRegistry';
 import { CATEGORY_LABELS, SKILL_TYPE_LABELS, SkillDetail as SkillDetailData } from '../../types/skill';
 import { RunHistory } from './RunHistory';
+import { ToolPageHeader } from '../../primitives/ToolPageHeader';
 
 function SchemaTable({ title, schema }: { title: string; schema: Record<string, string> }) {
   const entries = Object.entries(schema ?? {});
@@ -80,33 +81,25 @@ export function SkillDetail({ skillId: skillIdProp, onBack }: { skillId?: string
     // B6-c: 外边距由 PageLayout 统一提供, 页内不再重复 padding
     <div className="flex flex-col gap-4 max-w-[900px] mx-auto w-full">
       {/* 页头 */}
-      <header className="flex items-center gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="返回商店"
-            className="h-8 px-2.5 rounded-md text-sm border"
-            style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-2)' }}
-          >
-            ←
-          </button>
-        )}
-        <h1 className="text-lg font-bold truncate" style={{ color: 'var(--ink)' }}>
-          {loading ? '技能详情' : detail?.name ?? '技能详情'}
-        </h1>
-        {detail && (
-          <span
-            className="px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0"
-            style={{
-              color: detail.enabled ? 'var(--mint)' : 'var(--ink-3)',
-              backgroundColor: 'var(--bg-hover)',
-            }}
-          >
-            {detail.enabled ? '[ON]' : '[OFF]'}
-          </span>
-        )}
-      </header>
+      <ToolPageHeader
+        title={loading ? '技能详情' : detail?.name ?? '技能详情'}
+        onBack={onBack}
+        backLabel="返回商店"
+        truncate
+        trailing={
+          detail && (
+            <span
+              className="px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0"
+              style={{
+                color: detail.enabled ? 'var(--mint)' : 'var(--ink-3)',
+                backgroundColor: 'var(--bg-hover)',
+              }}
+            >
+              {detail.enabled ? '[ON]' : '[OFF]'}
+            </span>
+          )
+        }
+      />
 
       {/* 三态 */}
       {loading && (

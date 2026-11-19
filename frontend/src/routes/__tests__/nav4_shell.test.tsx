@@ -22,10 +22,10 @@ const SHELL_TSX = SHELL_FILES
   .map(f => readFileSync(join(ROOT, "src/shell", f), "utf-8"))
   .join("\n");
 // B8-c (2026-11-19): 设置域 API 单体 (api/settings.ts 847 行) 拆为薄 barrel + settings/* 子模块,
-// 守卫对"域模块集合"整体断言 (条目与强度不变)。
+// B9-a (2026-11-19): 子模块由 11 个按业务域合并为 5 个 —— 守卫对"域模块集合"整体断言
+// (条目与强度不变)。
 const SETTINGS_MODULES = [
-  "overview.ts", "sync.ts", "proxy.ts", "prefs.ts", "mcp.ts", "models.ts",
-  "secrets.ts", "intake.ts", "ops.ts", "knowledge.ts", "skillRegistry.ts",
+  "core.ts", "ops.ts", "security.ts", "intelligence.ts", "knowledge.ts",
 ];
 // B6-d (2026-11-19): 壳层样式与资讯域样式已拆为两文件, 守卫按"拼接整体"断言 (条目与强度不变)
 const SHELL_CSS = readFileSync(join(ROOT, "src/shell/shell.css"), "utf-8");

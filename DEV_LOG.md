@@ -1,4 +1,30 @@
 
+## [DEV-0407] refactor(fe): 前端重构 V1 B9 — 遗留项收口批（设置域合并 + 页头原子 + 视觉机检）
+- **时间**: 2026-11-19
+- **类型**: 遗留项收口批（承接 §19.7 遗留清单 + B8 复核发现的 R-2 剩余面）。三子批：**a** 设置域子模块 11 → 5 合并（回收 Rollup 共享 chunk）/ **b** 新增 L1 原子 `ToolPageHeader` + 6 页工具页头收敛 / **c** 视觉回归机检工具入仓（补齐仓库无视觉基线的空缺）
+- **批次性质**: 机械搬移 + 参数化收敛，**DOM 与类名逐字保留**（§20.4 像素级证据：6 路由整页截图 B8 对照构建 vs B9 **逐字节完全一致**）
+- **a 设置域子模块 11 → 5（按业务域合并）**:
+  - `core`（系统总览/模式/能力门禁 + 同步）197 · `ops`（运维/历史批次 + 自动入管 + Skill registry）200 · `security`（密钥保险箱 + 代理）201 · `intelligence`（兴趣画像/内容偏好 + MCP + 模型）257 · `knowledge`（SOUL/联邦）34 —— 全部 ≤300
+  - **零丢失三重校验（机械比对）**：导出函数 **82 → 82**（函数名全集 `diff` 一致）+ 导出 `interface`/`type` 全集一致 + **端点 URL 全集 53 个一致**（防搬运丢端点）
+  - barrel `export *` 转发 → **126 处消费方 import 路径不变**；`nav4_shell` 的 `SETTINGS_MODULES` 清单同步为 5 个模块名（5 条断言逐条保留，61 tests 全通过）
+  - **返工记录**: 首版合并脚本漏剥源模块自带 import 导致重复导入，已修正后重跑（上表为修正后产物）
+- **b 新增 L1 原子 `primitives/ToolPageHeader.tsx`（77 行 + 7 用例）**:
+  - 两体例：**compact**（`/tags` `/search` `/extract` 紧凑头 = 2px 下边线 + 右对齐 ghost 返回钮 + `text-sm` 标题 + 等宽前缀 TAG/FIND/EXT）/ **bar**（skills 三页横条头 = 左侧 bordered 返回钮 + `text-lg` 标题 + 尾部计数/徽标槽）
+  - **收敛前的重复面实测**：三页紧凑头经 `diff` 实测**除前缀与标题外逐字相同**；skills 三页容器与返回钮逐字同构
+  - 随收敛清理三页失效的 `Icon` import（`<Icon` 残留 = 0）；原子内部依赖仅 `react` + 同目录 `./Icon`（满足 B1「无业务依赖 + 每原子 ≥1 测试」）
+- **c 视觉回归机检工具入仓（`frontend/perf/visual_regress.mjs`）**:
+  - 逐路由截图（1440×900 fullPage）+ 导出页头 `outerHTML`；后端不在时 API 一律回放 `{}`，页面走空态/错误态（页头仍渲染 = 改动面）
+  - **非确定性处置（实测）**：首次比对时同一构建两次截图**就不一致**（壳层 `.clock` + 呼吸动画）→ 工具内注入 `.clock/.pulse { visibility: hidden }` 与 `animation/transition: none`，复测**同构建两次截图逐字节一致**（确定性成立）
+  - **证据**：B8 对照构建（独立 worktree 复现 `e0931ae`）vs B9 并行 preview，6 路由（`/tags` `/search` `/extract` `/skill-store` `/skill-store/new` `/skill-store/:id`）整页截图与页头 DOM **均逐字节完全一致** → 像素级零变化
+- **门禁**: `tsc --noEmit` exit 0 · **111 文件 / 791 tests 全通过**（+1 文件 +7 用例）· `vite build` exit 0 · `generate_meta.py --check` OK（56/19/99/155 · core_routers 67 · AGENTS 7/7）
+- **覆盖率**: **58.73 / 77.50 / 60.41 / 58.73**（Stmts/Branch/Funcs/Lines）vs B8 **58.67 / 77.42 / 60.43 / 58.67** → Δ +0.06 / +0.08 / −0.02 / +0.06 pp，四项仍全部高于阈值（57.05 / 76.39 / 57.42）
+- **体积（观测项，口径 A）**: 首屏 JS **88,413 → 88,404 B（−9 B，累计 −4,594 B / −4.94%）**，首屏 CSS 12,754 B 零增长；全量 565,046 → **565,011 B / 81 → 80 chunk**
+  - **chunk 归因**: settings 共享 chunk **5 → 3**（`overview`+`sync`→`core` 541 · `ops`+`intake`+`skillRegistry`→`ops` 707 · `secrets`+`proxy`→`security` 546）；新增 `ToolPageHeader` 共享 chunk 633 B，抵掉 6 页各自内联的页头码 → 净 **−1 chunk / −35 B**
+- **LCP（R4 唯一判定指标）**: `lcp_ab.mjs --runs=3` × 2 会话 —— with_fonts 中位 **120 / 132** ms、no_fonts 中位 **124 / 120** ms（基线 252 ms，目标 ≤ 201.6 ms）→ **达标**（较基线降 48%–53%）
+- **新登记缺口（勘察 R-2 剩余面时发现，DESIGN.md §5 R-2 真实范围远未完成）**: **G7**（R-2 词汇表替换未完成：18 个文件自写 `<table>` · 108 个文件自写四态 · 7 处域内标签）+ **G8**（6 件孤儿原语 `AsyncState`/`DataTable`/`Inspector`/`Panel`/`SplitPane`/`Toolbar` 生产消费者 = 0）→ 盘点与分批处置建议见验证报告 §20.6，**本批不硬改**（`Inspector` 假设右侧抽屉 vs 域内中心模态，替换等于重设计）
+- **未做（显式声明）**: ① 人工视觉走查仍留白给 owner（机检只覆盖 6 个改动页，非全站）；② R-2 剩余面按 §20.6 建议分域分批推进；③ `ToolPageHeader` 的长名截断用 `truncate` prop 表达（参数化，非第三种版式）；④ 未做移动端/弱网口径
+- **留痕**: 契约 §6 批次表 + 进度表 B9 行；验证报告 §20.1–§20.7 + §4 缺口表新增 G7 / G8 + §1 批次总览新增 B9 行；CHANGELOG B9 小节
+
 ## [DEV-0406] refactor(fe): 前端重构 V1 B8 — 缺口收口批（G3 / G4 / G5 补做）
 - **时间**: 2026-11-19
 - **类型**: 缺口收口批（承接 B7 独立复核 §18 的发现：G3 / G4 / G5 三项缺口承诺关闭时点为 B6，B6 已关闭而三项实测仍在 → 2026-11-19 复核时改判「未按期关闭」，owner 指令「继续任务」后按推荐路径**补做**而非豁免）

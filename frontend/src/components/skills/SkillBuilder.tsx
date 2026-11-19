@@ -19,6 +19,7 @@
 import { useState } from 'react';
 import { createSkill, validateSkillDraft } from '../../api/skills';
 import { SkillBuilderNavBar } from './SkillBuilderNavBar';
+import { ToolPageHeader } from '../../primitives/ToolPageHeader';
 import { SkillBuilderStep1Form } from './SkillBuilderStep1Form';
 import { SkillBuilderStep2Form } from './SkillBuilderStep2Form';
 import { SkillBuilderStep3Form } from './SkillBuilderStep3Form';
@@ -89,22 +90,7 @@ export function SkillBuilder({ onBack, onCreated }: {
     // B6-c: 外边距由 PageLayout 统一提供, 页内不再重复 padding
     <div className="flex flex-col gap-4 max-w-[800px] mx-auto w-full">
       {/* 页头 */}
-      <header className="flex items-center gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="返回"
-            className="h-8 px-2.5 rounded-md text-sm border"
-            style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-2)' }}
-          >
-            ←
-          </button>
-        )}
-        <h1 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
-          新建 Skill
-        </h1>
-      </header>
+      <ToolPageHeader title="新建 Skill" onBack={onBack} />
 
       {/* 步进指示 */}
       <SkillBuilderStepper current={step} />

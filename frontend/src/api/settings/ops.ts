@@ -1,12 +1,14 @@
 /**
- * api/settings/ops.ts — 设置域 API 子模块 (前端重构 V1 · B8-c, 2026-11-19)
+ * api/settings/ops.ts — 设置域 API 子模块 (前端重构 V1 · B9-a, 2026-11-19)
  *
- * 自原 api/settings.ts (847 行) 按章节边界拆分而来; 函数体 / 接口体 / 端点 URL /
- * method / body 逐字搬移, 零改写。聚合出口仍为 ../api/settings (薄 barrel)。
+ * 由原 api/settings.ts (847 行) 按章节边界拆分 (B8-c), 本批按业务域合并为 5 个模块;
+ * 函数体 / 接口体 / 端点 URL / method / body 逐字保留, 零改写。
+ * 聚合出口仍为 ../api/settings (薄 barrel)。
  *
- * 归属章节: 运维 (数据库维护 / 缓存) / 历史批次 (HistoryPage)
+ * 合并来源: ops / intake / skillRegistry
  */
-import { getJSON, postJSON } from '../../lib/api';
+import { apiFetch, getJSON, postJSON } from '../../lib/api';
+import type { ApiFetchOptions } from '../../lib/api';
 
 // ---------------------------------------------------------------------------
 // 运维 (数据库维护 / 缓存)
@@ -115,4 +117,84 @@ export function listHistoryBatchItems<T = unknown>(batchNo: number, query: strin
 /** GET /api/history/batches/{batchNo}/summary — 批次摘要 */
 export function getHistoryBatchSummary<T = unknown>(batchNo: number): Promise<T> {
   return getJSON<T>(`/api/history/batches/${batchNo}/summary`);
+}
+
+// ---------------------------------------------------------------------------
+// 自动入管
+// ---------------------------------------------------------------------------
+
+export interface AutoIntakeConfig {
+  enabled: boolean;
+  min_quality_score: number;
+  daily_limit: number;
+  require_domain_hit: boolean;
+  today_intaken: number;
+}
+
+/** GET /api/settings/auto-intake */
+export function getAutoIntake(): Promise<AutoIntakeConfig> {
+  return apiFetch<AutoIntakeConfig>('/api/settings/auto-intake');
+}
+
+/** PATCH /api/settings/auto-intake */
+export function patchAutoIntake(next: AutoIntakeConfig): Promise<AutoIntakeConfig> {
+  return apiFetch<AutoIntakeConfig>('/api/settings/auto-intake', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      enabled: next.enabled,
+      min_quality_score: next.min_quality_score,
+      daily_limit: next.daily_limit,
+      require_domain_hit: next.require_domain_hit,
+    }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Skill registry 读侧 (/api/skill-registry; 执行/反馈见 ./skills)
+// ---------------------------------------------------------------------------
+
+/** GET /api/skill-registry — 控制台概览扁平列表 ({skills}) */
+export function getSkillRegistrySummary<T = unknown>(): Promise<{ skills: T[] }> {
+  return getJSON<{ skills: T[] }>('/api/skill-registry');
+}
+
+/** GET /api/skill-registry/v1?category= — 注册表列表 ({version, items, total}) */
+export function getSkillRegistry<T = unknown>(
+  category?: string,
+  options?: ApiFetchOptions,
+): Promise<{ version: string; items: T[]; total: number }> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return apiFetch<{ version: string; items: T[]; total: number }>(
+    `/api/skill-registry/v1${qs}`,
+    options,
+  );
+}
+
+/** GET /api/skill-registry/{id} — 技能详情 */
+export function getSkillRegistryDetail<T = unknown>(
+  skillId: string,
+  options?: ApiFetchOptions,
+): Promise<T> {
+  return apiFetch<T>(`/api/skill-registry/${encodeURIComponent(skillId)}`, options);
+}
+
+/** GET /api/skill-registry/{id}/runs?limit= — 运行历史 (顶层数组) */
+export function listSkillRegistryRuns<T = unknown>(
+  skillId: string,
+  limit = 20,
+  options?: ApiFetchOptions,
+): Promise<T[]> {
+  return apiFetch<T[]>(
+    `/api/skill-registry/${encodeURIComponent(skillId)}/runs?limit=${limit}`,
+    options,
+  );
+}
+
+/** POST /api/skill-registry/{id}/enable|disable — 启停技能 */
+export function toggleSkillRegistry(skillId: string, next: boolean): Promise<unknown> {
+  return postJSON(
+    `/api/skill-registry/${encodeURIComponent(skillId)}/${next ? 'enable' : 'disable'}`,
+    {},
+  );
 }

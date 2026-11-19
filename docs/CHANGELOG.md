@@ -134,6 +134,17 @@
 - **显式不做**: `--sn-*` 别名层保留 / `st-*` 去前缀不做（纯改名、零功能收益、高回归风险）/ `sentinel-action.css` 与 `sentinel-graph.css` 不搬目录（已页级 scoped）
 - **留痕**: 验证报告 §15；契约 §6 批次进度表 B6 行；DEV-0403
 
+### 前端重构 V1 · B9 遗留项收口批：设置域合并 + 页头原子 + 视觉回归机检 (DEV-0407, 2026-11-19)
+- **a 设置域子模块 11 → 5（按业务域合并）**: `core` 197 / `ops` 200 / `security` 201 / `intelligence` 257 / `knowledge` 34 行（全部 ≤300）；**零丢失三重校验** —— 导出函数 82 → 82、导出类型全集一致、**端点 URL 全集 53 个一致**；barrel `export *` 转发，**126 处消费方 import 路径不变**；`nav4_shell` 的 `SETTINGS_MODULES` 清单同步为 5 个模块名（5 条断言逐条保留，61 tests 全通过）
+- **b 新增 L1 原子 `primitives/ToolPageHeader.tsx`（77 行 + 7 用例）**: 两种体例 —— **compact**（`/tags` `/search` `/extract` 紧凑头，三页经 `diff` 实测除前缀 TAG/FIND/EXT 与标题外**逐字相同**）+ **bar**（skills 三页横条头：`SkillStore` / `SkillDetail` / `SkillBuilder`）；DOM 与类名逐字复刻原页内实现，随收敛清理三页失效的 `Icon` import
+- **c 视觉回归机检工具入仓（`frontend/perf/visual_regress.mjs`）**: 逐路由截图 + 页头 DOM 导出；**屏蔽壳层时钟与动画**消除非确定性（实测同构建两次截图原本就不一致，修正后逐字节一致）；B8 对照构建 vs B9 六路由整页截图与页头 DOM **均逐字节完全一致** → 像素级零变化
+- **门禁**: `tsc` 0 · 111 文件 / **791 tests 全通过**（+1 文件 +7 用例）· `vite build` 0 · `generate_meta --check` OK；覆盖率 **58.73 / 77.50 / 60.41 / 58.73**（B8 为 58.67 / 77.42 / 60.43 / 58.67，Δ ≤0.08 pp，阈值未破）
+- **体积（观测项）**: 首屏 JS **88,413 → 88,404 B（−9 B，累计 −4,594 B / −4.94%）**，首屏 CSS 12,754 B 零增长；全量 565,046 → **565,011 B / 81 → 80 chunk**（settings 共享 chunk 5 → 3；新增 `ToolPageHeader` 共享 chunk 633 B 抵掉 6 页内联页头码）
+- **LCP（R4 唯一判定指标）**: with_fonts 中位 **120 / 132** ms、no_fonts 中位 **124 / 120** ms（基线 252 ms，目标 ≤201.6 ms）→ **达标**
+- **新登记缺口**: **G7**（R-2 词汇表替换未完成：18 文件自写 `<table>` · 108 文件自写四态 · 7 处域内标签）+ **G8**（6 件孤儿原语生产消费者 = 0）→ 见验证报告 §20.6，本批不硬改
+- **显式不做**: 人工视觉走查留白给 owner（机检只覆盖 6 个改动页）/ R-2 剩余面分域分批推进 / 移动端与弱网口径
+- **留痕**: DEV-0407；契约 §6 批次表 + 进度表 B9 行；验证报告 §20.1–§20.7 + §4 缺口表新增 G7 / G8
+
 ### 前端重构 V1 · B8 缺口收口批：G3 / G4 / G5 补做 (DEV-0406, 2026-11-19)
 - **起因**: B7 独立验收复核（验证报告 §18）发现 §4 的 G3 / G4 / G5 三项缺口承诺关闭时点为 B6，而 B6 已关闭、三项实测仍在 → 复核时改判「未按期关闭」，owner 指令「继续任务」后按**补做**路径执行（非豁免）
 - **a（G4）— SentinelShell 兼容桥物理删除**: 9 行兼容桥删除，6 处生产 import 全量改指 `src/shell/*`（`SentinelShell` → `shell/AppShell`；`usePipe` / `usePipeReloadOnSse` → `shell/pipe`）；测试迁至 `shell/AppShell.test.tsx`（10 用例逐字未改）；`nav4_shell` 守卫的 `SHELL_FILES` 本就指向 `src/shell/*`，**断言条目与强度零变动**

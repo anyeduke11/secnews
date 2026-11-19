@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '../../primitives/Icon';
+import { ToolPageHeader } from '../../primitives/ToolPageHeader';
 import { createTag, deleteTag, listTags, suggestTags } from '../../api/shared';
 
 interface TagItem {
@@ -97,18 +97,7 @@ export function TagsPage({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <div className="flex items-center justify-between pb-2 mb-1" style={{ borderBottom: '2px solid var(--text-primary)' }}>
-        <h1 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-          <span className="font-mono mr-2">TAG</span>标签管理
-        </h1>
-        <button onClick={goBack} className="btn-ghost gap-1.5 px-2 py-1 text-[10px]" aria-label="返回">
-          <Icon size={11}>
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </Icon>
-          <span className="hidden sm:inline">返回</span>
-        </button>
-      </div>
+      <ToolPageHeader variant="compact" prefix="TAG" title="标签管理" onBack={goBack} />
 
       {msg && (
         <div className="p-2 rounded text-[11px] font-mono"

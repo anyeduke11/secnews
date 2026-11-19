@@ -17,6 +17,7 @@
 | B5.6 | 剩余 7 个超限文件拆分 + R3 契约冲突裁决 | 同上 + 豁免口径落地 | ✅ 2026-11-18（见 §11） |
 | B6 | 设置域 + 工具页 + 旧 CSS 删除 + **组件层剩余 17 件超限拆分** + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ✅ 2026-11-19（四子批 a/b/c/d，见 §13–§16；R4 LCP 单指标达标） |
 | B8 | 缺口收口批（G3 / G4 / G5 补做） | 三项缺口关闭 / 门禁全绿 / R4 LCP 达标 | ✅ 2026-11-19（三子批 a/b/c，见 §19；LCP 中位 124–160 ms） |
+| B9 | 遗留项收口批（设置域合并 + 页头原子 + 视觉机检） | chunk 回落 / DOM 逐字节不变 / 像素级零差异 / 门禁全绿 / R4 LCP 达标 | ✅ 2026-11-19（三子批 a/b/c，见 §20；LCP 中位 120–132 ms；新增缺口 G7 / G8 登记） |
 
 ## 2. B1 验证证据
 
@@ -100,6 +101,8 @@ B2 不做视觉与页面重写，体积基本持平属预期；20% 目标由 B4/
 | G4 | `SentinelShell.tsx` 兼容桥（9 行）与 6 处旧路径 import 并存 | 双路径过渡态 | ✅ **已关闭 2026-11-19（B8-a）** — 6 处生产 import 全量改指 `src/shell/*`，桥物理删除，测试迁至 `shell/AppShell.test.tsx`；证据见 §19.1 |
 | G5 | `src/api/settings.ts` **847 行**（B3 新建），超 §2.2「单文件 ≤300 行」 | 数据层文件超长（行为无影响；与 `api/v1.ts` 762 / `api/knowledge.ts` 572 同属历史级超长） | ✅ **已关闭 2026-11-19（B8-c）** — 847 行 → 22 行薄 barrel + 11 个子模块（最大 134 行），82 函数 + 导出类型全集零丢失，126 处消费方 import 路径不变；证据见 §19.3 |
 | G6 | `hooks/useQuery.ts` 无生产消费者（仅 `useQuery.test.tsx`） | 数据层接缝已交付但未接线，B3 不计入运行时收益 | B4 首个重写区块接入 + 绑 SSE 失效 |
+| G7 | **R-2 词汇表替换未完成**（DESIGN.md §5 R-2 真实范围 = StatusBadge / DataTable / 空态四态 按 §3 统一替换各域实现）：18 个文件自写 `<table>`、108 个文件自写四态、7 处域内标签未入词汇 | 全站同一概念多套实现；`primitives/DataTable` / `AsyncState` 生产消费者 = 0 | ⏸ **新登记 2026-11-19（B9）** — 分域分批推进，禁止全量机械替换（DOM 差异大）；处置建议见 §20.6，待 owner 裁决 |
+| G8 | **6 件孤儿原语**：`AsyncState` / `DataTable` / `Inspector` / `Panel` / `SplitPane` / `Toolbar` 生产消费者 = 0（自 B1 建成起从未被页面消费） | 死代码 + 未落地的设计承诺；`Inspector` 与域内中心模态交互形态冲突 | ⏸ **新登记 2026-11-19（B9）** — 逐件定「落地到真实页」或「退役删除」；盘点与建议见 §20.6，待 owner 裁决 |
 
 ## 5. B3 验证证据（数据层收敛）
 
@@ -1114,3 +1117,113 @@ LCP 元素均为 `h1.headline`。基线 252 ms，目标 ≤ 201.6 ms（80%）→
 
 
 
+
+## 20. B9 验证证据（遗留项收口批，2026-11-19）
+
+> owner 指令「继续处理遗留项」。承接 §18.4 / §19.7 的遗留清单，三子批：
+> **a = 设置域子模块 11 → 5 合并**（回收 Rollup 共享 chunk）/ **b = L1 原子 `ToolPageHeader` + 6 页工具页头收敛** /
+> **c = 视觉回归机检工具入仓**（补齐仓库无视觉基线的空缺，把「人工走查」前置为机械证据）。
+> 性质：机械搬移 + 参数化收敛，**DOM 与类名逐字保留**（见 §20.4 像素级证据）。
+
+### 20.1 B9-a：设置域子模块 11 → 5（按业务域合并）
+
+| 子模块 | 合并来源 | 行数 |
+|---|---|---|
+| `api/settings/core.ts` | overview（系统总览/模式/能力门禁）+ sync（同步） | 197 |
+| `api/settings/ops.ts` | ops（运维/历史批次）+ intake（自动入管）+ skillRegistry | 200 |
+| `api/settings/security.ts` | secrets（密钥保险箱）+ proxy（代理） | 201 |
+| `api/settings/intelligence.ts` | prefs（兴趣画像/内容偏好）+ mcp + models | 257 |
+| `api/settings/knowledge.ts` | knowledge（SOUL/联邦状态） | 34 |
+
+- 全部 ≤300（最大 257）；barrel `api/settings.ts` 17 行，`export *` 转发 → **126 处消费方 import 路径不变**。
+- **零丢失三重校验（机械比对）**：导出函数 **82 → 82**（函数名全集 `diff` 一致）、导出 `interface`/`type` 全集一致、**端点 URL 全集 53 个一致**（防搬运丢端点）。
+- **守卫同步**：`nav4_shell.test.tsx` 的 `SETTINGS_MODULES` 清单由 11 个文件名改为 5 个（`core/ops/security/intelligence/knowledge`），**5 条断言逐条保留**；61 tests 全通过。
+- 首版合并脚本曾漏剥源模块自带 import 导致重复导入，已修正后重跑（上表为修正后产物，import 行数 2/文件）。
+
+### 20.2 B9-b：L1 原子 `ToolPageHeader` + 6 页页头收敛
+
+**新原子**：`primitives/ToolPageHeader.tsx`（77 行）+ `primitives/ToolPageHeader.test.tsx`（7 用例）。两种体例，DOM 与类名逐字复刻原页内实现：
+
+| 体例 | 构成 | 收敛页 |
+|---|---|---|
+| `compact` | `flex items-center justify-between pb-2 mb-1` + 2px 下边线 + `text-sm font-bold tracking-wide` 标题 + 等宽前缀 + 右对齐 ghost 返回钮（`btn-ghost gap-1.5 px-2 py-1 text-[10px]` + `Icon size={11}`） | `/tags`（TAG）、`/search`（FIND）、`/extract`（EXT） |
+| `bar` | `<header class="flex items-center gap-3">` + 左侧 bordered 返回钮（`h-8 px-2.5 rounded-md text-sm border`）+ `text-lg font-bold` 标题（可 `truncate`）+ 尾部槽 | `SkillStore`（计数）、`SkillDetail`（`[ON]/[OFF]` + truncate + `backLabel="返回商店"`）、`SkillBuilder` |
+
+- **收敛前的重复面**：三页紧凑头经 `diff` 实测**除前缀（TAG/FIND/EXT）与标题文字外逐字相同**；skills 三页容器与返回钮逐字同构。
+- 随收敛清理：三页失效的 `Icon` import 移除（`<Icon` 残留计数 = 0）。
+- B1「每原子 ≥1 测试」：新原子自带 7 用例（体例 DOM/类名、返回钮点击、`truncate`、trailing 槽、无 `onBack` 不渲染）。
+
+### 20.3 B9-c：视觉回归机检工具入仓
+
+| 文件 | 说明 |
+|---|---|
+| `frontend/perf/visual_regress.mjs` | 逐路由截图（1440×900 fullPage）+ 导出页头 `outerHTML`；后端不在时 API 一律回放 `{}`，页面走空态/错误态（页头仍渲染 = 本批改动面）；**屏蔽壳层时钟与动画**消除非确定性 |
+
+**非确定性处置（实测）**：首次比对时 6 页整页截图**同一构建两次即不一致**（壳层 `.clock` + 呼吸动画）→ 工具内注入 `.clock/.pulse { visibility: hidden }` 与 `animation/transition: none`，复测**同构建两次截图逐字节一致**（确定性成立）。
+
+### 20.4 视觉回归证据（B8 对照构建 vs B9，6 路由）
+
+对照基线由独立 worktree 复现 `e0931ae`（B8）构建取得，两构建并行 preview（4174 / 4173）同机同视口比对。
+
+| 路由 | 页头 `outerHTML` | 整页截图 |
+|---|---|---|
+| `/tags` | **逐字节一致** | **逐字节一致**（107,068 B） |
+| `/search` | **逐字节一致** | **逐字节一致**（60,522 B） |
+| `/extract` | **逐字节一致** | **逐字节一致**（74,504 B） |
+| `/skill-store` | **逐字节一致** | **逐字节一致**（155,918 B） |
+| `/skill-store/new` | **逐字节一致** | **逐字节一致**（79,470 B） |
+| `/skill-store/:id` | **逐字节一致** | **逐字节一致**（55,129 B） |
+
+结论：**6 个受影响路由像素级零变化、DOM 逐字节零变化** —— 本批为纯结构收敛，无视觉回归。
+（人工视觉走查仍留白给 owner：机检只覆盖 6 个改动页，非全站。）
+
+### 20.5 门禁、体积与 LCP
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0
+cd frontend && npx vitest run --coverage         # 111 文件 / 791 tests 全通过 · 58.73 / 77.50 / 60.41 / 58.73
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK (56/19/99/155 · core_routers 67) · AGENTS 7/7
+```
+
+- 测试：111 文件 / **791 tests**（B8 为 110 / 784，+1 文件 +7 用例 = 新原子测试）。
+- 覆盖率 **58.73 / 77.50 / 60.41 / 58.73**（Stmts/Branch/Funcs/Lines）vs B8 **58.67 / 77.42 / 60.43 / 58.67** → Δ +0.06 / +0.08 / −0.02 / +0.06 pp，四项仍全部高于阈值（57.05 / 76.39 / 57.42）。
+
+| 指标 | B8 | **B9** | Δ |
+|---|---|---|---|
+| 入口 chunk | 23,324 | 23,317 | −7 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,273 | 11,271 | −2 |
+| **首屏 JS gzip** | 88,413 | **88,404** | **−9 B** |
+| 首屏 CSS gzip | 12,754 | 12,754 | 0 |
+| 全量 JS gzip / chunk | 565,046 / 81 | **565,011 / 80** | **−35 B / −1 chunk** |
+
+较 B0 基线 92,998 累计 **−4,594 B（−4.94%）**。
+
+**chunk 归因**：settings 共享 chunk **5 → 3**（`overview`+`sync`→`core` 541 B、`ops`+`intake`+`skillRegistry`→`ops` 707 B、`secrets`+`proxy`→`security` 546 B）；新增 `ToolPageHeader` 共享 chunk 633 B（6 页共享同一原子），抵掉 6 页各自内联的页头码 → 净 **−1 chunk / −35 B**。
+
+**LCP（R4 唯一判定指标）**：`node perf/lcp_ab.mjs --runs=3` × 2 会话 —— with_fonts 中位 **120 / 132** ms、no_fonts 中位 **124 / 120** ms，LCP 元素均 `h1.headline`；基线 252 ms、目标 ≤ 201.6 ms → **达标**（较基线降 48%–53%）。
+
+### 20.6 R-2 剩余面登记（新增缺口，本批未硬改）
+
+勘察「各域平行实现」时发现 DESIGN.md §5 **R-2 的真实范围**（「StatusBadge / DataTable / 空态四态按 §3 统一替换各域实现」）远未完成 —— B7 落地的是种子（`.badge` 词汇 + `PageHeader` + `StatusBadge` 薄封装），B9 补的是页头族。剩余面实测盘点：
+
+| 面 | 实测 | 说明 |
+|---|---|---|
+| **6 件孤儿原语** | `AsyncState` / `DataTable` / `Inspector` / `Panel` / `SplitPane` / `Toolbar` 生产消费者 **= 0** | 原语自 B1 起建成但从未被页面消费（`AsyncState` 唯一「引用」是 `hooks/useQuery.ts` 的一条注释，非 import） |
+| 平行数据表 | **18 个文件**含 `<table>`（`secnews/pipeline` 3 · `settings` 5 · `secnews` 其他 3 · `layout/LayerTable` · `dashboard/SkillMatrix` · `events/EventsReviewBlocks` · `knowledge/KnowledgeLibraryPage` · `quality/QualityDashboardPage` · `sentinel/review/ReviewManageView`） | `primitives/DataTable` docstring 自称「统一替换 17 套原生 table」；**逐表 DOM 结构差异大（含 colspan / 自定义 thead / 卡内嵌套表）**，机械替换会改版式 |
+| 空态四态 | **108 个文件**含自写「载入中/暂无/加载失败」态 | `primitives/AsyncState` 四态原语 0 消费者 |
+| 域内标签 | 7 处（`editorial-badge` / `ac-badge` ×2 / `pick-badge` / `alert-unread-badge` / `source-type-tag`） | 逐条核验为**分类标签**（精选/未读/类型），**非** §3 的状态徽章语义 → 与状态徽章不是同一族；B7 刻意把 `TodoItem` 分类 chip 从 `.badge` 改 `.tag` 正是二者分族的结果 |
+
+**处置建议（待 owner 裁决，本批不硬改）**：
+
+1. **状态徽章族**：域内真正的「状态徽章」语义站点极少（仅 `settings/SettingsPage.tsx` 的 `st-chip ok` 一处）→ 该族统一面本身就小，可优先落地。
+2. **分类标签族**：需先定义独立词汇（如 `.tag` + 语义变体）再替换 7 处，**不得回退到 `.badge`**（否则与状态徽章撞类名 —— B7 已为此返工一次）。
+3. **数据表族**：18 处 DOM 差异大，建议按域分批（每域 1–3 处），逐批比对像素，**不做全量机械替换**。
+4. **6 件孤儿原语**：逐件定「落地到真实页」或「退役删除」。`Inspector` 的实现假设为**右侧抽屉**，而域内既有详情交互为**中心模态**（`ItemDetailDialog`：`position: fixed; inset: 0` + overlay）→ 直接替换等于重设计，需先定交互形态。
+
+以上登记为缺口 **G7**（R-2 词汇表替换未完成）与 **G8**（6 件孤儿原语），见 §4；不静默遗留。
+
+### 20.7 未做与残留（显式声明）
+
+① **人工视觉走查仍留白给 owner**：机检只覆盖 6 个改动页的像素级回归，非全站走查；② R-2 剩余面（§20.6）按上文建议分批推进，未在本批硬改；③ `ToolPageHeader` 的 `bar` 体例用 `truncate` prop 表达长名截断（`SkillDetail`），属**参数化而非新增体例**，未引入第三种版式；④ 未做移动端/弱网口径（本批零首屏依赖变化，首屏 JS −9 B）。

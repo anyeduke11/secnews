@@ -21,6 +21,7 @@ import { CATEGORY_LABELS, SKILL_TYPE_LABELS, SkillCategory, SkillTypeCode, Skill
 import { runSkill } from '../../api/skills';
 import { useSkillRegistry, useSkillToggle } from '../../hooks/useSkillRegistry';
 import { SkillCard } from './SkillCard';
+import { ToolPageHeader } from '../../primitives/ToolPageHeader';
 
 type StatusFilter = 'all' | 'enabled' | 'disabled';
 
@@ -115,25 +116,15 @@ export function SkillStore({
     // B6-c: 外边距 (px-4 sm:px-6 pt-4 pb-16) 由 PageLayout 统一提供, 页内不再重复 padding
     <div className="flex flex-col gap-3 max-w-[1400px] mx-auto w-full">
       {/* 页头 */}
-      <header className="flex items-center gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="返回"
-            className="h-8 px-2.5 rounded-md text-sm border"
-            style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-2)' }}
-          >
-            ←
-          </button>
-        )}
-        <h1 className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
-          技能商店
-        </h1>
-        <span className="text-[12px] font-mono" style={{ color: 'var(--ink-3)' }}>
-          {loading ? '…' : `${visible.length} / ${skills.length} 项`}
-        </span>
-      </header>
+      <ToolPageHeader
+        title="技能商店"
+        onBack={onBack}
+        trailing={
+          <span className="text-[12px] font-mono" style={{ color: 'var(--ink-3)' }}>
+            {loading ? '…' : `${visible.length} / ${skills.length} 项`}
+          </span>
+        }
+      />
 
       {/* 筛选栏: 类别(服务端) + 类型/状态/搜索(本地) */}
       <div className="flex flex-wrap items-center gap-2">

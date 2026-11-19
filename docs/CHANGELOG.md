@@ -134,6 +134,19 @@
 - **显式不做**: `--sn-*` 别名层保留 / `st-*` 去前缀不做（纯改名、零功能收益、高回归风险）/ `sentinel-action.css` 与 `sentinel-graph.css` 不搬目录（已页级 scoped）
 - **留痕**: 验证报告 §15；契约 §6 批次进度表 B6 行；DEV-0403
 
+### 前端重构 V1 · B7 redesign-v1 落地：R-1 token 对齐 + R-2 词汇表种子 (DEV-0405, 2026-11-19)
+- **勘察**: 对照 `design/redesign-v1/DESIGN.md` §5 逐层核对 —— token 约 95% 同源；**8 件 L1 primitives 全仓引用数 = 0（孤儿）**；壳层（报头/版面条/印务条/命令栏）已与 demo 同构（R-4 实质完成）；`domains/` 缺失；21 个页面 `<h1>` 手拼，其中 **6 页已用 `shared/editorial/pages.css` 的 `.ed-*` 词汇**（ed-head / ed-h1 / ed-sechead / ed-card / ed-table / ed-btn / ed-tabs）
+- **返工记录（Rule 7 / 禁止平行新增）**: 首版依 demo 类名新建 `.pg-head` / `.sec-title` / `.card` / `.stamp` / `.empty4`（137 行），grep 发现 `.ed-*` 已是成熟词汇（ed-head ≈ pg-head、ed-sechead ≈ sec-title、ed-card ≈ card）且 `.empty-panel` 在 shell.css、`Stamp.tsx` 已在 `shared/editorial` → **判为平行双轨，全部撤回**，`primitives.css` 缩为 26 行只留 `.ed-*` 真缺的状态徽章
+- **R-1**: `tokens/tokens.css` 补 `--shell-w` / `--dur-*` / `--info` / `*-weak` 别名（全部指向既有 token，零新色值），`--line-strong` 三态对齐 demo（light 0.28 / dark 0.30 / paper `#cfc6b4`）；`--cat-*` 不引入（避免与既有 `--color-*` 分类色板双轨冲突）
+- **R-2**: `primitives/primitives.css`（26 行，`.sentinel` 作用域）**只补 `.badge` 五档语义徽章**（`b-ok|b-part|b-none|b-disc|b-red`），由 `StatusBadge.tsx` 自带 import（与 6 页引入 pages.css 同款约定）；`PageHeader.tsx` 改为**直接复用 `.ed-head / .ed-h1 / .ed-sub`** 并自带 import pages.css，同时补 `kicker`（`.ed-kicker` 眉标）与 `footer`（描述下尾注，承载数据源印章）两个可选 prop，使「手写 `.ed-head` 四行」的页面可原样收敛；实页接入 **6 处**：`/dashboard`（去自有 `p-6` 双重边距）、`/maint`（原 `text-2xl font-semibold` 手写头）、`/quality`（PROOFROOM 校对室）、`/knowledge/library`（CATALOG ROOM 编目室）、`/knowledge`（KNOWLEDGE HUB 资料库前厅）、`/events`（WIRE DESK 通稿审核）——后四者收敛后 DOM 顺序与类名逐字不变（kicker→h1→sub→印章）
+- **测试**: `PageHeader.test.tsx` 4 → 5 tests，新增「kicker 渲染 `.ed-kicker` / footer 渲染 / kicker→h1 顺序」断言
+- **明确不改**: `/tags` `/search` `/extract` 紧凑工具页头（`text-sm` + 2px 下边线 + 返回按钮，换大标题是视觉倒退）/ `/action` `ac-h1` / `/settings` `st-title`（域内自有版式）/ `ReviewPage` 内联 topBar（返回 / 标题 / 刷新三分布局）
+- **门禁**: `tsc` 0 · 110 文件 / **784 tests 全通过** · `vite build` 0
+- **体积（观测项）**: 首屏 JS **88,294 → 88,346 B（+52 B）**，较 B0 基线 92,998 累计 **−4,652 B（−5.00%）**；全量 JS 564,612 B / 77 chunk；首屏 CSS **12,754 B 不变**（pages.css 独立 chunk 1,361 B、徽章 chunk 306 B 均按需加载）
+- **返工二（孤儿原语）**: 首版 `StatusBadge.tsx` 零生产消费者 → Vite tree-shake 连同 `primitives.css` 整体丢弃，构建产物 6 个 CSS chunk 全部无 `.badge.b-ok`（词汇「声明了但没发布」）。修复：`components/sync/SyncStatusBadge.tsx` 改为 `StatusBadge` 薄封装（success→ok / error→risk / skipped→warn / unknown→neutral，文案与导出面不变，`SyncStatusPanel` / `SyncHistory` 零改动）；`components/TodoItem.tsx` 分类 chip 由裸 `.badge` 改 `.tag`（demo §3 分类标签语义，`/action` 视觉零变化）。构建复验 `.badge.b-ok` 出现于 `index-*.css`（306 B gzip，仅 `/sync` 动态加载）
+- **显式不做**: LCP 未复测（无 JS 依赖/阻塞资源变化、首屏 CSS 零增长）/ 其余手写 `<h1>` 未接入（skills 三页工具头、knowledge 两处紧凑头、`FeedMustRead` 头条）/ R-3 印章组件化（`Stamp.tsx` 已存在，实质完成）/ R-4（壳已同构）
+- **留痕**: DEV-0405；契约 §6 批次进度表 B7 行（批次关闭）；验证报告 §17（17.1 先查后改 / 17.2 返工 / 17.3 改动清单 / 17.4 R-3·R-4 判定 / 17.5 门禁 / 17.6 体积 / 17.7 未做 / 17.8 孤儿原语返工）
+
 ### P0 执行链勘察 (DEV-0367~0369)
 - 六断点 file:line 核准清单落档 `docs/v0.8.9/EXECUTION_CHAIN_AUDIT_2026-11-14.md`; D1~D8 owner 裁决
 - **偏差注②** (2026-11-16 改判): pi 派发由"agent_bridge jsonl 协议"改为**确定性 argv 执行** —— plan 已审批冻结, 再让 LLM 转述命令等于重新引入自由度; argv 级执行可与白名单机械比对、可测可复现

@@ -1,4 +1,20 @@
 
+## [DEV-0405] refactor(fe): redesign-v1 落地 B7（R-1 token 对齐 + R-2 组件词汇表种子）
+- **时间**: 2026-11-19
+- **类型**: 蓝本接入（`design/redesign-v1/DESIGN.md` §5 落地路线 R-1 / R-2）；承接 B6 关闭后 owner 指令「检查 UI 重构情况，参考 redesign-v1，直接完成改造」
+- **勘察结论（先查后改）**: L0 token 与 demo 约 95% 同源；**L1 primitives 8 件已建但全仓 `primitives/` 引用数 = 0（孤儿原语，从未被页面消费）**；L2 壳（报头 / 版面条 / 印务条 / 命令栏）已与 demo 同构，R-4 实质已完成；L3 `domains/` 不存在；L4 21 个页面手写 `<h1>`，但其中 6 个已用 `shared/editorial/pages.css` 的 `.ed-*` 编辑部词汇（ed-head / ed-h1 / ed-sechead / ed-card / ed-table / ed-btn / ed-tabs）
+- **返工记录（Rule 7 / DESIGN.md §5「禁止平行新增」）**: 首版按 demo 类名新建了 `.pg-head` / `.sec-title` / `.card` / `.stamp` / `.empty4`（137 行），随后 grep 发现 `.ed-*` 已是仓库成熟词汇（ed-head ≈ pg-head、ed-sechead ≈ sec-title、ed-card ≈ card），且 `.empty-panel` 已在 shell.css、`Stamp.tsx` 已在 shared/editorial —— **判定为平行双轨，全部撤回**，`primitives.css` 缩减为 26 行、只留 `.ed-*` 真缺的状态徽章一族
+- **R-1 改动（`tokens/tokens.css`，纯别名不加新色值）**: 新增 `--shell-w:1580px` / `--dur-fast|normal|slow`（→ `--duration-*`）/ `--info`（→ `--color-info`）/ `--accent-weak|mint-weak|amber-weak|red-weak|info-weak`（→ 既有 `*-soft` / `*-dim`，随 `var()` 三态自动跟随）；`--line-strong` 对齐 demo：light `0.26→0.28`、dark `0.26→0.30`、paper `#d6cfc2→#cfc6b4`。**未引入 `--cat-*`**：生产已用 `--color-*` 三态分类色板，另建一套色相不同 = 双轨冲突（Rule 7 取一边）
+- **R-2 改动（新增 `primitives/primitives.css`，26 行；由 `StatusBadge.tsx` 自带 import，与 6 个既有页面引入 pages.css 同款仓内约定）**: 仅补 `.sentinel .badge` + `.b-ok|b-part|b-none|b-disc|b-red` 五档语义徽章（`.ed-*` 家族唯一缺口）；长写 border 属性、零阴影、色值 100% 取自 tokens
+- **R-2 消费**: ①`PageHeader.tsx` 改为**直接复用 `.ed-head / .ed-h1 / .ed-sub`** 并自带 `import '../components/shared/editorial/pages.css'`，原子 API、`h1`、面包屑 `nav[aria-label=面包屑]`、无描述不渲染 `<p>` 四条断言全保留；补 `kicker`（`.ed-kicker` 眉标）与 `footer`（描述下尾注，承载数据源印章）两个可选 prop，使「手写 `.ed-head` 四行」的页面可原样收敛进原子；②`StatusBadge.tsx` 改吃 `.badge + .b-*`（`data-tone` 与文字标签纪律保留，tone 映射 ok→b-ok / info→b-part / warn→b-none / risk→b-red / neutral→b-disc）；③实页接入 **6 处**：`/dashboard`（去自有 `p-6` 双重边距、保留 `dashboard-title`/`dashboard-back` testid）、`/maint`（原 `text-2xl font-semibold` + subtitle 手写头）、`/quality`（PROOFROOM 校对室）、`/knowledge/library`（CATALOG ROOM 编目室）、`/knowledge`（KNOWLEDGE HUB 资料库前厅）、`/events`（WIRE DESK 通稿审核）——后四者原为手写 `<header class="ed-head">` + kicker + h1 + sub + 印章，收敛后 DOM 顺序与类名逐字不变（kicker→h1→sub→印章）
+- **测试**: `PageHeader.test.tsx` 由 4 → 5 tests，新增「kicker 渲染 `.ed-kicker` / footer 渲染 / kicker→h1 顺序」断言
+- **明确不改（Rule 7 两种页头体例并存，不强行统一）**: `/tags` `/search` `/extract` 采用紧凑工具页头（`text-sm` + 2px 下边线 + 返回按钮，`TAG-` / `FIND-` / `EXT-` 前缀），属高密度工具语义，换成 24–32px 衬线大标题是**视觉倒退**；`/action`（`ac-h1`）与 `/settings`（`st-title`）已有各自设计好的域内版式，同理不动
+- **返工二（孤儿原语，收尾审计抓出并修复）**: 首版 `StatusBadge.tsx` 全仓**零生产消费者**（仅自带 test 引用），Vite tree-shake 后整模块连同 `primitives.css` 被丢弃 —— 静态核验构建产物 6 个 CSS chunk 全部 `badge.b-ok:false`，即 R-2 徽章词汇「声明了但没发布」。修复：①`components/sync/SyncStatusBadge.tsx` 改为 `primitives/StatusBadge` 薄封装（success→ok / error→risk / skipped→warn / unknown→neutral，文案与导出面不变，`SyncStatusPanel` / `SyncHistory` 零改动），使徽章进入真实构建图；②化解类名冲突：`components/TodoItem.tsx` 的分类 chip 由裸 `className="badge"` 改为 `tag`（demo §3 分类标签语义，`/action` 视觉零变化）
+- **门禁**: `tsc --noEmit` exit 0 · 全量 **110 文件 / 784 tests 全通过** · `vite build` exit 0 · 构建产物复验 `.badge.b-ok` 出现于 `index-Cm1W9lCe.css`（306 B gzip，仅 `/sync` 动态加载）
+- **体积（观测项，口径 A）**: 首屏 JS gzip **88,294 → 88,346 B**（+52 B；index 23,257 + vendor-react 53,816 + SentinelHomePage 11,273），较 B0 基线 92,998 累计 **−4,652 B（−5.00%）**；全量 JS 564,612 B / 77 chunk；首屏 CSS **12,754 B 不变**（`pages.css` 独立 chunk 1,361 B、徽章 chunk 306 B 均按需加载）
+- **未做（显式声明）**: ① LCP 未复测 —— 本轮无新增首屏 JS 依赖、首屏 CSS 零增长；② 其余手写 `<h1>` 未接入：`ReviewPage` 内联 topBar 体例（返回 / 标题 / 刷新三分布局）、skills 三页 `text-lg` 工具头、knowledge 两处紧凑头、`FeedMustRead` 头条、`/action` `ac-h1`、`/settings` `st-title`（见「明确不改」）；③ R-3 印章组件化 —— `shared/editorial/Stamp.tsx` 已存在且 token 引用（`--ok/--warn/--err/--ff-mono`）实测有效，R-3 实质已完成；④ R-4 未动 —— 壳层已同构，无改动价值
+- **留痕**: 契约 §6 批次进度表 B7 行（批次关闭）；验证报告 §17（17.1 先查后改 / 17.2 R-2 返工 / 17.3 改动清单 / 17.4 R-3·R-4 / 17.5 门禁 / 17.6 体积 / 17.7 未做 / 17.8 孤儿原语返工）；CHANGELOG B7 小节
+
 ## [DEV-0404] refactor(fe): 前端重构 V1 B6-c — 工具页容器统一（去双重 padding，B6 四子批收口）
 - **时间**: 2026-11-19
 - **类型**: 绞杀者 B6 子批 c（B6 最后一个子批；owner 裁定口径 A「最小」）

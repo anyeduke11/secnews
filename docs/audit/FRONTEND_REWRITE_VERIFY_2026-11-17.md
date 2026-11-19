@@ -95,9 +95,9 @@ B2 不做视觉与页面重写，体积基本持平属预期；20% 目标由 B4/
 |---|---|---|---|
 | G1 | ✅ **已关闭 2026-11-18** — LCP 基线实测中位数 **252 ms**（3 次：276 / 252 / 236），元素 `h1.headline`；证据见 §6 | §7.1 的 LCP 80% 目标（≤ ~201.6 ms）判为**高风险项**，理由见 §6.3 | 已关闭 |
 | G2 | ✅ **已关闭 2026-11-18** — 四向映射产出于 `docs/audit/PRD_CAPABILITY_MAP_2026-11-18.md`（92 条逐条：已定位 68 / 未定位 24 / 有测试 47）；风险摘要见 §7 | 遗留 3 项须 owner 裁决（D3 CaseQueuePanel 未挂载 / 24 条未定位中 17 条后端能力 / 3 处零测试），见 §7 | 已关闭 |
-| G3 | `EmptyState` / `Toast` / `ErrorBoundary` / `Icon` 未迁入 `primitives/`（77 处 import） | L1 原子目录不完整（功能无影响） | B6 收口 |
-| G4 | `SentinelShell.tsx` 兼容桥（9 行）与 6 处旧路径 import 并存 | 双路径过渡态 | B6 全量改指后删除 |
-| G5 | `src/api/settings.ts` **847 行**（B3 新建），超 §2.2「单文件 ≤300 行」 | 数据层文件超长（行为无影响；与 `api/v1.ts` 762 / `api/knowledge.ts` 572 同属历史级超长） | B6 设置域重写时按子域拆分 |
+| G3 | `EmptyState` / `Toast` / `ErrorBoundary` / `Icon` 未迁入 `primitives/`（77 处 import） | L1 原子目录不完整（功能无影响） | ~~B6 收口~~ **未按期关闭**（2026-11-19 复核仍开放，B6/B7 均未执行；待 owner 裁决：补做 / 显式豁免） |
+| G4 | `SentinelShell.tsx` 兼容桥（9 行）与 6 处旧路径 import 并存 | 双路径过渡态 | ~~B6 全量改指后删除~~ **未按期关闭**（2026-11-19 复核：桥仍 9 行、生产 import 6 处；待 owner 裁决） |
+| G5 | `src/api/settings.ts` **847 行**（B3 新建），超 §2.2「单文件 ≤300 行」 | 数据层文件超长（行为无影响；与 `api/v1.ts` 762 / `api/knowledge.ts` 572 同属历史级超长） | ~~B6 设置域重写时按子域拆分~~ **未按期关闭**（2026-11-19 复测仍 847 行，B6-b 只拆组件层未拆数据层；待 owner 裁决） |
 | G6 | `hooks/useQuery.ts` 无生产消费者（仅 `useQuery.test.tsx`） | 数据层接缝已交付但未接线，B3 不计入运行时收益 | B4 首个重写区块接入 + 绑 SSE 失效 |
 
 ## 5. B3 验证证据（数据层收敛）
@@ -887,6 +887,123 @@ python scripts/generate_meta.py --check               # OK
 ① 口径 B / C 未采纳（owner 裁定 A）：本批零新增抽象、零 CSS 变更。
 ② 其余工具页（`SkillsPage` / `/dashboard` / `/secrets` / `/report` / `/maint` / 知识域子页）实测无自有容器包裹，未改动 —— 统一动作只落在确有双重容器的 3 页。
 ③ 未做人工视觉截图回归（仓库无视觉基线）：本批为删除重复 padding 的确定性改动；如需可对 3 页补 `preview` 截图比对。
+
+---
+
+## 17. B7 验证证据（redesign-v1 落地 R-1~R-4，DEV-0405 · 2026-11-19）
+
+蓝本: `design/redesign-v1/DESIGN.md` §5（R-1 token 对齐 / R-2 组件词汇表替换 / R-3 印章组件化 / R-4 壳层微调）+ `design/redesign-v1/index.html` 交互 demo。
+
+### 17.1 先查后改（为 R-2 定标）
+
+| 层 | 实测 | 结论 |
+|---|---|---|
+| L0 `tokens/tokens.css` | 与 demo 约 95% 同源；差异 = `--line-strong` 三态数值 + demo 独有别名 | 走别名补齐，不加新色值 |
+| L1 `primitives/` | 8 件已建、全仓引用数 = 0（孤儿） | R-2 的落点 |
+| L2 壳（`shell/shell.css` + `AppShell`） | masthead / bandnav / pressbar / cmdbar 与 demo 同构 | R-4 无改动价值 |
+| L3 `domains/` | 不存在 | 本批不建（D4 绞杀者不加新层） |
+| L4 页面 | 21 处手写 `<h1>`，其中 6 页已用 `.ed-*` | R-2 消费面 |
+
+### 17.2 R-2 首版返工（平行词汇表双轨，已撤回）
+
+首版按 demo 类名新建 `.pg-head` / `.sec-title` / `.card` / `.stamp` / `.empty4`（137 行）。grep 发现 `components/shared/editorial/pages.css` 的 `.ed-*` 已是成熟词汇（ed-head ≈ pg-head、ed-sechead ≈ sec-title、ed-card ≈ card），`.empty-panel` 在 `shell.css`、`Stamp.tsx` 已在 `shared/editorial` → 判为平行双轨，**137 行全部删除**，`primitives.css` 缩至 26 行只补 `.badge` 一族。依据 DESIGN.md §5「先 grep 复用、禁止平行新增」。
+
+### 17.3 改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `tokens/tokens.css` | R-1：补 `--shell-w` / `--dur-fast\|normal\|slow` / `--info` / `--accent-weak\|mint-weak\|amber-weak\|red-weak\|info-weak`（全部指向既有 token，零新色值）；`--line-strong` 三态对齐 demo（light 0.28 / dark 0.30 / paper `#cfc6b4`）。`--cat-*` 不引入（避免与生产 `--color-*` 分类色板双轨） |
+| `primitives/primitives.css`（新，26 行） | `.sentinel .badge` + `b-ok / b-part / b-none / b-disc / b-red` 五档语义徽章（`.ed-*` 家族唯一缺口）；由 `StatusBadge.tsx` 自带 import |
+| `primitives/PageHeader.tsx` | 改为复用 `.ed-head / .ed-h1 / .ed-sub`，自带 import pages.css；补 `kicker`（`.ed-kicker`）与 `footer`（描述下尾注）两个可选 prop |
+| `primitives/StatusBadge.tsx` | 改吃 `.badge + .b-*`；tone 映射 ok→b-ok / info→b-part / warn→b-none / risk→b-red / neutral→b-disc；`data-tone` 与文字标签纪律保留 |
+| `primitives/PageHeader.test.tsx` | 4 → 5 tests（新增 kicker 渲染 / footer 渲染 / kicker→h1 顺序） |
+| `components/dashboard/Dashboard.tsx` | 实页接入 1：去自有 `p-6` 双重边距，保留 `dashboard-title` / `dashboard-back` testid |
+| `components/MaintPage.tsx` | 实页接入 2：原 `text-2xl font-semibold` 手写头 → PageHeader |
+| `components/quality/QualityDashboardPage.tsx` | 实页接入 3：PROOFROOM · 校对室 |
+| `components/knowledge/KnowledgeLibraryPage.tsx` | 实页接入 4：CATALOG ROOM · 编目室 + 数据源印章（footer） |
+| `components/knowledge/KnowledgeHubPage.tsx` | 实页接入 5：KNOWLEDGE HUB · 资料库前厅 + 数据源印章 |
+| `components/events/EventsReviewBlocks.tsx` | 实页接入 6：WIRE DESK · 通稿审核 + 数据源印章 |
+| `components/sync/SyncStatusBadge.tsx` | 返工二：改为 `primitives/StatusBadge` 薄封装（success→ok / error→risk / skipped→warn / unknown→neutral），使 `.badge` 词汇进入真实构建图；调用方 `SyncStatusPanel` / `SyncHistory` 零改动 |
+| `components/TodoItem.tsx` | 返工二：分类 chip 由裸 `className="badge"` → `className="tag"`（demo §3 分类标签语义，化解与状态徽章的类名冲突；`.tag` 无 CSS 规则，视觉零变化） |
+| `primitives/primitives.css`（修订） | 返工二：`.b-part` 底色由 `--info-weak`（实为薄荷 tint）改为 `color-mix(in srgb, var(--info) 10%, transparent)`，消除色相错配 |
+
+后 4 处收敛前后 DOM 顺序与类名逐字不变（kicker → h1 → `.ed-sub` → 印章），仅引入原子调用。
+
+### 17.4 R-3 / R-4 判定（无需改动，附证据）
+
+- **R-3 印章组件化**：`components/shared/editorial/Stamp.tsx` 已存在，色值全部取自 token（`--ok/--warn/--err/--info`），并被 6 个业务文件 + 自带 test 消费（grep 实测 7 处引用）→ 实质已完成。
+- **R-4 壳层微调**：`shell/shell.css` 的 `.masthead / .mh-nav / .pipe-block / .beat-lights / .cmdbar / .bandnav` 与 demo 壳同构（B6-d 已按业务流拆分）→ 无改动价值，本批未动。
+
+### 17.5 门禁（本批实测）
+
+```bash
+cd frontend && npx tsc --noEmit                      # TSC_EXIT=0
+cd frontend && npx vitest run --reporter=basic       # 110 files / 784 tests 全通过
+cd frontend && npx vite build --logLevel error       # BUILD_EXIT=0
+```
+
+### 17.6 体积（观测项，口径 A = 入口 + vendor-react + SentinelHomePage）
+
+| 项 | B6-c | B7（返工二后） | Δ |
+|---|---|---|---|
+| index（入口 `index-Bn_Ywj5D.js`） | 23,205 | 23,257 | +52 |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,273 | 11,273 | 0 |
+| **首屏 JS gzip** | 88,294 | **88,346** | **+52** |
+| 全量 JS gzip / chunk | 563,689 / 76 | 564,612 / 77 | +923 / +1 |
+| 首屏 CSS gzip（`index-*.css`） | 12,754 | 12,754 | 0 |
+
+较 B0 基线 92,998 累计 **−4,652 B（−5.00%）**，满足 R4「每批登记且不得高于基线」。CSS 分 chunk（gzip）: index 12,754 / sentinel 3,306 / SettingsPage 3,142 / SentinelActionPage 3,456 / SentinelGraphPage 2,470 / pages 1,361 / **index-Cm1W9lCe 306（徽章，仅 `/sync` 动态加载）**。
+
+### 17.7 未做与残留（显式声明）
+
+① LCP 未复测 —— 首屏 JS 仅 +52 B 且无新增首屏依赖、首屏 CSS 零增长；上一批 §16.5 中位 124–156 ms 仍代表当前首屏路径。
+② 其余手写 `<h1>` 未接入 PageHeader，按「两种合法页头体例」保留：`/tags` `/search` `/extract` 紧凑工具头（`text-sm` + 2px 下边线 + 返回钮）、`ReviewPage` 内联 topBar（返回 / 标题 / 刷新三分布局）、`/action` `ac-h1`、`/settings` `st-title`、`FeedMustRead` 头条、knowledge 两处紧凑头 —— 换成 24–32px 衬线大标题属视觉倒退。
+③ 未做人工视觉截图比对 demo（仓库无视觉基线）；如需可对 6 个接入页补 `preview` 截图。
+
+### 17.8 孤儿原语返工（构建产物证据，2026-11-19）
+
+收尾审计发现 R-2 徽章词汇「声明了但没发布」：首版 `StatusBadge.tsx` 全仓零生产消费者（仅自带 test 引用），Vite tree-shake 连带丢弃 `primitives.css`。
+
+| 阶段 | 核验命令 | 原始输出（节选） |
+|---|---|---|
+| 修复前 | `node -e` 遍历 `dist/assets/*.css` 判 `.badge.b-ok` | `SentinelActionPage-*.css badge.b-ok false` / `SentinelGraphPage-*.css false` / `SettingsPage-*.css false` / `index-*.css false` / `pages-*.css false` / `sentinel-*.css false` —— **6/6 全 false** |
+| 修复后 | 同上 | `index-Cm1W9lCe.css len 713 badge.b-ok true ed-head false` —— 徽章进入独立 chunk（306 B gzip，仅 `/sync` 动态加载） |
+
+修复动作（3 处，见 §17.3 后三行）：`sync/SyncStatusBadge.tsx` → `primitives/StatusBadge` 薄封装（真实消费者）；`TodoItem.tsx` 分类 chip `.badge` → `.tag`（避免徽章 CSS 命中 `/action` 分类 chip）；`.b-part` 底色改 `color-mix`。
+
+复跑门禁：`TSC_EXIT=0` · `Test Files 110 passed / Tests 784 passed` · `BUILD_EXIT=0`。首屏 CSS 仍 12,754 B（徽章 chunk 按需加载，零首屏成本）。
+
+## 18. B7 独立验收复核（2026-11-19，合并工作区态）
+
+> owner 指令「检查重构情况」触发的独立复核：在未提交的 B7 合并工作区上重跑门禁 + 抽查声明，非实现侧自评。
+
+### 18.1 门禁复跑（原始数字）
+
+```bash
+cd frontend && npx tsc --noEmit && npx vitest run && npx vite build --logLevel error
+# TSC_EXIT=0 · Test Files 110 passed (110) / Tests 784 passed (784) · BUILD_EXIT=0
+cd frontend && npx vitest run --coverage          # exit 0 → 阈值（57.05/57.05/57.42/76.39）未破
+python scripts/generate_meta.py --check           # OK (56/19/99/155 · core_routers 67) · AGENTS 7/7
+```
+
+### 18.2 声明抽查（逐项实测）
+
+| 声明 | 实测 | 结果 |
+|---|---|---|
+| `.badge.b-ok` 进入构建产物 | `grep -l badge.b-ok dist/assets/*.css` → `dist/assets/index-Cm1W9lCe.css`（与台账 hash 一致） | ✅ |
+| `SyncStatusBadge` 为 `primitives/StatusBadge` 真实消费者 | grep 生产 import → `components/sync/SyncStatusBadge.tsx:8` 恰 1 处 | ✅ |
+| `TodoItem` 分类 chip 改 `.tag` | `TodoItem.tsx:191` `className="tag"` | ✅ |
+| 6 页接入（dashboard/maint/quality/knowledge×2/events） | `git status` 改动集与 §17.3 清单一一对应 | ✅ |
+| `primitives.css` 27 行 | `wc -l` = 26（另补尾换行，原文件缺失）；§17.2/§17.3/契约 B7 行/DEV-0405/CHANGELOG 五处「27 行」已同批修正为 26 | ⚠️ 已修正 |
+
+### 18.3 复核发现（遗留缺口逾期，已登记 §4）
+
+G3 / G4 / G5 三项缺口在 §4 中的承诺关闭时点均为 B6，B6 已于 2026-11-19 关闭而三项实测仍在（`SentinelShell.tsx` 9 行桥 + 生产 import 6 处；`api/settings.ts` 847 行；`EmptyState`/`Toast`/`ErrorBoundary`/`Icon` 未迁 primitives）——§4 三行已改判「未按期关闭，待 owner 裁决」，不静默漂移。B7 批次本体未发现阻断项。
+
+### 18.4 待 owner 裁决
+
+① B7 是否按仓规「每批一个 commit」提交（工作区 16 改动 + 1 新增 + 本次复核修正，一体可回滚）；② G3/G4/G5 处置：补做（另开 B8 小批）/ 显式豁免登记；③ 复核证据入 §18 后无其他未决项。
 
 
 

@@ -8,7 +8,7 @@
  */
 import { lazy } from 'react';
 import { SentinelRail } from './SentinelRail';
-import { usePipe } from './SentinelShell';
+import { usePipe } from '../../shell/pipe';
 import type { QualitySummaryRaw } from './feed/feedModel';
 
 export function RailWithPipe({ quality }: { quality: QualitySummaryRaw | null }) {

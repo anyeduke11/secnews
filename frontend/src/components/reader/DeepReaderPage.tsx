@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { createAnnotation, deleteAnnotation, listAnnotations, readWikiDoc } from '../../api/knowledge';
 import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 import { DeepReaderArticle } from './DeepReaderArticle';
 import { DeepReaderComposer } from './DeepReaderComposer';
 import { DeepReaderRail } from './DeepReaderRail';

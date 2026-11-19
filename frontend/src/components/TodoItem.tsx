@@ -4,7 +4,7 @@ import {
   getCategoryColorVar,
   getCategoryLabel,
 } from '../types';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 import { TodoItemActions } from './TodoItemActions';
 
 interface TodoItemProps {

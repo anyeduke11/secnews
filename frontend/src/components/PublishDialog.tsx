@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { SkillValidation, PublishTask } from '../types';
 import { publishContentDraft, validateKnowledgeSkill } from '../api/shared';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface PublishDialogProps {
   draft_id: number | null;

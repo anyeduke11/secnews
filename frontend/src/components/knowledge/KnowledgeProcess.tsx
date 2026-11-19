@@ -14,7 +14,7 @@ import { ComplianceMatrix } from '../security/ComplianceMatrix';
 import { KnowledgeFilters, FilterState } from '../KnowledgeFilters';
 import { ItemDetailDialog } from '../ItemDetailDialog';
 import { ConceptDetailDialog } from '../ConceptDetailDialog';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { listKnowledgeItems } from '../../api/knowledge';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 

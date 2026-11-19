@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import { CATEGORY_LABELS, SKILL_TYPE_LABELS, SkillCategory, SkillSummary } from '../../types/skill';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { SkillToggle } from './SkillToggle';
 
 /** 类别色条 — 复用全局 category 色板 (sentinel 设计语言同源) */

@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useGoBack } from '../../hooks/useGoBack';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { SECTIONS, SECTION_GROUP_LABELS } from './sections';
 import type { SectionKey } from './sections';
 import { ModeSwitcher } from './ModeSwitcher';

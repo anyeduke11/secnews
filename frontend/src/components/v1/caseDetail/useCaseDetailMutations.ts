@@ -14,7 +14,7 @@ import {
   generateAction, publishJudgment, adoptKnowledge,
 } from '../../../api/v1';
 import { draftJudgment } from '../../../api/proposals';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../primitives/Toast';
 
 export interface CaseDetailMutationDeps {
   /** liveCase ?? case_ (容器派生) */

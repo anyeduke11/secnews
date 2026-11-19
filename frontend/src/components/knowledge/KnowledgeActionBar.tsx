@@ -22,7 +22,7 @@
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { postActionEndpoint } from '../../api/action';
 
 export interface ActionButton {

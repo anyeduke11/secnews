@@ -6,7 +6,7 @@ import {
   type ReuseReceipt, type ConditionDiff, type StateChangeBody,
 } from '../../api/v1';
 import { renderInlineMarkdown } from '../../lib/markdown';
-import { useToast } from '../Toast';
+import { useToast } from '../../primitives/Toast';
 import { Badge } from './CaseDetail';
 
 const allowed = (k: Knowledge) => new Set(k.allowed_actions || []);

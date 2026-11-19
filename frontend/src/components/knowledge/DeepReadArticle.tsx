@@ -4,7 +4,7 @@
  * 纯展示: JSX 逐字搬运 (标题 / 元数据 / 标签 / chunk 分段正文渲染路径不变)。
  */
 import React from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import type { ChunkInfo, DeepReadItem } from './deepReadModeModel';
 
 export function DeepReadArticle({

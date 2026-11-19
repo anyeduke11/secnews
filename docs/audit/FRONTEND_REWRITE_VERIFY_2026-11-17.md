@@ -16,6 +16,7 @@
 | B5 | 知识域 + 行动域重写（owner 裁决范围 = 12 个超限文件） | 同上 | ✅ 2026-11-18（见 §9 + §10 + **§11 B5.6**；12 + 7 = 19 个超限容器全部达标） |
 | B5.6 | 剩余 7 个超限文件拆分 + R3 契约冲突裁决 | 同上 + 豁免口径落地 | ✅ 2026-11-18（见 §11） |
 | B6 | 设置域 + 工具页 + 旧 CSS 删除 + **组件层剩余 17 件超限拆分** + 性能对比 | §7 全部指标达标 / 旧代码零残留 | ✅ 2026-11-19（四子批 a/b/c/d，见 §13–§16；R4 LCP 单指标达标） |
+| B8 | 缺口收口批（G3 / G4 / G5 补做） | 三项缺口关闭 / 门禁全绿 / R4 LCP 达标 | ✅ 2026-11-19（三子批 a/b/c，见 §19；LCP 中位 124–160 ms） |
 
 ## 2. B1 验证证据
 
@@ -95,9 +96,9 @@ B2 不做视觉与页面重写，体积基本持平属预期；20% 目标由 B4/
 |---|---|---|---|
 | G1 | ✅ **已关闭 2026-11-18** — LCP 基线实测中位数 **252 ms**（3 次：276 / 252 / 236），元素 `h1.headline`；证据见 §6 | §7.1 的 LCP 80% 目标（≤ ~201.6 ms）判为**高风险项**，理由见 §6.3 | 已关闭 |
 | G2 | ✅ **已关闭 2026-11-18** — 四向映射产出于 `docs/audit/PRD_CAPABILITY_MAP_2026-11-18.md`（92 条逐条：已定位 68 / 未定位 24 / 有测试 47）；风险摘要见 §7 | 遗留 3 项须 owner 裁决（D3 CaseQueuePanel 未挂载 / 24 条未定位中 17 条后端能力 / 3 处零测试），见 §7 | 已关闭 |
-| G3 | `EmptyState` / `Toast` / `ErrorBoundary` / `Icon` 未迁入 `primitives/`（77 处 import） | L1 原子目录不完整（功能无影响） | ~~B6 收口~~ **未按期关闭**（2026-11-19 复核仍开放，B6/B7 均未执行；待 owner 裁决：补做 / 显式豁免） |
-| G4 | `SentinelShell.tsx` 兼容桥（9 行）与 6 处旧路径 import 并存 | 双路径过渡态 | ~~B6 全量改指后删除~~ **未按期关闭**（2026-11-19 复核：桥仍 9 行、生产 import 6 处；待 owner 裁决） |
-| G5 | `src/api/settings.ts` **847 行**（B3 新建），超 §2.2「单文件 ≤300 行」 | 数据层文件超长（行为无影响；与 `api/v1.ts` 762 / `api/knowledge.ts` 572 同属历史级超长） | ~~B6 设置域重写时按子域拆分~~ **未按期关闭**（2026-11-19 复测仍 847 行，B6-b 只拆组件层未拆数据层；待 owner 裁决） |
+| G3 | `EmptyState` / `Toast` / `ErrorBoundary` / `Icon` 未迁入 `primitives/`（77 处 import） | L1 原子目录不完整（功能无影响） | ✅ **已关闭 2026-11-19（B8-b）** — 4 件 + 4 个 colocated test 迁入 `primitives/`，86 处 import 在 81 个文件改指；证据见 §19.2 |
+| G4 | `SentinelShell.tsx` 兼容桥（9 行）与 6 处旧路径 import 并存 | 双路径过渡态 | ✅ **已关闭 2026-11-19（B8-a）** — 6 处生产 import 全量改指 `src/shell/*`，桥物理删除，测试迁至 `shell/AppShell.test.tsx`；证据见 §19.1 |
+| G5 | `src/api/settings.ts` **847 行**（B3 新建），超 §2.2「单文件 ≤300 行」 | 数据层文件超长（行为无影响；与 `api/v1.ts` 762 / `api/knowledge.ts` 572 同属历史级超长） | ✅ **已关闭 2026-11-19（B8-c）** — 847 行 → 22 行薄 barrel + 11 个子模块（最大 134 行），82 函数 + 导出类型全集零丢失，126 处消费方 import 路径不变；证据见 §19.3 |
 | G6 | `hooks/useQuery.ts` 无生产消费者（仅 `useQuery.test.tsx`） | 数据层接缝已交付但未接线，B3 不计入运行时收益 | B4 首个重写区块接入 + 绑 SSE 失效 |
 
 ## 5. B3 验证证据（数据层收敛）
@@ -1004,6 +1005,112 @@ G3 / G4 / G5 三项缺口在 §4 中的承诺关闭时点均为 B6，B6 已于 2
 ### 18.4 待 owner 裁决
 
 ① B7 是否按仓规「每批一个 commit」提交（工作区 16 改动 + 1 新增 + 本次复核修正，一体可回滚）；② G3/G4/G5 处置：补做（另开 B8 小批）/ 显式豁免登记；③ 复核证据入 §18 后无其他未决项。
+
+## 19. B8 验证证据（缺口收口批：G3 / G4 / G5 补做，2026-11-19）
+
+> owner 指令「继续任务」→ 按 §18.4 ② 的推荐路径**补做**（非豁免）。B8 一个批次含三个子批：
+> **a = G4**（兼容桥物理删除）/ **b = G3**（四件原语迁入 L1 primitives）/ **c = G5**（设置域 API 单体拆分）。
+> 性质：机械搬移 + import 改指，零行为变更；DOM / class / data-testid / aria / 端点 URL / method / body 逐字保留。
+
+### 19.1 B8-a（G4 关闭）：SentinelShell 兼容桥物理删除
+
+| 项 | 内容 |
+|---|---|
+| 桥文件 | `components/sentinel/SentinelShell.tsx`（9 行 re-export）**物理删除** |
+| 生产 import 改指 6 处 | `components/PageLayout.tsx` → `../shell/AppShell`；`components/v1/CaseDetailPage.tsx` → `../../shell/AppShell`；`components/sentinel/SentinelActionPage.tsx` → `../../shell/AppShell`；`SentinelGraphPage.tsx` / `SentinelHomePage.tsx` → `../../shell/AppShell` + `../../shell/pipe`（`usePipeReloadOnSse` 拆独立 import）；`SentinelHomeAux.tsx` → `../../shell/pipe`（`usePipe`） |
+| 测试迁移 | `components/sentinel/SentinelShell.test.tsx` → **`shell/AppShell.test.tsx`**（git mv，改 import 路径；10 个用例逐字未改） |
+| 注释同步 | `hooks/realtime.ts` 的 SSE 消费者清单改为 `src/shell/pipe.tsx`；`nav4_shell.test.tsx` 头注释与 menuOf 段注释改为「壳源码集合 / `shell/AppShell.test.tsx`」表述 |
+| 残留核查 | 全仓 `grep "SentinelShell'"` → 0 处 import（仅 `describe('SentinelShell')` 组件名，组件导出名未变） |
+
+**守卫处理（断言条目与强度不变）**：`nav4_shell.test.tsx` 的 `SHELL_FILES` 本就指向 `src/shell/*` 六文件，桥删除**不触及任何断言**；`expect(src).toContain("<SentinelShell")` 三处页面级断言（`SentinelHomePage` / `SentinelActionPage` / `CaseDetailPage`）因 JSX 组件名未变而原样通过；「5 视图不得自嵌 SentinelShell」断言（`not.toContain("SentinelShell")`）不受影响。
+
+### 19.2 B8-b（G3 关闭）：四件原语迁入 L1 primitives
+
+| 原路径 | 新路径 | 行数 | 测试 |
+|---|---|---|---|
+| `components/EmptyState.tsx` | `primitives/EmptyState.tsx` | 109 | `primitives/EmptyState.test.tsx`（迁移后逐字未改） |
+| `components/Toast.tsx` | `primitives/Toast.tsx` | 237 | `primitives/Toast.test.tsx` |
+| `components/ErrorBoundary.tsx` | `primitives/ErrorBoundary.tsx` | 112 | `primitives/ErrorBoundary.test.tsx` |
+| `components/Icon.tsx` | `primitives/Icon.tsx` | 35 | `primitives/Icon.test.tsx` |
+
+- **import 改指 86 处 / 81 个文件**（脚本按各文件所在目录深度精确计算相对路径，非文本替换）：`App.tsx` / `main.tsx` → `./primitives/*`；`components/*`（depth 1）→ `../primitives/*`；`components/<子域>/*`（depth 2）→ `../../primitives/*`；`components/v1/__tests__/*`（depth 3）→ `../../../primitives/*`。
+- **L1 分层纪律核验（B1 硬规则「无业务依赖」）**：迁入的 4 件内部依赖仅 `react` + 同目录 `./Icon`（`Toast` / `ErrorBoundary` 引用 Icon，迁后同目录相对路径不变）；`primitives/` 目录对 `components/` 的 import 仅剩 `PageHeader.tsx` 一处 CSS 引用（B7 已有的仓内约定）。
+- **B1「每原子 ≥1 测试」**：4 件各自带 colocated test 且**用例逐字未改**，随迁入 `primitives/`。
+- 残留核查：全仓 `grep "components/(Icon|EmptyState|Toast|ErrorBoundary)"` → 仅 5 处注释内路径（已同步改写）。
+
+### 19.3 B8-c（G5 关闭）：设置域 API 单体按子域拆分
+
+`src/api/settings.ts` **847 行 → 22 行薄 barrel + 11 个子模块**（按原文件自身的章节注释边界切分，函数体逐字未改）：
+
+| 子模块 | 归属章节 | 行数 |
+|---|---|---|
+| `api/settings/overview.ts` | 系统总览 / 模式 / 能力门禁 | 89 |
+| `api/settings/sync.ts` | 同步 | 117 |
+| `api/settings/proxy.ts` | 代理 | 83 |
+| `api/settings/prefs.ts` | 兴趣画像 / 内容偏好 | 134 |
+| `api/settings/mcp.ts` | MCP | 48 |
+| `api/settings/models.ts` | 模型 | 92 |
+| `api/settings/secrets.ts` | 密钥保险箱 | 126 |
+| `api/settings/intake.ts` | 自动入管 | 40 |
+| `api/settings/ops.ts` | 运维 / 历史批次 | 118 |
+| `api/settings/knowledge.ts` | SOUL 画像 / 联邦状态 | 33 |
+| `api/settings/skillRegistry.ts` | Skill registry 读侧 | 59 |
+
+- **零丢失校验（机械比对）**：导出函数 **82 → 82**，函数名全集 `diff` 一致；导出 `interface` / `type` 全集 `diff` 一致。
+- **消费方零改动**：barrel 用 `export *` 转发，**126 处 `from '../api/settings'` 的 import 路径全部不变**（含 `type FeatureGate` / `type MCPTool` / `type AutoIntakeConfig` / `type SecretsStatusPayload` / `PoolPlatform` / `PoolRouting` / `PoolSnapshot` 等类型导入）。
+- **守卫改造（条目与强度不变）**：`nav4_shell.test.tsx` 的「MaintPage 走 `/api/maintenance/*` 真实端点」用例原直读 `src/api/settings.ts` 找端点 URL，拆分后端点正文落在 `settings/ops.ts` → 改为对**域模块集合**（barrel + 11 子模块）拼接后断言，5 条断言（3 个真实端点 + 2 个已退役端点）**逐条保留**（同 B6-d CSS 拼接先例）。
+
+### 19.4 门禁实测（合并态统一复测）
+
+```bash
+cd frontend && npx tsc --noEmit                  # exit 0
+cd frontend && npx vitest run                    # 110 文件 / 784 tests 全通过
+cd frontend && npx vitest run --coverage         # 58.67 / 77.42 / 60.43 / 58.67 (Stmts/Branch/Funcs/Lines)
+cd frontend && npx vite build --logLevel error   # exit 0
+python scripts/generate_meta.py --check          # OK (56/19/99/155 · core_routers 67) · AGENTS 7/7
+```
+
+- 覆盖率 vs B7 同机同命令实测基线（**B7 原未登记覆盖率数字，本次用独立 worktree 复现 235d9bf 构建补测**）：58.70 / 77.51 / 60.30 / 58.70 → B8 为 58.67 / 77.42 / 60.43 / 58.67，**Δ −0.03 / −0.09 / +0.13 / −0.03 pp**，四项仍全部高于 `vite.config.ts` 阈值（57.05 / 76.39 / 57.42）。
+- 测试用例数 **784 = 784**（三子批均为搬移，用例零增删）。
+
+### 19.5 体积（口径 A = 入口 + vendor-react + SentinelHomePage）
+
+| 指标 | B7 | **B8** | Δ |
+|---|---|---|---|
+| 入口 chunk | 23,257 | 23,324 | **+67** |
+| vendor-react | 53,816 | 53,816 | 0 |
+| SentinelHomePage | 11,273 | 11,273 | 0 |
+| **首屏 JS gzip** | 88,346 | **88,413** | **+67 B（+0.08%）** |
+| 首屏 CSS gzip（`index-*.css`） | 12,754 | 12,754 | 0 |
+| 全量 JS gzip / chunk 数 | 564,612 / 77 | **565,046 / 81** | **+434 B / +4 chunk** |
+
+较 B0 基线 92,998 累计 **−4,585 B（−4.93%）**，仍低于基线，满足 R4「每批登记且不得高于基线」。
+
+**chunk 变化归因（产物 diff，B7 基线由独立 worktree 复现构建取得）**：
+
+| 变化 | 明细 |
+|---|---|
+| 新增 5 chunk | `ops` 436 / `overview` 307 / `secrets` 465 / `skillRegistry` 266 / `sync` 383 = 1,857 B —— **settings 子模块被多路由共享，Rollup 按共享边界各自拆出独立 chunk** |
+| 消失 1 chunk | `settings` 1,848 B —— 原单体模块形成的共享 chunk |
+| SettingsPage chunk | 36,653 → 37,015（+362）—— 子模块正文内联至此 |
+| 入口 chunk | +67 —— barrel 的 `export *` 语句进入入口 |
+
+即：**代码总量仅 +434 B gzip（+0.08%）**，chunk 数 +4 是 1 个模块 → 12 个模块后的 Rollup 分块边界效应，非代码膨胀。chunk 数非契约门禁项（§7.1 门禁 = LCP 单指标 + 首屏 JS 观测项）。
+
+### 19.6 LCP 复测（R4 唯一判定指标）
+
+`node perf/lcp_ab.mjs --runs=3`（生产 `dist` + `vite preview` 1440×900 冷缓存 + `perf/lcp-api-fixture.json` 固定回放），两个会话各 3 轮：
+
+| 组 | 会话 1（ms） | 中位 | 会话 2（ms） | 中位 |
+|---|---|---|---|---|
+| with_fonts | 120 / 120 / 140 | **140** | 216 / 152 / 112 | **152** |
+| no_fonts | 116 / 124 / 140 | **124** | 160 / 136 / 168 | **160** |
+
+LCP 元素均为 `h1.headline`。基线 252 ms，目标 ≤ 201.6 ms（80%）→ **两组四次测量中位 124–160 ms，全部达标**（较基线降 36%–51%）。
+
+### 19.7 未做与残留（显式声明）
+
+① **§4 三项缺口已全部关闭**（G3/G4/G5），缺口表见 §4 更新行；② `api/settings.ts` 虽在 R3 契约层豁免目录内，但 G5 独立于 R3 关闭（拆分口径 = 按章节职责拆，非行数豁免）；③ 拆分成 11 个子模块后 chunk 数 +4，若后续关注请求数可合并为 4–5 个子模块（行数仍 ≤300），本批按「1 章节 = 1 子模块」的最可核对口径执行；④ 未做人工视觉截图回归（仓库无视觉基线），本批为纯搬移，DOM 逐字未变。
 
 
 

@@ -37,7 +37,7 @@ import {
   updatePlanningActionStatus,
 } from '../../api/action';
 import { getSecNewsStats } from '../../api/secnews';
-import { SentinelShell } from './SentinelShell';
+import { SentinelShell } from '../../shell/AppShell';
 import { ApprovalInbox } from '../action/ApprovalInbox';
 import { CopilotCards } from '../action/CopilotCards';
 import { CaseQueuePanel } from '../v1/panels/CaseQueuePanel';

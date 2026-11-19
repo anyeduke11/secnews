@@ -32,7 +32,8 @@ import {
   listKnowledgeConcepts,
 } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
-import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
+import { SentinelShell } from '../../shell/AppShell';
+import { usePipeReloadOnSse } from '../../shell/pipe';
 import { InfiniteCanvas } from '../shared/editorial/InfiniteCanvas';
 import { GraphFilters } from './graph/GraphFilters';
 import { GraphSvg } from './graph/GraphSvg';

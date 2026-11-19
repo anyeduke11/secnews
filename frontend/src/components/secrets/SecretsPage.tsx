@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import { useSecrets } from '../../hooks/useSecrets';
 import { SecretItem } from '../../types';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { StatusBar } from './StatusBar';
 import { SecretCardView } from './SecretCardView';
 import { AddOrEditForm } from './AddOrEditForm';

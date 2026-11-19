@@ -2,7 +2,7 @@
  * SourceCards — 数据源 action cards 中的书签 / Obsidian / 冲突快照三块 + 冲突列表展开,
  * B5 从 KnowledgeImport 原样抽出, DOM、class 与 data-testid 未改。
  */
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { BookmarkImport } from '../../BookmarkImport';
 import type { ConflictFile } from './importModel';
 

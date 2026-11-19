@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { getSecretOAuthConfig } from '../../api/settings';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { Modal } from './Modal';
 
 interface OAuthConfig {

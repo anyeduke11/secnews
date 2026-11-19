@@ -1,5 +1,5 @@
-// frontend/src/components/Toast.test.tsx
-// Phase 6 — Toast 全局通知测试
+// frontend/src/primitives/Toast.test.tsx
+// Phase 6 — Toast 全局通知测试 (B8-b 2026-11-19: 自 components/ 迁入 L1 primitives/)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ToastProvider, useToast } from './Toast';

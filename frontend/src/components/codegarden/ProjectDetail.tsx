@@ -8,7 +8,7 @@ import {
   LIFECYCLE_COLORS,
   LIFECYCLE_LABELS,
 } from '../../types/codegarden';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { knowledgeItemPath } from '../../api/knowledge';
 import { getProjectActivities, getProjectTimeline } from '../../api/codegarden';
 import { UpstreamStatus } from './UpstreamStatus';

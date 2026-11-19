@@ -6,7 +6,7 @@
 // 防止旧 DEV-0314 丢弃提示被误加回。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { ToastProvider } from '../Toast';
+import { ToastProvider } from '../../primitives/Toast';
 import { useReactionAction } from './ReactionButtons';
 import { resetReactionsStore } from '../../hooks/useReactions';
 

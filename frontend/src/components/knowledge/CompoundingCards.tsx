@@ -4,7 +4,7 @@
  * 纯展示: JSX 逐字搬运, 数据 / option / 色值由容器与 compoundingDashboardModel 提供。
  */
 import { EChart } from '../shared/EChart';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import {
   healthColor,
   healthLabel,

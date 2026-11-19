@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listKnowledgeItems, listKnowledgeTopics } from '../../api/knowledge';
 import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 import { PageHeader } from '../../primitives/PageHeader';
 import { DIFFICULTIES, DOMAINS, TYPES } from '../KnowledgeFilters';
 import '../shared/editorial/pages.css';

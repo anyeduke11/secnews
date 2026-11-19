@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { TodoItem as TodoItemModel } from '../types';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface TodoItemActionsProps {
   item: TodoItemModel;

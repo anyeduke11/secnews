@@ -1,7 +1,7 @@
 /**
  * ImportHero — 信息导入区域介绍 hero (B5 从 KnowledgeImport 原样抽出)
  */
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 
 export function ImportHero() {
   return (

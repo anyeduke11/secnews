@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useGoBack } from '../../hooks/useGoBack';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import KnowledgeSearchBar from '../KnowledgeSearchBar';
 import { KnowledgeTabs, KnowledgeAreaKey, findAreaByPath } from './KnowledgeTabs';
 import { KnowledgeActionBar } from './KnowledgeActionBar';

@@ -4,7 +4,7 @@
  * 纯展示: 取数与 toast 编排留在容器 KnowledgeImport, 本组件只透传回调。
  */
 import type { ChangeEvent, MutableRefObject } from 'react';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 
 export function CuboxImportCard({ syncing, cliBusy, dirBusy, dirPath, fileRef, onSync, onDirPathChange, onCliFileChange, onDirImport }: {
   syncing: boolean;

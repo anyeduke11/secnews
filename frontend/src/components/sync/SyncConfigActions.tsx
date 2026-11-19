@@ -3,7 +3,7 @@
  *
  * Phase 6 拆分: 从 SyncConfigForm 抽出, 减少后者体积, 保持单文件 ≤ 10KB。
  */
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 interface SyncConfigActionsProps {
   testing: boolean;

@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listSignals, createCase, type V1Signal } from '../../../api/v1';
 import { PANEL_SHELL } from './panelShell';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../primitives/Toast';
 
 function PanelBadge({ children, tone }: { children: React.ReactNode; tone: 'green' | 'blue' | 'gray' | 'red' }) {
   const fg = tone === 'green' ? 'var(--color-success)' : tone === 'blue' ? 'var(--color-info)' : tone === 'red' ? 'var(--color-error)' : 'var(--text-secondary)';

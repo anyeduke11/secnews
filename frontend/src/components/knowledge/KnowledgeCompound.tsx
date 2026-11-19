@@ -16,7 +16,7 @@ import { ContentDraftList } from '../ContentDraftList';
 import { SkillEntryGrid } from '../SkillEntryGrid';
 import { KnowledgeCompoundingDashboard } from './KnowledgeCompoundingDashboard'; // P3-5 挂载
 import { KnowledgePlanningPanel } from './KnowledgePlanningPanel'; // P3-5 挂载
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 
 export function KnowledgeCompound() {

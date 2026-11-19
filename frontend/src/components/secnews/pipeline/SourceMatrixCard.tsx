@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getSourceHealth } from '../../../api/sources';
 import { Stamp } from '../../shared/editorial/Stamp';
-import { EmptyState } from '../../EmptyState';
+import { EmptyState } from '../../../primitives/EmptyState';
 import '../../../components/shared/editorial/pages.css';
 
 interface SourceRow {

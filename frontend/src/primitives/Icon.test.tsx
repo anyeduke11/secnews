@@ -1,5 +1,5 @@
-// frontend/src/components/Icon.test.tsx
-// Phase 6 — Icon 共享组件测试
+// frontend/src/primitives/Icon.test.tsx
+// Phase 6 — Icon 共享组件测试 (B8-a/b 2026-11-19: 自 components/ 迁入 L1 primitives/)
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { Icon } from './Icon';

@@ -3,7 +3,7 @@ import { useSkills } from '../hooks/useSkills';
 import { SkillCard } from '../components/SkillCard';
 import { AddSkillForm } from '../components/AddSkillForm';
 import { SkillItem, SkillSource, SkillUpdateRequest } from '../types';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface SkillsPageProps {
   onBack: () => void;

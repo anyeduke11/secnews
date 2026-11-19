@@ -3,7 +3,7 @@ import type { SkillConfig, SecretItem } from '../types';
 import { getSecrets } from '../api/settings';
 import { updateKnowledgeSkill } from '../api/skills';
 import { listKnowledgeSkills } from '../api/knowledge';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface SkillConfigDialogProps {
   skill_id: number | null;

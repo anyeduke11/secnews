@@ -17,7 +17,7 @@
  */
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 export type KnowledgeAreaKey = 'import' | 'process' | 'compile' | 'compound';
 

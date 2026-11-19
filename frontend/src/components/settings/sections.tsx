@@ -20,7 +20,7 @@
  *             sentinel→general(能力开关) · feedback/knowledge/alerts→已删除
  */
 import React from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 export type SectionKey =
   | 'overview'

@@ -1,4 +1,32 @@
 
+## [DEV-0406] refactor(fe): 前端重构 V1 B8 — 缺口收口批（G3 / G4 / G5 补做）
+- **时间**: 2026-11-19
+- **类型**: 缺口收口批（承接 B7 独立复核 §18 的发现：G3 / G4 / G5 三项缺口承诺关闭时点为 B6，B6 已关闭而三项实测仍在 → 2026-11-19 复核时改判「未按期关闭」，owner 指令「继续任务」后按推荐路径**补做**而非豁免）
+- **批次性质**: 机械搬移 + import 改指，零行为变更；DOM / class / data-testid / aria / 端点 URL / method / body 逐字保留
+- **a（G4 关闭）— SentinelShell 兼容桥物理删除**:
+  - `components/sentinel/SentinelShell.tsx`（9 行 re-export 兼容桥）**物理删除**
+  - 6 处生产 import 全量改指：`PageLayout` / `v1/CaseDetailPage` / `sentinel/SentinelActionPage` / `SentinelGraphPage` / `SentinelHomePage` → `../shell/AppShell`（或 `../../shell/AppShell`）；`usePipeReloadOnSse`（两页）与 `usePipe`（`SentinelHomeAux`）拆独立 import 指向 `shell/pipe`
+  - 测试迁移：`components/sentinel/SentinelShell.test.tsx` → **`shell/AppShell.test.tsx`**（git mv，import 路径随深度调整，10 个用例逐字未改）
+  - 注释同步：`hooks/realtime.ts` 的 SSE 消费者清单（`src/shell/pipe.tsx`）、`nav4_shell.test.tsx` 头注释与 menuOf 段注释
+  - **守卫零变动**：`nav4_shell` 的 `SHELL_FILES` 本就指向 `src/shell/*` 六文件，桥删除不触及任何断言；页面级 `toContain("<SentinelShell")` 三处因组件名未变而原样通过
+- **b（G3 关闭）— 四件原语迁入 L1 `primitives/`**:
+  - `EmptyState`（109 行）/ `Toast`（237）/ `ErrorBoundary`（112）/ `Icon`（35）+ 各自 colocated test 共 8 文件迁移
+  - **86 处 import 说明符在 81 个文件改指**，用脚本按各文件所在目录深度精确计算相对路径（`./primitives/*` / `../primitives/*` / `../../primitives/*` / `../../../primitives/*`），**非文本替换**，避免深浅目录混改
+  - 分层纪律核验：迁入件内部依赖仅 `react` + 同目录 `./Icon`（`Toast` / `ErrorBoundary` 引用 Icon，迁后同目录相对路径不变）→ 满足 B1「每原子 ≥1 测试；无业务依赖」
+- **c（G5 关闭）— 设置域 API 单体按子域拆分**:
+  - `src/api/settings.ts` **847 行 → 22 行薄 barrel + 11 个子模块**（`overview` 89 / `sync` 117 / `proxy` 83 / `prefs` 134 / `mcp` 48 / `models` 92 / `secrets` 126 / `intake` 40 / `ops` 118 / `knowledge` 33 / `skillRegistry` 59），按**原文件自身的章节注释边界**切分，函数体逐字未改
+  - **零丢失校验（机械比对）**：导出函数 82 → 82，函数名全集 `diff` 一致；导出 `interface` / `type` 全集 `diff` 一致
+  - barrel 用 `export *` 转发 → **126 处 `from '../api/settings'` 的消费方 import 路径全部不变**（含 `type FeatureGate` / `type MCPTool` / `type AutoIntakeConfig` / `type SecretsStatusPayload` / `PoolPlatform` / `PoolRouting` / `PoolSnapshot`）
+  - **守卫改造（条目与强度不变）**：`nav4_shell` 的「MaintPage 走 `/api/maintenance/*` 真实端点」用例原直读 `api/settings.ts` 找端点 URL，拆分后端点正文在 `settings/ops.ts` → 改为对「域模块集合」（barrel + 11 子模块）拼接后断言，5 条断言逐条保留（同 B6-d CSS 拼接先例）
+- **门禁**: `tsc --noEmit` exit 0 · 全量 **110 文件 / 784 tests 全通过**（三子批均为搬移，用例零增删）· `vite build` exit 0 · `generate_meta.py --check` OK（56/19/99/155 · core_routers 67 · AGENTS 7/7）
+- **覆盖率**: **58.67 / 77.42 / 60.43 / 58.67**（Stmts/Branch/Funcs/Lines）—— B7 原未登记覆盖率数字，本次用**独立 worktree 复现 235d9bf 构建**补测得基线 58.70 / 77.51 / 60.30 / 58.70，Δ −0.03 / −0.09 / +0.13 / −0.03 pp，四项仍全部高于 `vite.config.ts` 阈值（57.05 / 76.39 / 57.42），阈值未下调
+- **体积（观测项，口径 A）**: 首屏 JS gzip **88,346 → 88,413 B（+67 B，累计 −4,585 B / −4.93%）**，首屏 CSS 12,754 B 零增长；全量 564,612 → **565,046 B / 77 → 81 chunk**
+  - **chunk 变化归因**（产物 diff + 独立 worktree 复现 B7 构建对照）：新增 5 个共享 chunk（`ops` 436 / `overview` 307 / `secrets` 465 / `skillRegistry` 266 / `sync` 383 = 1,857 B，settings 子模块被多路由共享 → Rollup 按共享边界拆出）− 消失 1 个（`settings` 1,848 B，原单体模块）；SettingsPage chunk +362（子模块正文内联至此）；入口 +67（barrel 的 `export *` 语句）。**代码总量仅 +434 B gzip（+0.08%）**，chunk 数非契约门禁项（§7.1 门禁 = LCP 单指标 + 首屏 JS 观测项）
+- **LCP 复测（R4 唯一判定指标）**: `node perf/lcp_ab.mjs --runs=3` × 2 会话（生产 `dist` + `vite preview` 1440×900 冷缓存 + `perf/lcp-api-fixture.json` 固定回放）—— with_fonts 中位 **140 / 152** ms、no_fonts 中位 **124 / 160** ms，LCP 元素均 `h1.headline`；基线 252 ms、目标 ≤ 201.6 ms → **全部达标**（较基线降 36%–51%）
+- **缺口表收口**: 验证报告 §4 的 G3 / G4 / G5 三行同步改判为「✅ 已关闭 2026-11-19（B8-x）」，各附证据节号，不留悬空承诺
+- **未做（显式声明）**: ① 拆成 11 个子模块后 chunk 数 +4，若后续关注请求数可合并为 4–5 个子模块（行数仍 ≤300），本批按「1 章节 = 1 子模块」的最可核对口径执行；② 未做人工视觉截图回归（仓库无视觉基线），本批为纯搬移，DOM 逐字未变
+- **留痕**: 契约 §6 批次表 + 进度表 B8 行；验证报告 §19.1–§19.7（及 §4 缺口表 / §1 批次总览同步更新）；CHANGELOG B8 小节
+
 ## [DEV-0405] refactor(fe): redesign-v1 落地 B7（R-1 token 对齐 + R-2 组件词汇表种子）
 - **时间**: 2026-11-19
 - **类型**: 蓝本接入（`design/redesign-v1/DESIGN.md` §5 落地路线 R-1 / R-2）；承接 B6 关闭后 owner 指令「检查 UI 重构情况，参考 redesign-v1，直接完成改造」

@@ -172,7 +172,7 @@ function mockFetch(hotspotBody: FixtureBody = HOTSPOT_FIXTURE) {
 import { SentinelHomePage } from './SentinelHomePage';
 import { resetFavoritesStore } from '../../hooks/useFavorites';
 import { resetReactionsStore } from '../../hooks/useReactions';
-import { ToastProvider } from '../Toast';
+import { ToastProvider } from '../../primitives/Toast';
 
 const hotspotCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
   fetchMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith('/api/hotspots'));

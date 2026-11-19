@@ -5,7 +5,7 @@
  * 仅渲染, props-only; 状态与回调由 index.tsx 注入。
  */
 import React from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import type { BundleConfigForm, BundlePreview, LastSyncResult, SyncDirection, SyncPhase } from './types';
 
 const FREQUENCY_BADGE = (f: BundleConfigForm['sync_frequency']) =>

@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { CgService, ServiceRuntime, ServiceStatus, ServiceType } from '../../../types/codegarden';
 import { useCodegardenServices } from '../../../hooks/useCodegardenServices';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { ServiceCard } from './ServiceCard';
 import { ServiceDetailDialog } from './ServiceDetailDialog';
 import {

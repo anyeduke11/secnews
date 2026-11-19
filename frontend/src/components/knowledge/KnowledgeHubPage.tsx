@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { getKnowledgeHubStats } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 import { PageHeader } from '../../primitives/PageHeader';
 import '../shared/editorial/pages.css';
 

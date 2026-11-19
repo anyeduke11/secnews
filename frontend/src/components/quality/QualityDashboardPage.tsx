@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getQualitySummary, listInfoFilterRules } from '../../api/secnews';
 import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 import { PageHeader } from '../../primitives/PageHeader';
 import '../shared/editorial/pages.css';
 

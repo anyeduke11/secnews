@@ -8,7 +8,7 @@
  * 若端点不存在，降级展示空网格。
  */
 import { useState, useEffect } from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { listAttentionEvents } from '../../api/knowledge';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { AttentionHeatmapGrid } from './AttentionHeatmapGrid';

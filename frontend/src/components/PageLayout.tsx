@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { SentinelShell } from './sentinel/SentinelShell';
+import { SentinelShell } from '../shell/AppShell';
 
 // 工具页壳 = SentinelShell (layer=null: 四菜单 tab 由 menuOf 自动高亮归属) + 居中内容容器。
 // 2026-09-10 壳统一: 左侧 AppNav 侧栏删除 — 其 14 项入口与壳内四菜单导航 / 各页内导航全量重复

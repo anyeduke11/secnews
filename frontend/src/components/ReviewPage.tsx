@@ -15,7 +15,7 @@ import { useAnnotations } from '../hooks/useAnnotations';
 import { ReviewCard } from './shared/ReviewCard';
 import { NoteEditor } from './shared/NoteEditor';
 import { useGoBack } from '../hooks/useGoBack';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 export function ReviewPage() {
   const goBack = useGoBack();

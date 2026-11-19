@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { DepEntityType, DepType } from '../../../types/codegarden';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { AddDependencyDialogProps } from './types';
 
 export function AddDependencyDialog({ onClose, onAdd }: AddDependencyDialogProps) {

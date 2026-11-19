@@ -9,7 +9,7 @@ import { EChart } from './shared/EChart';
 import type { GraphData } from '../types';
 import { getKnowledgeGraph } from '../api/knowledge';
 import { useThemeColors, ThemeColorKey } from '../hooks/useThemeColors';
-import { EmptyState } from './EmptyState';
+import { EmptyState } from '../primitives/EmptyState';
 
 interface KnowledgeGraphProps {
   domain?: string;

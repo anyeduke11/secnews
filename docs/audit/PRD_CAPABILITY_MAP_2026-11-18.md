@@ -136,10 +136,10 @@
 
 | 编号 | 能力 | 路由 | 当前落点（文件 · 区块） | 测试 | B4–B6 目标承载 |
 |---|---|---|---|---|---|
-| XF-1 | 四菜单唯一壳 | 全站 | `frontend/src/shell/AppShell.tsx` + `shell/MenuNav.tsx` + `components/sentinel/SentinelShell.tsx` | `components/sentinel/SentinelShell.test.tsx`、`routes/__tests__/nav4_shell.test.tsx` | B2 已交付；B4–B6 **只换区块，不改壳** |
+| XF-1 | 四菜单唯一壳 | 全站 | `frontend/src/shell/AppShell.tsx` + `shell/MenuNav.tsx`（B8-a 兼容桥删除后，壳实现仅此两处） | `shell/AppShell.test.tsx`、`routes/__tests__/nav4_shell.test.tsx` | B2 已交付；B4–B6 **只换区块，不改壳** |
 | XF-2 | 管道心跳条（常驻） | 全站 | `frontend/src/shell/PipeBar.tsx` + `shell/pipe.tsx` | `routes/__tests__/nav4_shell.test.tsx`（含 PipeBar 断言） | 沿用（B2） |
 | XF-3 | PageLayout 工具页挂入 + `menuOf` 归属 | 所有工具路由 | `components/PageLayout.tsx` + `shell/menuOf.ts` | `components/PageLayout.test.tsx`、`nav4_shell.test.tsx` | 沿用（B2） |
-| XF-4 | 主题 3 态（light/dark/paper） | `/settings?cat=general` + 壳 | `frontend/src/contexts/ThemeContext.tsx` + `shell/MenuNav.tsx`（切换）+ 设置通用分区 | `components/sentinel/SentinelShell.test.tsx`、`nav4_shell.test.tsx` | B6：设置通用分区 |
+| XF-4 | 主题 3 态（light/dark/paper） | `/settings?cat=general` + 壳 | `frontend/src/contexts/ThemeContext.tsx` + `shell/MenuNav.tsx`（切换）+ 设置通用分区 | `shell/AppShell.test.tsx`、`nav4_shell.test.tsx` | B6：设置通用分区 |
 | XF-5 | 命令栏（⌘K） | 全站 masthead | `components/sentinel/CommandBar.tsx` + `frontend/src/api/commands.ts` | `components/sentinel/CommandBar.test.tsx` | 沿用（B2/B3） |
 | XF-6 | 质量规则两层（硬门禁/软偏好） | `/settings?cat=pipeline` | `components/settings/quality/CustomRulesPanel.tsx`（经 `components/settings/QualitySettings.tsx` 挂载） | `components/settings/quality/CustomRulesPanel.test.tsx` | B6：采集与管线分区 |
 | XF-7 | receipt 一等公民（RunReceipt/KLReceipt/OutboxReceipt） | `/cases/:caseId` | `components/v1/CaseDetail.tsx`（`#section-evidence` / `#section-actions` 回执与产物） | `components/v1/__tests__/c11_aggregate_and_sse.test.tsx` | B5：Case 详情回执区块 |

@@ -5,7 +5,7 @@
  * 纯结构拆分: 表单状态与校验逻辑逐字迁移。
  */
 import React, { useState } from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { Modal } from './Modal';
 
 export function SetupModal({

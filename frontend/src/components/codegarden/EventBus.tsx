@@ -10,9 +10,9 @@ import {
   EVENT_TYPE_LABELS,
 } from '../../types/codegarden';
 import { useCodegardenOrchestration } from '../../hooks/useCodegardenOrchestration';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { useThemeColors, ThemeColorKey } from '../../hooks/useThemeColors';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 
 const EVENT_TYPE_OPTIONS: Array<EventType | 'all'> = [
   'all', 'code_push', 'service_error', 'port_conflict', 'dep_update', 'project_archive',

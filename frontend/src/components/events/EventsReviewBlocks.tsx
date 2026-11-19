@@ -5,7 +5,7 @@
  * 纪律: 本文件只渲染, 不取数、不持有状态; 取数编排与状态全在 EventsReviewPage 容器。
  */
 import { Stamp } from '../shared/editorial/Stamp';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 import { PageHeader } from '../../primitives/PageHeader';
 import type { CandidateRow, EventTypeRow, ReviewNotice } from './eventsReviewModel';
 

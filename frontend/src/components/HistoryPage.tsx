@@ -15,8 +15,8 @@ import {
   listHistoryBatchItems,
   listHistoryBatches,
 } from '../api/settings';
-import { Icon } from './Icon';
-import { EmptyState } from './EmptyState';
+import { Icon } from '../primitives/Icon';
+import { EmptyState } from '../primitives/EmptyState';
 import { useReactions } from '../hooks/useReactions';
 import { useReactionAction } from './sentinel/ReactionButtons';
 import { BatchSummaryBar } from './HistoryPageParts';

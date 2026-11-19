@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { createTag, deleteTag, listTags, suggestTags } from '../../api/shared';
 
 interface TagItem {

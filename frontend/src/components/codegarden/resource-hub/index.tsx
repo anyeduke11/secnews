@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { CgResource, RESOURCE_TYPE_LABELS, ResourceType } from '../../../types/codegarden';
 import { useCodegardenResources } from '../../../hooks/useCodegardenResources';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { PortPool } from './PortPool';
 import { ResourceCard } from './ResourceCard';
 

@@ -2,7 +2,7 @@
 // 职责: 批次 sticky 侧栏 (loading / error / 空态 / 批次条目 + 选中态).
 
 import type { Batch } from '../types';
-import { EmptyState } from './EmptyState';
+import { EmptyState } from '../primitives/EmptyState';
 import { formatBatchRange } from './HistoryPageParts';
 
 interface HistoryPageBatchListProps {

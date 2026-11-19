@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConceptDetail } from '../types';
 import { getKnowledgeConceptDetail } from '../api/knowledge';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface ConceptDetailDialogProps {
   slug: string | null;

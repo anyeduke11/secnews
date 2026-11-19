@@ -1,7 +1,7 @@
 /**
  * ReviewComplete — 复习完成屏幕与统计面板 (B5 从 ReviewMode 原样抽出)
  */
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { ReviewHeader } from './ReviewHeader';
 
 export function ReviewComplete({ total, grades, onRestart }: {

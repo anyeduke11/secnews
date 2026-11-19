@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LearningPlan } from '../types';
 import { generateLearningPlans, getKnowledgeTask, listLearningPlans } from '../api/knowledge';
 import { useAbortGuard } from '../hooks/useAbortGuard';
-import { EmptyState } from './EmptyState';
+import { EmptyState } from '../primitives/EmptyState';
 
 export function LearningPanel() {
   const [plans, setPlans] = useState<LearningPlan[]>([]);

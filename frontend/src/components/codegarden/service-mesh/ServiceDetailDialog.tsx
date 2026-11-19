@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { SERVICE_RUNTIME_COLORS, SERVICE_STATUS_COLORS } from '../../../types/codegarden';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import {
   ServiceDetailDialogProps,
   MetaRowProps,

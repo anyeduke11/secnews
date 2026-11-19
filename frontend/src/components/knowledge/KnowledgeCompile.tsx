@@ -16,7 +16,7 @@ import { TaskSubmitDialog } from '../TaskSubmitDialog';
 import { SoulViewer } from '../SoulViewer';
 import { HealthDashboard } from '../HealthDashboard';
 import { FederationStatus } from '../FederationStatus';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { KNOWLEDGE_AREAS } from './KnowledgeTabs';
 
 export function KnowledgeCompile() {

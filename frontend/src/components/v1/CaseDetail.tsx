@@ -23,7 +23,7 @@ import {
   type ReuseReceipt, type CaseEvidenceMaterial, type KnowledgeRecallCandidate,
 } from '../../api/v1';
 import { useSSEAggregateInvalidate } from './useSSEAggregateInvalidate';
-import { useToast } from '../Toast';
+import { useToast } from '../../primitives/Toast';
 import { CaseDetailHeader } from './caseDetail/CaseDetailHeader';
 import { WalkthroughPathsCard } from './caseDetail/WalkthroughPathsCard';
 import { KnowledgeSection } from './caseDetail/KnowledgeSection';

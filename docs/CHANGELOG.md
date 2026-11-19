@@ -134,6 +134,17 @@
 - **显式不做**: `--sn-*` 别名层保留 / `st-*` 去前缀不做（纯改名、零功能收益、高回归风险）/ `sentinel-action.css` 与 `sentinel-graph.css` 不搬目录（已页级 scoped）
 - **留痕**: 验证报告 §15；契约 §6 批次进度表 B6 行；DEV-0403
 
+### 前端重构 V1 · B8 缺口收口批：G3 / G4 / G5 补做 (DEV-0406, 2026-11-19)
+- **起因**: B7 独立验收复核（验证报告 §18）发现 §4 的 G3 / G4 / G5 三项缺口承诺关闭时点为 B6，而 B6 已关闭、三项实测仍在 → 复核时改判「未按期关闭」，owner 指令「继续任务」后按**补做**路径执行（非豁免）
+- **a（G4）— SentinelShell 兼容桥物理删除**: 9 行兼容桥删除，6 处生产 import 全量改指 `src/shell/*`（`SentinelShell` → `shell/AppShell`；`usePipe` / `usePipeReloadOnSse` → `shell/pipe`）；测试迁至 `shell/AppShell.test.tsx`（10 用例逐字未改）；`nav4_shell` 守卫的 `SHELL_FILES` 本就指向 `src/shell/*`，**断言条目与强度零变动**
+- **b（G3）— 四件原语迁入 L1 `primitives/`**: `EmptyState`（109）/ `Toast`（237）/ `ErrorBoundary`（112）/ `Icon`（35）+ 4 个 colocated test 迁移；**86 处 import 在 81 个文件改指**（脚本按目录深度精确计算相对路径）；迁入件内部依赖仅 `react` + 同目录 `./Icon`，满足 B1「无业务依赖 + 每原子 ≥1 测试」
+- **c（G5）— 设置域 API 单体拆分**: `api/settings.ts` **847 → 22 行薄 barrel + 11 个子模块**（按原文件章节注释边界切分，最大 134 行）；**82 函数 + 导出类型全集 `diff` 零丢失**；barrel 用 `export *` 转发，**126 处消费方 import 路径不变**；`nav4_shell` 的 maintenance 端点断言改为对「域模块集合」拼接断言（5 条断言逐条保留，同 B6-d 先例）
+- **门禁**: `tsc` 0 · 110 文件 / **784 tests 全通过**（用例零增删）· `vite build` 0 · `generate_meta --check` OK；覆盖率 **58.67 / 77.42 / 60.43 / 58.67**（B7 同机实测基线 58.70 / 77.51 / 60.30 / 58.70，Δ ≤0.09 pp，阈值未破）
+- **体积（观测项）**: 首屏 JS **88,346 → 88,413 B（+67 B，累计 −4,585 B / −4.93%）**，首屏 CSS 12,754 B 零增长；全量 564,612 → **565,046 B / 77 → 81 chunk**（归因：settings 子模块被多路由共享 → Rollup 拆出 5 个共享 chunk 1,857 B − 消失 1 个 `settings` 1,848 B；**代码总量仅 +434 B / +0.08%**）
+- **LCP（R4 唯一判定指标）**: `lcp_ab.mjs --runs=3` × 2 会话，with_fonts 中位 **140 / 152** ms、no_fonts 中位 **124 / 160** ms（基线 252 ms，目标 ≤201.6 ms）→ **达标**
+- **显式不做**: 人工视觉截图回归（仓库无视觉基线，纯搬移批次 DOM 逐字未变）/ 子模块进一步合并（现 11 个，chunk 数 +4 非门禁项）
+- **留痕**: DEV-0406；契约 §6 批次表 + 进度表 B8 行；验证报告 §19.1–§19.7 + §4 缺口表三行改判关闭
+
 ### 前端重构 V1 · B7 redesign-v1 落地：R-1 token 对齐 + R-2 词汇表种子 (DEV-0405, 2026-11-19)
 - **勘察**: 对照 `design/redesign-v1/DESIGN.md` §5 逐层核对 —— token 约 95% 同源；**8 件 L1 primitives 全仓引用数 = 0（孤儿）**；壳层（报头/版面条/印务条/命令栏）已与 demo 同构（R-4 实质完成）；`domains/` 缺失；21 个页面 `<h1>` 手拼，其中 **6 页已用 `shared/editorial/pages.css` 的 `.ed-*` 词汇**（ed-head / ed-h1 / ed-sechead / ed-card / ed-table / ed-btn / ed-tabs）
 - **返工记录（Rule 7 / 禁止平行新增）**: 首版依 demo 类名新建 `.pg-head` / `.sec-title` / `.card` / `.stamp` / `.empty4`（137 行），grep 发现 `.ed-*` 已是成熟词汇（ed-head ≈ pg-head、ed-sechead ≈ sec-title、ed-card ≈ card）且 `.empty-panel` 在 shell.css、`Stamp.tsx` 已在 `shared/editorial` → **判为平行双轨，全部撤回**，`primitives.css` 缩为 26 行只留 `.ed-*` 真缺的状态徽章

@@ -8,8 +8,8 @@ import { ProjectDetail } from './codegarden/ProjectDetail';
 import { GithubImportDialog } from './codegarden/GithubImportDialog';
 import { FromKnowledgeDialog } from './codegarden/FromKnowledgeDialog';
 import { CgProject, LifecycleStage, ProjectSourceType, ProjectType } from '../types/codegarden';
-import { Icon } from './Icon';
-import { EmptyState } from './EmptyState';
+import { Icon } from '../primitives/Icon';
+import { EmptyState } from '../primitives/EmptyState';
 
 interface CodegardenPageProps {
   onBack: () => void;

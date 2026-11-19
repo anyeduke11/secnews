@@ -1,14 +1,17 @@
-// frontend/src/components/sentinel/SentinelShell.test.tsx
+// frontend/src/shell/AppShell.test.tsx
 // 2026-09-13 NAV4: 壳既服务四菜单页 (页面渲染壳) 也服务工具页 (PageLayout 渲染壳), 锁定三点:
 //  1. usePipeReloadOnSse 在 Provider 之外 (页面组件体) 也能触发心跳条重拉
 //  2. layer=null: 四菜单 tab 由 menuOf 自动高亮归属菜单 (工具页的"我在哪"已不需要更多菜单)
 //  3. ingested 未传时壳自取 24h total 并显示 "N 篇"
 //  P2 (2026-09-13): 更多菜单 (SentinelMoreMenu / UTILITY_GROUPS) 物理删除 — 工具页高亮改由 menuOf 接管
+// B8-a (2026-11-19): 自 components/sentinel/SentinelShell.test.tsx 迁入 shell/ (随兼容桥物理删除),
+//                    实现方改直指 shell/AppShell.tsx + shell/pipe.tsx, 用例逐字未改。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
-import { ThemeProvider } from '../../contexts/ThemeContext';
+import { SentinelShell } from './AppShell';
+import { usePipeReloadOnSse } from './pipe';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 const SOURCES = { sources: [{ category: 'security', source_name: 'FreeBuf', status: 'active' }], registered_total: 1, registered_active: 1, registered_stale: 0, registered_dead: 0 };
 

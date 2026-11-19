@@ -10,7 +10,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { DailyReport } from './DailyReport';
 import { WeeklyReportContent } from './WeeklyReport';
 import { MonthlyReport } from './MonthlyReport';

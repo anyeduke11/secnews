@@ -1,5 +1,5 @@
-// frontend/src/components/ErrorBoundary.test.tsx
-// Phase 6 — ErrorBoundary 错误边界测试
+// frontend/src/primitives/ErrorBoundary.test.tsx
+// Phase 6 — ErrorBoundary 错误边界测试 (B8-b 2026-11-19: 自 components/ 迁入 L1 primitives/)
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from './ErrorBoundary';

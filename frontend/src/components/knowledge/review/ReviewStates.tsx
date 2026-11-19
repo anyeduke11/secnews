@@ -2,7 +2,7 @@
  * ReviewStates — 间隔复习的标题条与三种前置状态 (加载 / 错误 / 空队列),
  * B5 从 ReviewMode 原样抽出, DOM 与文案未改。
  */
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { ReviewHeader } from './ReviewHeader';
 
 /** 加载状态 */

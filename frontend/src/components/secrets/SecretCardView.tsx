@@ -5,7 +5,7 @@
  * 纯结构拆分, 渲染逻辑逐字迁移。
  */
 import { SecretItem } from '../../types';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 export function SecretCardView({
   item, onEdit, onDelete, onCopy, onTest,

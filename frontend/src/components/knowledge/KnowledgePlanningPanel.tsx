@@ -5,7 +5,7 @@
  * 支持标记完成和忽略操作。
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { listPlanningActions, updatePlanningActionStatus } from '../../api/action';
 import { useAbortGuard } from '../../hooks/useAbortGuard';
 import { PlanningActionCard } from './PlanningActionCard';

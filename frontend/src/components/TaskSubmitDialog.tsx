@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { TaskSubmitParams } from '../types';
 import { createKnowledgeTask } from '../api/knowledge';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 interface TaskSubmitDialogProps {
   open: boolean;

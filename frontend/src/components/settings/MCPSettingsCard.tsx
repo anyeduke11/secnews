@@ -17,7 +17,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getMCPConfig, getMCPStatus, getMCPTools, putMCPEnabled } from '../../api/settings';
 import type { MCPTool } from '../../api/settings';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import '../settings/settings-shell.css';
 
 interface MCPSettingsCardProps {

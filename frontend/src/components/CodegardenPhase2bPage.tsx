@@ -10,7 +10,7 @@ import { DependencyGraph } from './codegarden/dependency-graph';
 import { EventBus } from './codegarden/EventBus';
 import { PlaybookList } from './codegarden/PlaybookList';
 import { useCodegardenServices } from '../hooks/useCodegardenServices';
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 type MainTab = 'services' | 'resources' | 'orchestration';
 type OrchestrationTab = 'dependencies' | 'events' | 'playbooks';

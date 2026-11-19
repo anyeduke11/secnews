@@ -1,7 +1,7 @@
 // frontend/src/components/codegarden/FromKnowledgeDialog.tsx
 import { useEffect, useState } from 'react';
 import { CandidateItem, FromKnowledgeRequest, ProjectSourceType } from '../../types/codegarden';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 interface FromKnowledgeDialogProps {
   open: boolean;

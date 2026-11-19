@@ -18,7 +18,7 @@ import {
   SSE_EVENTS,
   V1_AGGREGATE_EVENT_TYPES,
 } from "../../hooks/realtime";
-import { useToast } from "../Toast";
+import { useToast } from "../../primitives/Toast";
 
 type Tab = "workbench" | "intel" | "cases" | "knowledge";
 

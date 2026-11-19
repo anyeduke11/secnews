@@ -7,7 +7,7 @@ import {
   ProjectType,
   SourceTypeDetail,
 } from '../../types/codegarden';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { ApiError } from '../../lib/api';
 import { getGithubRepoMetadata } from '../../api/codegarden';
 

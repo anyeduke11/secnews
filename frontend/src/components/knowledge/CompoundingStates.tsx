@@ -3,7 +3,7 @@
  *
  * 纯展示, JSX 逐字搬运; DOM 结构与原容器一致。
  */
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 /* ── Loading state ──────────────────────────────────────────── */
 

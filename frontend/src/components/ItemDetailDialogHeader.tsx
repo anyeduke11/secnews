@@ -1,5 +1,5 @@
 // 拆分自 ItemDetailDialog.tsx: 弹窗顶部标题栏 (图标 + 标题 + 关闭按钮), 纯展示件。
-import { Icon } from './Icon';
+import { Icon } from '../primitives/Icon';
 
 type ItemDetailDialogHeaderProps = {
   onClose: () => void;

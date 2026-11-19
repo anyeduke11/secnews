@@ -3,7 +3,7 @@
  *
  * Phase 1B: 拆自原 SyncPage.tsx 顶部 (lines 256-301)。
  */
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 
 interface SyncHeaderProps {
   configured: boolean;

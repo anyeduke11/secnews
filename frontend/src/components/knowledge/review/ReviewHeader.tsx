@@ -1,7 +1,7 @@
 /**
  * ReviewHeader — 间隔复习标题条 (B5 从 ReviewMode 抽出, 五种状态共用)
  */
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 
 export function ReviewHeader({ desc }: { desc?: string }) {
   return (

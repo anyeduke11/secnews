@@ -5,7 +5,7 @@
  * 与 UnlockModal 区别: 无 status 检查 / 无 session TTL 副作用, 纯返回 mk 字符串。
  */
 import React, { useState } from 'react';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { Modal } from './Modal';
 
 export function MasterKeyPromptModal({

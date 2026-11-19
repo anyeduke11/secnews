@@ -3,7 +3,7 @@
  *
  * 纯展示: JSX 逐字搬运, DOM 结构与原容器一致 (Fragment 不产生元素)。
  */
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { OnboardingHint } from '../layout/OnboardingHint';
 import type { DeepReadItem } from './deepReadModeModel';
 

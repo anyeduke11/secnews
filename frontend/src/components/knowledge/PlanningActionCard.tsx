@@ -3,7 +3,7 @@
  *
  * DOM 结构、class、内联样式与原容器内联 JSX 一致; 取数与状态更新仍由容器负责。
  */
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { ACTION_CONFIG, priorityBadgeStyle, stageColor, stageLabel, type PlanningAction } from './planningModel';
 
 // ---------------------------------------------------------------------------

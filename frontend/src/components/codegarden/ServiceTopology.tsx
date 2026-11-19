@@ -3,9 +3,9 @@
 // Phase 4: SVG 颜色经 useThemeColors 解析, 暗/亮主题自动切换; 错误态用 --color-error
 import { useEffect, useState } from 'react';
 import { CgServiceTopology, ServiceRuntime, ServiceStatus } from '../../types/codegarden';
-import { Icon } from '../Icon';
+import { Icon } from '../../primitives/Icon';
 import { useThemeColors, ThemeColorKey } from '../../hooks/useThemeColors';
-import { EmptyState } from '../EmptyState';
+import { EmptyState } from '../../primitives/EmptyState';
 
 interface ServiceTopologyProps {
   fetchTopology: () => Promise<CgServiceTopology>;

@@ -4,8 +4,8 @@
 import { useState } from 'react';
 import { Playbook } from '../../types/codegarden';
 import { useCodegardenOrchestration } from '../../hooks/useCodegardenOrchestration';
-import { Icon } from '../Icon';
-import { EmptyState } from '../EmptyState';
+import { Icon } from '../../primitives/Icon';
+import { EmptyState } from '../../primitives/EmptyState';
 
 export function PlaybookList() {
   const { playbooks, loadingPlaybooks, error, runPlaybook, refreshPlaybooks } = useCodegardenOrchestration();

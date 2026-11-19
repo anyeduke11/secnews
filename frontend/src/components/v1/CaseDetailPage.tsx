@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { SentinelShell } from '../sentinel/SentinelShell';
+import { SentinelShell } from '../../shell/AppShell';
 import { CaseDetail } from './CaseDetail';
 import { getCase } from '../../api/v1';
 import type { Case } from '../../domain/v1_0';

@@ -9,7 +9,7 @@ import {
   publishKnowledge, deprecateKnowledge, retractKnowledge,
   type ReuseReceipt, type ConditionDiff, type AdoptKnowledgeBody, type StateChangeBody,
 } from '../../api/v1';
-import { useToast } from '../Toast';
+import { useToast } from '../../primitives/Toast';
 import { SectionTitle } from './V1PrototypeParts';
 import { KnowledgeCard } from './V1PrototypeKnowledgeCard';
 

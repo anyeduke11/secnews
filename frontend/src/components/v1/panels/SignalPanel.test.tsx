@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { ToastProvider } from '../../Toast';
+import { ToastProvider } from '../../../primitives/Toast';
 import { SignalPanel } from './SignalPanel';
 import { SignalPanelCompact } from './SignalPanelCompact';
 

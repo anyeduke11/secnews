@@ -13,13 +13,20 @@ import { join } from "node:path";
 const ROOT = process.cwd();
 const ROUTES_TSX = readFileSync(join(ROOT, "src/routes/index.tsx"), "utf-8");
 // B2 (2026-11-17): 壳本体按五层架构拆入 src/shell/ (types/menuOf/pipe/PipeBar/MenuNav/AppShell),
-// components/sentinel/SentinelShell.tsx 降为 4 导出的兼容桥 (B6 全量改指后删除)。
-// 守卫改为对"壳源码集合"整体断言, 断言条目与强度不变 (源码方向锁);
-// 运行时行为 (tab 高亮 / chips 顺序 / gate 过滤 / 收起持久化) 由 SentinelShell.test.tsx 覆盖。
+// components/sentinel/SentinelShell.tsx 曾降为 4 导出的兼容桥。
+// B8-a (2026-11-19): 6 处旧 import 已全量改指, 兼容桥物理删除 —— 本守卫的壳源码集合不变,
+// 断言条目与强度不变 (源码方向锁);
+// 运行时行为 (tab 高亮 / chips 顺序 / gate 过滤 / 收起持久化) 由 shell/AppShell.test.tsx 覆盖。
 const SHELL_FILES = ["types.ts", "menuOf.ts", "pipe.tsx", "PipeBar.tsx", "MenuNav.tsx", "AppShell.tsx"];
 const SHELL_TSX = SHELL_FILES
   .map(f => readFileSync(join(ROOT, "src/shell", f), "utf-8"))
   .join("\n");
+// B8-c (2026-11-19): 设置域 API 单体 (api/settings.ts 847 行) 拆为薄 barrel + settings/* 子模块,
+// 守卫对"域模块集合"整体断言 (条目与强度不变)。
+const SETTINGS_MODULES = [
+  "overview.ts", "sync.ts", "proxy.ts", "prefs.ts", "mcp.ts", "models.ts",
+  "secrets.ts", "intake.ts", "ops.ts", "knowledge.ts", "skillRegistry.ts",
+];
 // B6-d (2026-11-19): 壳层样式与资讯域样式已拆为两文件, 守卫按"拼接整体"断言 (条目与强度不变)
 const SHELL_CSS = readFileSync(join(ROOT, "src/shell/shell.css"), "utf-8");
 const SENTINEL_CSS_FILE = readFileSync(join(ROOT, "src/components/sentinel/sentinel.css"), "utf-8");
@@ -242,12 +249,15 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
 
   // B3 (2026-11-17): 端点 URL 从组件迁入域 API 模块 (FRONTEND_REWRITE_V1_PLAN §5),
   // 守卫改为双向断言: 组件走域模块 (不得直调 lib/api) + 域模块仍含 3 个真实端点。
+  // B8-c (2026-11-19): api/settings.ts 拆为薄 barrel + settings/* 子模块 (G5 缺口),
+  // 端点正文落在子模块内 → 守卫改为对"域模块集合"整体断言 (条目与强度不变, 同 B6-d CSS 先例)。
   it("MaintPage 走 /api/maintenance/* 真实端点 (3 工具卡映射, 经 api/settings 域模块)", () => {
     const maint = readFileSync(join(ROOT, "src/components/MaintPage.tsx"), "utf-8");
     expect(maint).toMatch(/from ['"]\.\.\/api\/settings['"]/);
     expect(maint).not.toMatch(/from ['"]\.\.\/lib\/api['"]/);
 
-    const domain = readFileSync(join(ROOT, "src/api/settings.ts"), "utf-8");
+    const domain = readFileSync(join(ROOT, "src/api/settings.ts"), "utf-8")
+      + SETTINGS_MODULES.map(f => readFileSync(join(ROOT, "src/api/settings", f), "utf-8")).join("\n");
     expect(domain).toMatch(/\/api\/maintenance\/health/);
     expect(domain).toMatch(/\/api\/maintenance\/vacuum/);
     expect(domain).toMatch(/\/api\/maintenance\/cleanup/);
@@ -258,8 +268,8 @@ describe("NAV4 P3 (2026-09-13): 临时页面 /maint /knowledge/canvas 注册与�
 });
 
 describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
-  // 文本层断言: SentinelShell.tsx 必须显式包含对应 startsWith 分支.
-  // 运行时层由 SentinelShell.test.tsx 已有的 /settings /action /report 覆盖 (运行时行为验证).
+  // 文本层断言: 壳源码集合 (src/shell/*) 必须显式包含对应 startsWith 分支.
+  // 运行时层由 shell/AppShell.test.tsx 已有的 /settings /action /report 覆盖 (运行时行为验证).
 
   it("knowledge 分支覆盖 /knowledge /deep /reviews /tags /extract /search /dashboard /skill-store", () => {
     // line 162: /knowledge /deep /reviews → knowledge

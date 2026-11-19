@@ -1,5 +1,5 @@
-// frontend/src/components/EmptyState.test.tsx
-// Phase 6 — EmptyState 原子组件测试
+// frontend/src/primitives/EmptyState.test.tsx
+// Phase 6 — EmptyState 原子组件测试 (B8-b 2026-11-19: 自 components/ 迁入 L1 primitives/)
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EmptyState } from './EmptyState';

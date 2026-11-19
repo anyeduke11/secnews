@@ -5,7 +5,7 @@
  * props-only: 接收 result 列表 + onClose 回调, 渲染每条依赖 + depth 标记。
  */
 import { CgDependency } from '../../../types/codegarden';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { ImpactResultDialogProps, DEP_TYPE_COLORS, DEP_TYPE_LABELS } from './types';
 
 export function ImpactResultDialog({ result, onClose }: ImpactResultDialogProps) {

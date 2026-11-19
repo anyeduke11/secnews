@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react';
 import { CgDependency, DepEntityType } from '../../../types/codegarden';
 import { useCodegardenOrchestration } from '../../../hooks/useCodegardenOrchestration';
-import { Icon } from '../../Icon';
+import { Icon } from '../../../primitives/Icon';
 import { DepGraph } from './DepGraph';
 import { DepList } from './DepList';
 import { AddDependencyDialog } from './AddDependencyDialog';

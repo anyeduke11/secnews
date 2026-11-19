@@ -24,7 +24,8 @@ import { getQualitySummary, getNewsAlertUnread, getPickedItems } from '../../api
 import { getRefreshIntervalSetting } from '../../api/shared';
 import { PriorityDigestCard } from './PriorityDigestCard';
 import { useReactionAction } from './ReactionButtons';
-import { SentinelShell, usePipeReloadOnSse } from './SentinelShell';
+import { SentinelShell } from '../../shell/AppShell';
+import { usePipeReloadOnSse } from '../../shell/pipe';
 import { RailWithPipe, SignalPanelLazy } from './SentinelHomeAux';
 import { SignalPanelCompact } from '../v1/panels/SignalPanelCompact';
 import { FeedModeBar, FeedSearchBar } from './feed/FeedControls';

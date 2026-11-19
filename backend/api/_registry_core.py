@@ -16,8 +16,6 @@ def register_core(app: FastAPI) -> None:
     import backend.api.attention_events_api as attention_events_api  # v1.7: 注意力事件追踪
     from backend.api import (
         cache,  # v1.9: 缓存管理 (clear/stats)
-        codegarden,  # v1.5+: CodeGarden 代码花园 (Phase 2a)
-        codegarden_ops,  # v1.5+: CodeGarden 运维层 — 服务网格/资源中枢/联动引擎 (原 phase2b)
         compliance,  # v0.6 Phase 4 S4-4: 合规矩阵 (等保 2.0 + GDPR + ISO 27001)
         content,  # v1.4: 内容创作 (calendar/drafts/templates)
         content_preferences_api,  # DEV-0315: 内容偏好 (类目/来源) 第二轴 (自 settings.py 拆出)
@@ -39,15 +37,11 @@ def register_core(app: FastAPI) -> None:
         quality,
         refresh,  # Phase 32: POST /api/refresh 手动触发采集
         reports,  # v1.9 Editorial: 日报/月报独立 API
-        secrets,  # Phase 41: 密钥管理 (LLM API Keys)
         security,  # Phase 2: Security Knowledge Graph + Terminology
         settings,  # 运行时设置 (刷新间隔等)
         settings_flags_api,  # 能力开关读写 (feature-gates, ungated 基础设施; P2 Task 11)
-        skills,  # Phase 41: Skill 管理
         sources,
-        sync,  # Phase 42: 跨端配置同步 (WebDAV)
     )
-    from backend.extensions import is_extension_enabled
 
     app.include_router(hotspots.router, tags=["hotspots"])
     app.include_router(health.router, tags=["health"])
@@ -65,15 +59,11 @@ def register_core(app: FastAPI) -> None:
     app.include_router(favorites.router, tags=["favorites"])
     app.include_router(history.router, tags=["history"])
     app.include_router(refresh.router, tags=["refresh"])
-    app.include_router(skills.router, tags=["skills"])
-    app.include_router(secrets.router, tags=["secrets"])
     app.include_router(security.router, tags=["security"])
     app.include_router(settings.router, tags=["settings"])
     app.include_router(content_preferences_api.router, tags=["settings"])
     app.include_router(mcp_settings_api.router, tags=["mcp-settings"])  # ungated: extensions.mcp=false 仍可达
     app.include_router(settings_flags_api.router, tags=["feature-gates"])  # ungated: gate 管理面自身不受 gate 限制
-    if is_extension_enabled("sync"):
-        app.include_router(sync.router, tags=["sync"])
     app.include_router(reports.router, tags=["reports"])
     app.include_router(deep_read.router, tags=["deep-read"])
     app.include_router(cve_analytics.router, tags=["cve-analytics"])
@@ -85,13 +75,6 @@ def register_core(app: FastAPI) -> None:
     app.include_router(cache.router, tags=["cache"])
     app.include_router(events.router, tags=["events"])
     app.include_router(attention_events_api.router, tags=["attention"])
-    # ---- extension 路由区: 按 feature_gates 注册 (v0.4.3 分层) ----
-    if is_extension_enabled("codegarden"):
-        app.include_router(codegarden.router, tags=["codegarden"])
-    if is_extension_enabled("codegarden_phase2b"):
-        # D5 Batch ⑧: M2/M3/M4 服务网格/资源中枢/编排引擎 — 独立 gate,
-        # 之前错绑 codegarden 导致 phase2b=false 时路由仍在 (job 不跑但端点 200)
-        app.include_router(codegarden_ops.router, tags=["codegarden-ops"])
     app.include_router(mode.router, tags=["mode"])
 
 

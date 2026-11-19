@@ -763,96 +763,6 @@ class KnowledgeRepo:
             (status, week),
         )
 
-    # ── Skill Config ─────────────────────────────────────────────
-
-    def upsert_skill(self, skill: dict) -> None:
-        """INSERT OR IGNORE a skill config (idempotent on skill_name)."""
-        conn = get_connection()
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO knowledge_skill_config
-                (skill_name, secret_id, model_override, prompt_template,
-                 enabled, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                skill["skill_name"],
-                skill.get("secret_id"),
-                skill.get("model_override"),
-                skill.get("prompt_template"),
-                int(skill.get("enabled", 1)),
-                skill["created_at"],
-                skill["updated_at"],
-            ),
-        )
-
-    def get_skill(self, id: int) -> dict | None:
-        conn = get_connection()
-        row = conn.execute(
-            "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE id = ?", (id,)
-        ).fetchone()
-        return _skill_row_to_dict(row) if row else None
-
-    def get_skill_by_name(self, skill_name: str) -> dict | None:
-        conn = get_connection()
-        row = conn.execute(
-            "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE skill_name = ?",
-            (skill_name,),
-        ).fetchone()
-        return _skill_row_to_dict(row) if row else None
-
-    def list_skills(self, enabled: bool | None = None) -> list[dict]:
-        conn = get_connection()
-        if enabled is not None:
-            rows = conn.execute(
-                "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config WHERE enabled = ? ORDER BY id",
-                (int(enabled),),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT id, skill_name, secret_id, model_override, prompt_template, enabled, created_at, updated_at FROM knowledge_skill_config ORDER BY id"
-            ).fetchall()
-        return [_skill_row_to_dict(r) for r in rows]
-
-    def update_skill(self, id: int, fields: dict) -> None:
-        conn = get_connection()
-        allowed = {
-            "skill_name", "secret_id", "model_override",
-            "prompt_template", "enabled",
-        }
-        sets: list[str] = []
-        params: list = []
-        for key in allowed:
-            if key in fields:
-                val = fields[key]
-                if key == "enabled":
-                    val = int(val)
-                sets.append(f"{key} = ?")
-                params.append(val)
-        if not sets:
-            return
-        sets.append("updated_at = ?")
-        params.append(now_iso())
-        params.append(id)
-        conn.execute(
-            f"UPDATE knowledge_skill_config SET {', '.join(sets)} WHERE id = ?",
-            params,
-        )
-
-    def delete_skill(self, id: int) -> None:
-        conn = get_connection()
-        conn.execute(
-            "DELETE FROM knowledge_skill_config WHERE id = ?", (id,)
-        )
-
-    def count_skills(self) -> int:
-        """Total skill_config rows — used to decide whether to seed."""
-        conn = get_connection()
-        row = conn.execute(
-            "SELECT COUNT(*) FROM knowledge_skill_config"
-        ).fetchone()
-        return row[0] if row else 0
-
     # ── Knowledge Progress ───────────────────────────────────────
 
     def upsert_progress(
@@ -901,14 +811,6 @@ class KnowledgeRepo:
         else:
             rows = conn.execute(sql).fetchall()
         return [dict(r) for r in rows]
-
-
-def _skill_row_to_dict(row) -> dict:
-    """Convert a skill_config row to dict, normalising enabled (0/1 → bool)."""
-    d = dict(row)
-    if "enabled" in d:
-        d["enabled"] = bool(d["enabled"])
-    return d
 
 
 # Singleton

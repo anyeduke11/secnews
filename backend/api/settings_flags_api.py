@@ -21,9 +21,9 @@ router = APIRouter(prefix="/api/settings", tags=["feature-gates"])
 
 # 路由注册依赖该 gate 的扩展域 (启动快照语义); security_graph 等仅占 job 的 gate 也算 startup
 _STARTUP_SCOPED = {
-    "codegarden", "codegarden_phase2b", "mcp", "sync", "dsh",
-    "secnews", "info_filter", "skill_registry", "user_skills",
-    "trigger_gate", "tech_stack", "security_graph", "interest_engine",
+    "mcp", "dsh",
+    "secnews", "info_filter",
+    "tech_stack", "security_graph", "interest_engine",
 }
 
 

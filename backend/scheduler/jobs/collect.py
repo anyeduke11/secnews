@@ -3,7 +3,7 @@
 patch("backend.scheduler.jobs.<fn>") 测试契约。
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import timezone
 
 import backend.scheduler.jobs as _jobs_pkg
 from backend.logging_config import logger
@@ -130,115 +130,6 @@ async def _classify_new_items() -> None:
             )
     except Exception as e:
         _logger.error(f"_classify_new_items crashed: {e}")
-
-
-async def sync_job(*, force: bool = False) -> None:
-    """周期性同步 (scheduler 触发); 手动触发可用 force=True 跳过 unlock 检查。
-
-    跳过条件
-    --------
-    - master_key 未 unlock (即用户在 30 分钟内没输过密码) → 跳过, 写一条
-      ``status=skipped`` 的 history 让用户能在 UI 里看到为什么没同步
-    - sync_configs.auto_sync_enabled = 0 → 跳过
-    - WebDAV 未配置 → 跳过
-
-    force=True 用于:
-    - 启动 catch-up (scheduler 启动时若 "本应已同步但未同步", 强制触发)
-    - 手动 push/pull 的 catch-up 检测
-    """
-    from datetime import datetime
-
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
-    from backend.repository.sync_configs_repo import SyncConfigRepository
-    from backend.services.secrets_service import _is_unlocked
-    from backend.services.sync_service import SyncService
-
-    cfg_repo = SyncConfigRepository()
-    cfg = cfg_repo.get_default()
-    if cfg is None or not cfg.webdav_url or not cfg.webdav_username:
-        _logger.info("sync_job: WebDAV 未配置, 跳过")
-        return
-    if not cfg.auto_sync_enabled and not force:
-        _logger.info("sync_job: auto_sync_enabled=False, 跳过")
-        return
-
-    # master_key unlock 检查 (非 force 模式)
-    # P0-1: 解锁状态是 30 分钟 TTL (secrets_service.UNLOCK_TTL_SECONDS),
-    # 而自动同步是每周一 10:30 触发 — 启动时 auto-unlock 的密钥早已过期。
-    # 修复: 解锁过期时先尝试从持久化存储 (OS keyring / settings 表) 自动恢复,
-    # 恢复成功即继续同步, 只有「无持久化密钥」才跳过并记录错误。
-    if not force:
-        ek = EncryptionKeyRepository().get_default()
-        if ek is None or not _is_unlocked(ek.id):
-            try:
-                from backend.services.secrets_service import try_auto_unlock
-                restored = try_auto_unlock()
-            except Exception:
-                restored = False
-            if not restored or not _is_unlocked(ek.id):
-                _logger.warning("sync_job: master_key 未解锁且无持久化密钥可恢复, 跳过同步")
-                from backend.repository.sync_history_repo import SyncHistoryRepository
-                SyncHistoryRepository().write(
-                    config_id=cfg.id,
-                    direction="bidirectional",
-                    status="error",
-                    error_message="master_key 未解锁且无法从 keychain/settings 自动恢复, 自动同步已跳过",
-                    started_at=datetime.now(timezone.utc).isoformat(),
-                    finished_at=datetime.now(timezone.utc).isoformat(),
-                )
-                return
-            _logger.info("sync_job: master_key 已从持久化存储自动恢复")
-
-    # 触发同步 (用 secrets_service 里的 fernet_key 派生 master_key 不行,
-    # sync_service 需要原始 master_key 字符串; 但我们的 unlock state 只存
-    # fernet_key, 没有 master_key。简化方案: 只在 force=True 路径下走
-    # bidirectional; 自动模式下若 _is_unlocked 则调用一个独立 helper
-    # (auto_sync_with_unlocked_key) — 但 secret api_key 加密用的是
-    # master_key 派生 key, unlock 后我们有 fernet_key 即可解密 webdav_pwd。
-    try:
-        from backend.services.secrets_service import _unlock_state
-        ek = EncryptionKeyRepository().get_default()
-        if ek is None or not _is_unlocked(ek.id):
-            _logger.warning("sync_job: master_key 突然过期, 跳过")
-            return
-        fernet_key = _unlock_state[ek.id]["fernet_key"]
-        svc = SyncService()
-        result = await svc.bidirectional_with_fernet_key(fernet_key)
-        _logger.info(f"sync_job: {result}")
-    except Exception as e:
-        _logger.error(f"sync_job crashed: {e}")
-
-
-def should_run_catchup(last_sync_at: str | None, now: datetime) -> bool:
-    """判断启动时是否需要补上同步 (Q2 决策)。
-
-    规则
-    ----
-    - ``now`` 是 Asia/Shanghai 本地时间
-    - 今天是周一 且 ``now.hour*60+now.minute >= 10*60+30`` (10:30 之后)
-    - last_sync_at 为 None (从未同步) → catch-up
-    - last_sync_at 在本周一 00:00 之前 → catch-up
-    - 否则 (本周一 10:30 后已同步) → 不需要 catch-up, 等下周一 10:30
-    """
-    import datetime as _dt
-    if now.weekday() != 0:  # 0 = Monday
-        return False
-    cutoff_min = now.hour * 60 + now.minute
-    if cutoff_min < 10 * 60 + 30:
-        return False
-    monday_start = _dt.datetime(now.year, now.month, now.day,
-                                tzinfo=now.tzinfo)
-    if last_sync_at is None:
-        return True
-    try:
-        last = _dt.datetime.fromisoformat(last_sync_at)
-        if last.tzinfo is None:
-            last = last.replace(tzinfo=_dt.timezone.utc)
-        # 转为 Asia/Shanghai
-        last_sh = last.astimezone(now.tzinfo)
-        return last_sh < monday_start
-    except Exception:
-        return True
 
 
 async def url_content_check_job() -> None:

@@ -6,7 +6,6 @@
 - GET    /api/tech-stack/{tech_id}       查看
 - PUT    /api/tech-stack/{tech_id}       更新
 - DELETE /api/tech-stack/{tech_id}       删除
-- GET    /api/tech-stack/impact          影响分析 (?article_id=...)
 """
 from __future__ import annotations
 
@@ -50,12 +49,6 @@ async def list_tech_stack(category: str | None = Query(None)):
 async def create_tech_stack(req: TechCreate):
     item = svc.create_tech(req.id, req.name, req.category, req.proficiency, req.notes)
     return {"version": API_VERSION, "item": item}
-
-
-@router.get("/impact")
-async def impact(article_id: str = Query(..., min_length=1)):
-    result = svc.analyze_impact(article_id)
-    return {"version": API_VERSION, **result}
 
 
 @router.get("/{tech_id}")

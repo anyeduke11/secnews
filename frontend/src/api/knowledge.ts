@@ -21,7 +21,6 @@ import type {
   KnowledgeItem,
   KnowledgeHealth,
   TaskItem,
-  SkillConfig,
   DeepReadResponse,
   ImportedResponse,
   BookmarkImportResult,
@@ -261,16 +260,6 @@ export function createKnowledgeTask(
   body: KnowledgeTaskCreateBody,
 ): Promise<KnowledgeTaskCreateResponse> {
   return postJSON<KnowledgeTaskCreateResponse>('/api/knowledge/tasks', body);
-}
-
-/** GET /api/knowledge/skills 响应 ({skills}) */
-export interface KnowledgeSkillsResponse {
-  skills?: SkillConfig[];
-}
-
-/** GET /api/knowledge/skills — baoyu skill 配置列表 (SkillEntryGrid / SkillConfigDialog 共用) */
-export function listKnowledgeSkills(): Promise<KnowledgeSkillsResponse> {
-  return getJSON<KnowledgeSkillsResponse>('/api/knowledge/skills');
 }
 
 // ---------------------------------------------------------------------------
@@ -545,13 +534,6 @@ export function importBookmarks(
       body: JSON.stringify(payload),
     },
   );
-}
-
-/** GET /api/content/drafts/{id}/publish-history — 草稿发布历史 */
-export function getDraftPublishHistory<T = { history?: unknown[] }>(
-  id: string | number,
-): Promise<T> {
-  return getJSON<T>(`/api/content/drafts/${id}/publish-history`);
 }
 
 /** POST /api/extract/preview — 标签提取预览 (不持久化) */

@@ -10,9 +10,8 @@ via :func:`set_service`; this avoids a module-level import cycle between
 
 拆分布局（空壳门面策略，方案 §9）：
 - ``_runtime``   注入状态（_service）+ SSE 插桩（job_done_event/instrument_job）
-- ``collect``    采集 / 同步 / 源健康 / watchdog / alert 链
+- ``collect``    采集 / 源健康 / watchdog / alert 链
 - ``kl``         kl_queue 触发器 / 死信 / 心跳 / 存活扫描
-- ``codegarden`` cg_* 扩展域 job（feature gate）
 - ``security``   MITRE / 安全富化 / CVE / 实体概念同步
 - ``knowledge``  分类 / 抽取 / 草稿 / chunk / wiki 归档
 - ``digest``     简报 / 快照 / 周报 / 编译 / SOUL / SM-2
@@ -38,13 +37,11 @@ from backend.scheduler.jobs.collect import (
     catchup_watchdog_job,
     collect_all_job,
     collect_validations_cleanup_job,
-    should_run_catchup,
     source_alert_eval_job,
     source_health_check_job,
     source_probe_job,
     source_revival_check_job,
     source_scheduler_tick_job,
-    sync_job,
     url_content_check_job,
     url_full_check_job,
     v1_signal_intake_tick_job,  # v0.8.5 D1 点火: 真实源 → 准入 → v1_signals
@@ -60,17 +57,10 @@ from backend.scheduler.jobs.kl import (
     kl_trigger_t4_job,
     secnews_liveness_sweep_job,
 )
-from backend.scheduler.jobs.codegarden import (
-    cg_drift_assess_job,
-    cg_event_process_job,
-    cg_service_scan_job,
-    cg_upstream_sync_job,
-)
 from backend.scheduler.jobs.security import (
     cve_sync_to_security_job,
     mitre_sync_job,
     mp2_extract_job,
-    secrets_rotation_check_job,
     security_enrichment_job,
     security_entity_concept_sync_job,
 )
@@ -111,10 +101,6 @@ from backend.scheduler.jobs.maintenance import (
     weekly_maintenance_job,
     wiki_items_fts_sync_job,
 )
-from backend.scheduler.jobs.worker_pump import (
-    legacy_hold_reap_job,  # v1.0 T09: F01 收口 (周一 04:30)
-    worker_queue_pump_job,  # v1.0 T09: 队列消费泵 (每 60s)
-)
 from backend.scheduler.jobs.knowledge_review import (
     knowledge_review_due_job,  # v1.0 T13: SK-06 复查扫描 (每日 04:00)
 )
@@ -139,9 +125,6 @@ def __getattr__(name: str):
 __all__ = [
     # 存量 bug 清扫补齐 (此前 import 了但 __all__ 漏登记, *-import 拿不到):
     "auto_extract_alert_job",
-    "cg_event_process_job",
-    "cg_service_scan_job",
-    "cg_upstream_sync_job",
     "collect_all_job",
     "consume_compile_tasks_job",
     "db_diet_job",
@@ -157,13 +140,10 @@ __all__ = [
     "scheduled_soul_job",
     "scheduled_stats_job",
     "scheduled_summary_job",
-    "secrets_rotation_check_job",
     "security_enrichment_job",
     "set_service",
-    "should_run_catchup",
     "sm2_daily_push_job",
     "source_reputation_rebuild_job",
-    "sync_job",
     "telemetry_window_job",  # v0.5 §18: 7 天遥测窗口
     "trend_rebuild_job",
     "url_content_check_job",
@@ -186,7 +166,6 @@ __all__.extend([
 __all__.extend([
     "attention_aggregate_job",
     "catchup_watchdog_job",
-    "cg_drift_assess_job",
     "content_draft_generation_job",
     "cve_sync_to_security_job",
     "kl_dead_letter_retry_job",
@@ -198,7 +177,6 @@ __all__.extend([
     "knowledge_chunk_generation_job",
     "knowledge_classify_job",
     "knowledge_stub_backfill_job",
-    "legacy_hold_reap_job",  # v1.0 T09: F01 53 pending → legacy_hold (周一 04:30)
     "mp2_extract_job",  # MP-2: 采集 agent_A~E → LLM 抽取 technique 候选 → 入池 (每日 03:30)
     "observability_aggregator_job",  # v0.7 Batch ③: api_events → api_metrics_hourly roll-up
     "observability_threshold_check_job",  # v0.7 Batch ④: 阈值规则引擎
@@ -210,5 +188,4 @@ __all__.extend([
     "url_full_check_job",
     "wiki_archiver_job",
     "wiki_projection_rebuild_job",
-    "worker_queue_pump_job",  # v1.0 T09: 队列消费泵 (每 60s)
 ])

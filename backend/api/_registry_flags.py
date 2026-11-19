@@ -90,10 +90,6 @@ def register_flags(app: FastAPI) -> None:
     # v0.5 §18.4: wiki_* MCP 工具族 (llm-wiki-2.0 消费面)
     from backend.api import wiki_tools
     app.include_router(wiki_tools.router, tags=["wiki-tools"])
-    # Phase 14: 子系统联动 — 跟随 codegarden_phase2b gate (D5 Batch ⑧: M4 联动引擎)
-    from backend.api import codegarden_phase14
-    if is_extension_enabled("codegarden_phase2b"):
-        app.include_router(codegarden_phase14.router, tags=["codegarden-phase14"])
     # Phase 16: Hybrid AI — LLM 状态 API
     from backend.api import llm_status
     app.include_router(llm_status.router, tags=["llm"])

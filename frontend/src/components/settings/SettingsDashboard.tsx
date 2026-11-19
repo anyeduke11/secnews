@@ -3,29 +3,28 @@
  *
  * 用途:
  *  - 默认 cat=overview, 不点进各分类也能看到"系统还好吗"
- *  - 4 张系统子状态卡 (DB / 采集 / 凭据 / 调度) + 6 张区段跳转 tile + 版本/运行状态卡 + 最近 24h 统计
+ *  - 4 张系统子状态卡 (DB / 采集 / 密钥 / 调度) + 5 张区段跳转 tile + 版本/运行状态卡 + 最近 24h 统计
  *  - 借 settings-shell.css 的 st-card / st-cellgrid / st-tilegrid (状态徽章走 L1 StatusBadge)
  *
  * 数据源 (与哨兵面板一致, 直接 fetch 而非 usePipe):
  *  - GET /api/health        → db.ok / scheduler.jobs / collectors / version / status
- *  - GET /api/secrets/status → master_key 初始化 + unlock 状态
  *  - GET /api/sources/health → 源健康概览
  *  - GET /api/stats         → 24h collect_runs / hotspots 总数 / 平均耗时
+ *  - 密钥: 2026-11-19 密钥域退役, 固定显示 ENV (模型密钥仅从环境变量读取)
  *
  * 不在 V2 范围:
  *  - 实时 SSE 推送 (复用现有 /api/observability/stream, 后续按需接入)
  *  - 历史趋势图 (留 v0.8 — 当前只渲染 4 个核心数字)
  */
 import { useEffect, useState } from 'react';
-import { getHealth, getSecretsStatus, getSourcesHealth, getStats } from '../../api/settings';
+import { getHealth, getSourcesHealth, getStats } from '../../api/settings';
 import { QUICK_JUMPS } from './SettingsDashboard.types';
-import type { HealthPayload, Props, SecretsStatus, StatsPayload, SourcesHealth } from './SettingsDashboard.types';
+import type { HealthPayload, Props, StatsPayload, SourcesHealth } from './SettingsDashboard.types';
 import { fmtInt, fmtMs, fmtPct, fmtUptime } from './SettingsDashboard.format';
 import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function SettingsDashboard({ onJump }: Props) {
   const [health, setHealth] = useState<HealthPayload | null>(null);
-  const [secrets, setSecrets] = useState<SecretsStatus | null>(null);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [sources, setSources] = useState<SourcesHealth | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,14 +33,12 @@ export function SettingsDashboard({ onJump }: Props) {
     let cancelled = false;
     const fetches: Array<Promise<unknown>> = [
       getHealth<unknown>().catch(() => null),
-      getSecretsStatus().catch(() => null),
       getStats<unknown>().catch(() => null),
       getSourcesHealth<unknown>().catch(() => null),
     ];
-    Promise.all(fetches).then(([h, s, st, src]) => {
+    Promise.all(fetches).then(([h, st, src]) => {
       if (cancelled) return;
       setHealth(h as HealthPayload);
-      setSecrets(s as SecretsStatus);
       setStats(st as StatsPayload);
       // /api/sources/health 是数组 — 聚合
       if (Array.isArray(src)) {
@@ -72,10 +69,10 @@ export function SettingsDashboard({ onJump }: Props) {
           <div className="st-info">
             <p style={{ marginBottom: 6 }}>
               <strong>用途</strong> · 这是 /settings 的首屏, 不点进任何分类也能回答"系统还好吗":
-              4 张子状态卡 (DB / 采集 / 凭据 / 调度) + 6 张区段跳转 + 版本/运行状态卡 + 信源健康, 共 12 个一眼可读的体检项。
+              4 张子状态卡 (DB / 采集 / 密钥 / 调度) + 5 张区段跳转 + 版本/运行状态卡 + 信源健康, 共 11 个一眼可读的体检项。
             </p>
             <p style={{ marginBottom: 6 }}>
-              <strong>不打开会怎样</strong> · 想确认状态必须进 5+ 个分类; 凭据 LOCKED 看不见, 直到跑管线失败才意识到;
+              <strong>不打开会怎样</strong> · 想确认状态必须进 4+ 个分类; 模型密钥缺失要到跑管线失败才意识到;
               scheduler 静默停摆无人察觉, 采集 24h 数字无从获取。
             </p>
             <p style={{ marginBottom: 6 }}>
@@ -83,8 +80,8 @@ export function SettingsDashboard({ onJump }: Props) {
               0.5 秒可确认系统健康, 与哨兵 /judge /action 全屏风格一致。
             </p>
             <p style={{ marginBottom: 0 }}>
-              <strong>业务逻辑对齐</strong> · 哨兵"管道体检"模式已固化 (KL 队列 + dsh 状态 + 凭据可用性), 本页 = 哨兵体检的设置侧镜像;
-              字段复用 /api/health /api/stats /api/secrets/status 三个观测面, 不引入新数据源。
+              <strong>业务逻辑对齐</strong> · 哨兵"管道体检"模式已固化 (KL 队列 + dsh 状态), 本页 = 哨兵体检的设置侧镜像;
+              字段复用 /api/health /api/stats 两个观测面, 不引入新数据源。
             </p>
           </div>
         </div>
@@ -114,15 +111,9 @@ export function SettingsDashboard({ onJump }: Props) {
         </article>
 
         <article className="st-cell" data-testid="dash-secrets">
-          <span className="st-cellk">KEYS</span>
-          <span className={`st-cellv ${secrets?.unlocked ? 'mint' : secrets?.initialized ? 'amber' : 'red'}`}>
-            {!secrets ? '…' : secrets.unlocked ? 'UNLOCKED' : secrets.initialized ? 'LOCKED' : 'NO KEY'}
-          </span>
-          <span className="st-cellnote">
-            {secrets?.source === 'os_keyring' ? 'OS keyring 后端'
-              : secrets?.source === 'session' ? '会话内 unlock'
-              : '未初始化主密钥'}
-          </span>
+          <span className="st-cellk">MODEL KEY</span>
+          <span className="st-cellv mint">ENV</span>
+          <span className="st-cellnote">密钥仅从环境变量读取（密钥域已退役）</span>
         </article>
 
         <article className="st-cell" data-testid="dash-scheduler">
@@ -136,7 +127,7 @@ export function SettingsDashboard({ onJump }: Props) {
         </article>
       </section>
 
-      {/* 6 区段快速跳转 — st-tilegrid */}
+      {/* 5 区段快速跳转 — st-tilegrid */}
       <section aria-label="区段跳转">
         <h3 style={{ fontFamily: 'var(--sn-mono)', fontSize: 'var(--sn-fs-h3)', fontWeight: 500, margin: '4px 0 8px', color: 'var(--sn-ink)' }}>
           快速跳转

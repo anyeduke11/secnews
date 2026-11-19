@@ -231,17 +231,6 @@ def test_health_metrics_shape(client):
     assert isinstance(body["gap_analysis"], list)
 
 
-# ── GET /skills (Phase 7 deprecated) ────────────────────────────
-
-def test_list_skills_deprecated_empty(client):
-    r = client.get("/api/knowledge/skills")
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["deprecated"] is True
-    assert body["skills"] == []
-    assert "version" in body
-
-
 # ── GET /soul ───────────────────────────────────────────────────
 
 def test_get_soul_shape(client):

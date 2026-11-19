@@ -22,13 +22,14 @@ describe('settings sections — B6-b 业务流三组导航', () => {
     }
   });
 
-  it('关键能力落在业务流预期组: 采集/代理 → 数据接入, 模型/通用 → AI 与偏好, 同步/运维 → 系统与运维', () => {
+  it('关键能力落在业务流预期组: 采集/代理 → 数据接入, 模型/通用 → AI 与偏好, 运维 → 系统与运维', () => {
     const groupOf = (key: string) => SECTIONS.find(s => s.key === key)?.group;
     expect(groupOf('collection')).toBe('ingest');
     expect(groupOf('network')).toBe('ingest');
     expect(groupOf('models')).toBe('intelligence');
     expect(groupOf('general')).toBe('intelligence');
-    expect(groupOf('connectivity')).toBe('system');
     expect(groupOf('ops')).toBe('system');
+    // 2026-11-19 四域删除: connectivity (同步/凭据) 已不存在
+    expect(groupOf('connectivity')).toBeUndefined();
   });
 });

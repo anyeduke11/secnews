@@ -2,14 +2,12 @@
 
 覆盖:
 - PRESETS 完整性 (name 唯一 / base_url https / 与 egress 白名单一致)
-- resolve_preset_key: env 主名 > 别名 > secrets > none
+- resolve_preset_key: env 主名 > 别名 > none (2026-11-19 密钥服务退役, 无 secrets 回退)
 - probe_platform: mock httpx.get — 200 建模型列表 / 401 密钥无效 / 404 unknown
 - pool_snapshot: probe=False 零出站且 pi 永不在 platforms (owner 裁决: pi 是 Agent)
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 from backend.services.ai_hub import pool as pool_mod
 from backend.services.ai_hub.egress import TRUSTED_LLM_HOSTS
@@ -59,29 +57,11 @@ class TestResolveKey:
         key, src = resolve_preset_key("nope")
         assert (key, src) == ("", "none")
 
-    def test_secrets_fallback(self, monkeypatch, tmp_path: Path):
+    def test_missing_env_returns_none(self, monkeypatch):
+        """env 未设 → ("", "none"); 密钥服务退役后无 secrets 回退 (fail-soft 不抛)."""
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-
-        class _Item:
-            id = 7
-            encryption_key_id = "k1"
-
-        class _Repo:
-            def get_by_provider(self, provider):
-                assert provider == "deepseek"
-                return _Item()
-
-        class _Svc:
-            def decrypt_for_internal_use(self, item_id):
-                return "vault-key"
-
-        import backend.repository.secrets_repo as sr
-        import backend.services.secrets_service as ss
-        monkeypatch.setattr(sr, "SecretRepository", _Repo)
-        monkeypatch.setattr(ss, "SecretsService", _Svc)
-        monkeypatch.setattr(ss, "_is_unlocked", lambda kid: True)
         key, src = resolve_preset_key("deepseek")
-        assert (key, src) == ("vault-key", "secrets")
+        assert (key, src) == ("", "none")
 
 
 class TestProbe:

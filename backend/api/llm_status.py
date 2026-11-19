@@ -48,7 +48,7 @@ def get_llm_status():
     status["effective_provider"] = AIService._resolve_provider()
     status["config_source"] = AIService._config_source()
 
-    # v0.7.x Batch ⑥: 密钥来源打标 (env|secrets|none) — 与 AIService._key_source 同链
+    # 密钥来源打标 (env|none) — 与 AIService._key_source 同链
     ai_svc = AIService()
     status["key_source"] = ai_svc._key_source(status["effective_provider"])
 

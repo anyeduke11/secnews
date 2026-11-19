@@ -1,28 +1,23 @@
-// 拆分自 ItemDetailDialog.tsx: 底部动作栏 (保存 / 加入 CodeGarden / 删除 + toast)
+// 拆分自 ItemDetailDialog.tsx: 底部动作栏 (保存 / 删除 + toast)
 // 与删除确认块; 回调与状态仍由主组件持有。
-import { KnowledgeItem } from '../types';
 
 type ItemDetailDialogFooterProps = {
-  item: KnowledgeItem;
   saving: boolean;
   deleting: boolean;
   confirmDelete: boolean;
   toast: string | null;
   onSave: () => void;
-  onAddToCodegarden: () => void;
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onDelete: () => void;
 };
 
 export function ItemDetailDialogFooter({
-  item,
   saving,
   deleting,
   confirmDelete,
   toast,
   onSave,
-  onAddToCodegarden,
   onRequestDelete,
   onCancelDelete,
   onDelete,
@@ -39,16 +34,6 @@ export function ItemDetailDialogFooter({
         >
           {saving ? '保存中…' : '保存修改'}
         </button>
-        {item.type === 'github' && (
-          <button
-            onClick={onAddToCodegarden}
-            className="btn-ghost px-3 py-1.5 text-xs"
-            style={{ color: 'var(--color-startup)' }}
-            title="转化为 CodeGarden 项目 (source_type=reference)"
-          >
-            🌱 加入 CodeGarden
-          </button>
-        )}
         <button
           onClick={onRequestDelete}
           disabled={deleting}

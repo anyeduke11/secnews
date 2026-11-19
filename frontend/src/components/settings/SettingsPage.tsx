@@ -5,13 +5,14 @@
  *  - 头部双列 st-head (标题 / 副标题 / 状态徽章 / 操作)
  *  - sidebar 改 st-sidenav-item (图标 + 标签 + 描述 + 状态点)
  *  - 默认 cat=overview (哨兵式首屏体检: 6 张 st-tile 跳转 + 系统子状态)
- *  - 各区段 (7 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
+ *  - 各区段 (6 cat) 共享 .settings-shell 作用域, 借 settings-shell.css 的
  *    --sn-* token 与 st-rule / st-card 等原子样式 (状态徽章走 L1 StatusBadge)
  *
  * 历史: v0.6.x 原 SettingsPage.tsx 1065 行; v0.7.0 拆 12 文件;
  *       v0.7.x SettingsHub 合并采集/哨兵设置与图片模型三页;
  *       V2 引入 dashboard 首屏 + 全页面哨兵化;
  *       v0.8 P1 新增 info_filter (独立资讯筛选门禁, 归 collection 区).
+ *       2026-11-19 四域删除: 去 connectivity 区 (同步/凭据域退役), MCP 卡并入 network.
  */
 import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,9 +33,7 @@ import { KLQueueCard } from './KLQueueCard';
 import { AutoIntakeCard } from './AutoIntakeCard';
 import { InfoFilterCard } from '../secnews/settings/InfoFilterCard';
 import { ProxySettings } from './ProxySettings';
-import { SyncSettings } from './SyncSettings';
 import { MCPSettingsCard } from './MCPSettingsCard';
-import { SecretsStatusCard } from './SecretsStatusCard';
 import { DatabaseMaintenance } from './DatabaseMaintenance';
 import { ExportActionsCard } from './ExportActionsCard';
 import { DshControlCard } from '../secnews/settings/DshControlCard';
@@ -91,15 +90,12 @@ export function SettingsPage() {
           </div>
         );
       case 'network':
-        return <ProxySettings open={open} />;
-      case 'connectivity':
         return (
           <div className="space-y-2">
-            <SyncSettings />
+            <ProxySettings open={open} />
             {features.mcp ? <MCPSettingsCard open={open} /> : (
               <div className="st-info">MCP 扩展未启用（可在「通用 → 能力开关」开启后重启生效）</div>
             )}
-            <SecretsStatusCard />
           </div>
         );
       case 'ops':
@@ -120,7 +116,7 @@ export function SettingsPage() {
   const active = SECTIONS.find(s => s.key === activeSection);
 
   return (
-    // v0.7.x SettingsHub V2: 全部 7 cat 共享 .settings-shell 作用域
+    // v0.7.x SettingsHub V2: 全部 6 cat 共享 .settings-shell 作用域
     // settings-shell.css 提供 --sn-* token 与 st-rule / st-card 等原子样式 (状态徽章走 L1 StatusBadge)
     <div className="settings-shell w-full flex flex-col" style={{ minHeight: 'calc(100dvh - 1.5rem)' }}>
       {/* V2 头部 — st-head 双列: 标题 + 副标题 / 状态徽章 + 操作 */}
@@ -157,7 +153,7 @@ export function SettingsPage() {
           className="settings-shell st-sidenav shrink-0 sm:w-[210px] sm:max-h-full"
           aria-label="设置分类"
         >
-          {/* c8: 组归组渲染 — 组内序 = SECTIONS 声明序 (7 cat 收窄后无 gate 隐藏项) */}
+          {/* c8: 组归组渲染 — 组内序 = SECTIONS 声明序 (6 cat 收窄后无 gate 隐藏项) */}
           {SECTION_GROUP_LABELS.map(({ group, label }) => {
             const items = SECTIONS.filter(s => s.group === group);
             if (items.length === 0) return null;

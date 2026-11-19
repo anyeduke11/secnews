@@ -1,5 +1,6 @@
 /**
- * settings/sections — 设置页面区段定义 (2026-09-22 IA 重构: 17 cat → 7 cat / 5 组)
+ * settings/sections — 设置页面区段定义 (2026-09-22 IA 重构: 17 cat → 7 cat / 5 组;
+ *   2026-11-19 四域删除: 去 connectivity → 6 cat / 4 组)
  *
  * 第一性原理: 设置页 = 用户对系统可持久化偏好的低频写入口。
  * 只读监控/数据浏览/一次性动作已按裁决迁出或删除 (见设计稿 docs/superpowers/specs/2026-09-22-settings-refactor-design.md §2)。
@@ -9,14 +10,13 @@
  *
  * overview   — 总览: 体检 + 版本/运行状态 + 跳转 (原 dashboard+about)
  * collection — 采集与管线: 信源/质量规则/调度/KL 队列/资讯门禁
- * network    — 网络: 代理 (数据进不来时第一处置点, 归数据接入)
+ * network    — 网络: 代理 / MCP (数据进不来时第一处置点, 归数据接入)
  * models     — 模型配置: LLM Provider/密钥/模型池/三场景 (新, 收旧图片模型+采集模型档位)
  * general    — 通用: 主题/模式/刷新/兴趣画像/能力开关 (原 general + sentinel tab2)
- * connectivity — 集成与凭据: 同步/MCP/密钥状态
  * ops        — 运维: 维护/导出动作/dsh 启停
  *
  * 旧 cat 映射: dashboard→overview · 旧图片模型/采集(模型部分)→models · 采集(队列)→collection
- *             sync/integration/secrets→connectivity · maintenance/export→ops · about→overview
+ *             sync/integration/secrets→已删除 (2026-11-19 四域删除) · maintenance/export→ops · about→overview
  *             sentinel→general(能力开关) · feedback/knowledge/alerts→已删除
  */
 import React from 'react';
@@ -28,7 +28,6 @@ export type SectionKey =
   | 'models'
   | 'collection'
   | 'network'
-  | 'connectivity'
   | 'ops';
 
 export interface SectionDef {
@@ -47,7 +46,7 @@ export interface SectionDef {
  * B6-b: 侧边栏三组 (按业务流, 非按技术层次)
  *   ingest      数据接入   — 数据怎么进来 (采集/质量/信源/代理)
  *   intelligence AI 与偏好 — 进来之后 AI 怎么做、界面怎么呈现 (模型/主题/兴趣/能力开关)
- *   system      系统与运维 — 系统自身状态 (同步/MCP/凭据/维护/导出/进程启停)
+ *   system      系统与运维 — 系统自身状态 (维护/导出/进程启停)
  */
 export type SectionGroup = 'overview' | 'ingest' | 'intelligence' | 'system';
 
@@ -78,7 +77,7 @@ export const SECTIONS: SectionDef[] = [
     key: 'network',
     label: '网络',
     icon: <Icon size={12}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><circle cx="12" cy="20" r="1" /></Icon>,
-    desc: '代理 / 连接',
+    desc: '代理 / MCP',
     group: 'ingest',
   },
   {
@@ -96,13 +95,6 @@ export const SECTIONS: SectionDef[] = [
     desc: '主题 / 模式 / 兴趣 / 能力开关',
     layout: 'mixed',
     group: 'intelligence',
-  },
-  {
-    key: 'connectivity',
-    label: '集成与凭据',
-    icon: <Icon size={12}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>,
-    desc: '同步 / MCP / 主密钥',
-    group: 'system',
   },
   {
     key: 'ops',

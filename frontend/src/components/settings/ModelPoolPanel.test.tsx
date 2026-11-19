@@ -1,8 +1,8 @@
 /**
  * ModelPoolPanel 测试 (DEV-0244)
  *
- * 契约: pi 永不出现在平台网格 (Agent 单列); 未配置平台显示 key 输入;
- * 探测结果渲染模型数; 密钥经 POST /api/secrets (保险箱同链)。
+ * 契约: pi 永不出现在平台网格 (Agent 单列); 未配置平台提示环境变量 (密钥域退役);
+ * 探测结果渲染模型数; 路由写入 force 走 warn 色。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -41,7 +41,6 @@ describe('ModelPoolPanel — 模型池 (DEV-0244)', () => {
   it('平台网格渲染 + pi 只在 Agent 通道单列, 不混入模型平台', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/llm/pool') return Promise.resolve({ ok: true, json: () => Promise.resolve(POOL_FIXTURE) });
-      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: true }) });
       return Promise.resolve({ ok: false });
     });
     renderPanel();
@@ -51,51 +50,14 @@ describe('ModelPoolPanel — 模型池 (DEV-0244)', () => {
     });
     // 可用平台: 模型数 chip
     expect(screen.getByTestId('pool-sensenova')).toHaveTextContent('可用 2 款模型');
-    // 未配置平台: key 输入 + 保存并检测
-    expect(screen.getByLabelText('DeepSeek API Key')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '保存并检测 DeepSeek' })).toBeInTheDocument();
+    // 未配置平台: 提示环境变量 (2026-11-19 密钥域退役, 无输入框)
+    expect(screen.getByTestId('pool-deepseek')).toHaveTextContent('DEEPSEEK_API_KEY');
+    expect(screen.queryByLabelText('DeepSeek API Key')).not.toBeInTheDocument();
     // pi 只出现在 agent 区
     expect(screen.getByTestId('agent-pi')).toBeInTheDocument();
     expect(screen.getByTestId('agent-pi')).toHaveTextContent('Agent 通道');
     // 平台网格里没有 pi
     expect(screen.queryByTestId('pool-pi')).not.toBeInTheDocument();
-  });
-
-  it('保存并检测: 密钥走 POST /api/secrets + 探测结果回填 chip', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = [];
-    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
-      calls.push({ url, init });
-      if (url.startsWith('/api/llm/pool?probe=1&only=')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            ...POOL_FIXTURE,
-            platforms: [{ ...POOL_FIXTURE.platforms[1], configured: true, key_source: 'secrets',
-              available: true, model_count: 3, models: ['m1', 'm2', 'm3'] }],
-          }),
-        });
-      }
-      if (url === '/api/secrets') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: 1 }) });
-      }
-      if (url === '/api/llm/pool') return Promise.resolve({ ok: true, json: () => Promise.resolve(POOL_FIXTURE) });
-      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: true }) });
-      return Promise.resolve({ ok: false });
-    });
-    renderPanel();
-    const input = await screen.findByLabelText('DeepSeek API Key');
-    fireEvent.change(input, { target: { value: 'sk-test-123' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存并检测 DeepSeek' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('pool-msg')).toHaveTextContent('检测成功: 3 款模型可用');
-    });
-    // 密钥写入保险箱端点 (provider=平台名), 不落 settings.kv
-    const save = calls.find(c => c.url === '/api/secrets' && c.init?.method === 'POST');
-    expect(save).toBeTruthy();
-    const body = JSON.parse(save!.init!.body as string);
-    expect(body.provider).toBe('deepseek');
-    expect(body.api_key).toBe('sk-test-123');
   });
 
   it('force 写入成功 → 提示走 warn 色 (未经验证), 非 ok 绿', async () => {
@@ -112,7 +74,6 @@ describe('ModelPoolPanel — 模型池 (DEV-0244)', () => {
         });
       }
       if (url === '/api/llm/pool') return Promise.resolve({ ok: true, json: () => Promise.resolve(POOL_FIXTURE) });
-      if (url === '/api/secrets/status') return Promise.resolve({ ok: true, json: () => Promise.resolve({ unlocked: true }) });
       return Promise.resolve({ ok: false });
     });
     renderPanel();

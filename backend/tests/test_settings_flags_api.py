@@ -32,11 +32,11 @@ def client(temp_db) -> TestClient:
 
 
 class TestFeatureGates:
-    def test_get_lists_16_gates_with_source(self, client):
+    def test_get_lists_current_gates_with_source(self, client):
         r = client.get("/api/settings/feature-gates")
         assert r.status_code == 200
         items = r.json()["items"]
-        assert len(items) == 16
+        assert len(items) == 10
         item = next(i for i in items if i["name"] == "mcp")
         assert item["source"] in ("default", "toml", "env")
         assert item["effective_scope"] in ("runtime", "startup")

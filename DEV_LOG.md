@@ -1,4 +1,26 @@
 
+## [DEV-0409] chore: 四域整体删除 — 工坊 / 技能库 / 密钥 / 跨端同步退役（前端 94 文件 + 后端包 + 6 gate + 16 表）
+- **时间**: 2026-11-19
+- **类型**: 域级删除批（owner 裁决；代码删除已先行，本批收口文档回写）
+- **裁决**: owner 2026-11-19 裁决四域**整体删除**（非冻结/非降级）—— 前端页面+路由、后端 router/service/repo、feature gate、数据库表、技能域内部运行时全量移除；版本号保持 **0.8.9** 不升
+- **关联文件（删除面）**:
+  - 前端 94 文件: `frontend/src/components/{codegarden,secrets,skills,sync}/` 四目录及对应页面/路由/api 客户端; `/garden` 仅保留重定向到 `/action`
+  - 后端: `backend/services/{skill_registry, skill_runner, skill_eval, skill_builder, trigger_gate, playbook_engine, agent_loop, agent_memory, worker_coordinator, legacy_hold_service, sync_service, sync_bundle, sync_merge, codegarden_*, secrets_service}`、`backend/repository/{secrets_repo, codegarden_repo, encryption_keys_repo}`、`backend/api` 四域路由文件、`backend/scheduler/jobs/worker_pump.py`
+  - feature gate: `codegarden` / `codegarden_phase2b` / `sync` / `skill_registry` + 技能域 `trigger_gate` / `user_skills` 共退役 6 键 → gate 总数 **16 → 10**（默认开 9 + mcp 默认关 1）
+  - 端点: content publish 流退役（skill 驱动）; `/api/tech-stack/impact`、`/api/digests/priority`、MCP `trigger-codegarden-drift` 删除
+- **关联文件（改造面）**:
+  - `backend/services/ai_hub/*`: 密钥解析改 **env-only**（env 主名 > 别名 > 无; fail-soft 不抛; 无 secrets vault 回退）
+  - 告警 SMTP 凭据改用环境变量 `HOTSPOT_ALERT_SMTP_PASSWORD`
+  - 工作区根 `codegarden/` → `workspace/`（agent_bridge / execution_plan/enforcer / 演练脚本 / .gitignore）
+  - `backend/services/alert_engine.py`: `tech_stack_cve` 规则随工坊域退役（数据源 `cg_projects` 已 DROP）— 删除 `_evaluate_tech_stack_cve` / `_load_project_tech_stacks` / `_parse_json_array` 与 `_trigger_alert(project_id=)` 入参；存量规则行由 migration 137 置 `enabled=0`，命中 unknown 分支只打 warning
+  - `scripts/retention.json`: 移除 26 条已 DROP 表的保留策略（`cg_*` / `skills` / `llm_secrets` / `sync_*` / 内部运行时孤儿表）
+  - `backend/tests/conftest.py`: 测试全开 env 串剔除退役 gate 键（codegarden / codegarden_phase2b / sync）
+- **数据**: 新增 `backend/repository/migrations/137_drop_four_domains.sql`（历史 SQL 不删, append-only）: DROP 工坊 9 表（`cg_*`）/ 技能库 4 表（`knowledge_skill_config`, `user_skills`, `skill_runs`, `skills`）/ 密钥 3 表（`secret_access_logs`, `llm_secrets`, `encryption_keys`）/ 同步 3 表（`sync_history`, `sync_states`, `sync_configs`）+ 内部运行时孤儿 8 表（`dead_letter`, `worker_runs`, `loop_checkpoints`, `feedback_log`, `agent_preferences`, `playbook_runs`, `playbook_schedules`, `trigger_tickets`）+ 存量 `alert_rule_definitions.tech_stack_cve` 置 `enabled=0`（不删历史规则行）
+- **架构数字**: **48 jobs / 19 collectors / 88 routers / 138 services**; 迁移文件 134 个（001-137, 066-069 为历史空洞）
+- **文档**: 权威 PRD 增「阅读前提：2026-11-19 四域整体删除裁决」并回写 §1.1 / §3.2 / §3.4 / §4.3 / §5.2 / §6.1 / §6.2 / §6.3; audit 留痕 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-19.md`; `AGENTS.md` / `CLAUDE.md` / `frontend/src/AGENTS.md` / `docs/CHANGELOG.md` 同步
+- **验证** (d6 全量门禁, 2026-11-19 复跑): pytest 全量 **4727 passed / 5 skipped / 0 failed**（586s）; 前端 `tsc --noEmit` / `vitest run` 99 文件 674 测试 / `vite build` 全绿; `generate_meta.py --check` OK（48/19/88/138, core_routers 65）; `harness_analyze.py --check` errors 0 / warnings 5; `ruff check backend/` 通过
+- **遗留（显式声明）**: 无
+
 ## [DEV-0408] feat(fe): redesign-v1 可见视觉落地 — 壳层构图 + 页面族词汇对齐 demo（UI 重构"未生效"根因修复）
 - **时间**: 2026-11-19
 - **类型**: 视觉实施批（承接 B7 R-1/R-2 的"契约层"成果，把 demo 的构图词汇真正移植为生产可见样式）

@@ -171,39 +171,21 @@ class AIService:
             return {}
 
     def _resolve_api_key(self, provider: str | None = None) -> str:
-        """v0.7.x Batch ⑥: 四级链 ``env > secrets(provider=...) > default(fail-soft)``。
+        """**env-only** 解析 provider API key (2026-11-19 密钥域退役后)。
 
-        与 :meth:`_resolve_provider` 同源 (provider 名取一处), 优先级:
-        1. ``os.environ[api_key_env]`` — 运维首选 (env 永不落库/永不轮换)
-        2. ``llm_secrets WHERE provider=?`` — 加密保险箱, 需 ``_is_unlocked``
-        3. ``""`` — fail-soft, 与 Batch ② env 未设行为一致
-
-        fail-soft: decrypt 失败 / 未 unlock / 表空 → ``""``, 不抛 (调用方
-        通常已 ``available()`` 守住)。``secrets_service`` import 走 lazy —
-        测试/单 provider 场景不引 secrets 即可跑。
+        与 :meth:`_resolve_provider` 同源 (provider 名取一处):
+        1. ``os.environ[api_key_env]`` — 唯一来源 (env 永不落库/永不轮换)
+        2. ``""`` — fail-soft, env 未设即无 key (调用方通常已 ``available()`` 守住)
         """
         import os
         p = provider or self._resolve_provider()
         pcfg = self._provider_cfg(p)
         env_name = (pcfg.api_key_env if pcfg is not None else None) \
             or "SENSENOVA_API_KEY"
-        if env_val := os.environ.get(env_name, ""):
-            return env_val
-        try:
-            from backend.repository.secrets_repo import SecretRepository
-            from backend.services.secrets_service import SecretsService, _is_unlocked
-            item = SecretRepository().get_by_provider(p)
-            if item is None:
-                return ""
-            if not _is_unlocked(item.encryption_key_id):
-                return ""
-            return SecretsService().decrypt_for_internal_use(item.id) or ""
-        except Exception as e:
-            log.warning("secrets read for provider %s failed: %s", p, e)
-            return ""
+        return os.environ.get(env_name, "")
 
     def _key_source(self, provider: str | None = None) -> str:
-        """v0.7.x Batch ⑥: 解析路径打标 (env|secrets|none)。
+        """解析路径打标 (env|none) — 2026-11-19 起仅 env 一个来源。
 
         与 :meth:`_resolve_api_key` 走同一路径, 但不取明文 — 仅返回来源
         标签, 供 ``llm_usage_log.key_source`` 列写入。
@@ -213,20 +195,7 @@ class AIService:
         pcfg = self._provider_cfg(p)
         env_name = (pcfg.api_key_env if pcfg is not None else None) \
             or "SENSENOVA_API_KEY"
-        if os.environ.get(env_name, ""):
-            return "env"
-        try:
-            from backend.repository.secrets_repo import SecretRepository
-            from backend.services.secrets_service import _is_unlocked
-            item = SecretRepository().get_by_provider(p)
-            if item is None:
-                return "none"
-            if not _is_unlocked(item.encryption_key_id):
-                return "none"
-            return "secrets"
-        except Exception as e:
-            log.debug("key_source for provider %s: %s", p, e)
-            return "none"
+        return "env" if os.environ.get(env_name, "") else "none"
 
     @staticmethod
     def _ollama_up(timeout: float = 1.0) -> bool:

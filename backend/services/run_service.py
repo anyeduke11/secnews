@@ -53,7 +53,7 @@ _RUN_ALLOWED_ACTIONS: dict[str, list[str]] = {
 }
 _VALID_RUN_STATUS = set(_RUN_ALLOWED_ACTIONS.keys())
 # v1.0 C07 R05 修复: 'mock' 协议从生产 _VALID_RUN_PROTOCOLS 移除 (旧路径虚报完成).
-# mock 走 skill_runner 演示模式, 不进 v1_runs (留 skill_runs.skill_runner.core.run 显式 mock 入参).
+# mock 演示模式不进 v1_runs (技能域已于 2026-11-19 整体退役).
 _VALID_RUN_PROTOCOLS = {"dsh", "pi", "direct"}
 _VALID_TRIGGER_SOURCES = {"user", "agent", "system", "scheduled", "webhook"}
 

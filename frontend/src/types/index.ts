@@ -740,16 +740,6 @@ export interface ContentDraft {
   content?: string;
 }
 
-export interface SkillConfig {
-  id: number;
-  skill_name: string;
-  secret_id: number | null;
-  model_override: string | null;
-  prompt_template: string | null;
-  enabled: boolean;
-  created_at: string;
-}
-
 export interface FederationStatus {
   local_wiki_enabled: boolean;
   local_wiki_path: string;
@@ -786,31 +776,6 @@ export interface ConceptDetail {
   local_wiki_ref: string | null;
   updated_at: string;
   items: { id: string; title: string; domain: string | null }[];
-}
-
-// ----- Phase 1e: 内容发布 -----
-export interface PublishTask {
-  task_id: number;
-  status: string;
-  draft_id: number;
-  platform: string;
-  skill_name: string;
-}
-
-export interface PublishHistoryItem {
-  task_id: number;
-  platform: string | null;
-  skill_name: string | null;
-  status: string;
-  published_url: string | null;
-  created_at: string;
-  updated_at: string | null;
-}
-
-export interface SkillValidation {
-  valid: boolean;
-  reason?: 'skill_not_found' | 'skill_disabled' | 'no_secret_bound';
-  secret_id?: number;
 }
 
 // ----- Phase 8: 资讯收藏聚合视图 (ImportedItem) -----

@@ -2,7 +2,7 @@
  * 行动域 API 客户端 (前端重构 V1 · B3)。
  *
  * 覆盖消费方实际用到的端点: 复习 (SM-2) 全族 / 判读待办 (planning_actions) /
- * 优先简报 (digests/priority) / 全局检索 (search)。
+ * 全局检索 (search)。
  * 函数体保持 lib/api 薄封装, URL 原样搬运。
  */
 
@@ -169,11 +169,6 @@ export function postActionEndpoint<T = unknown>(
 // ---------------------------------------------------------------------------
 // 优先简报 / 全局检索
 // ---------------------------------------------------------------------------
-
-/** GET /api/digests/priority?force= — 优先简报 (后端 5min TTL) */
-export function getPriorityDigest<T = unknown>(force = false): Promise<T> {
-  return apiFetch<T>(`/api/digests/priority${force ? '?force=true' : ''}`);
-}
 
 /** GET /api/search?q=&sources=&limit= — 全局检索 */
 export function searchAll<T = unknown>(

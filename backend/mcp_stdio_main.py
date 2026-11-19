@@ -64,22 +64,6 @@ def main() -> None:
         print(f"ERROR: db init failed: {e}", file=sys.stderr)
         sys.exit(2)
 
-    # v1.8: 与 main.py lifespan 对齐 —— 尝试从 OS keychain 自动恢复 unlock
-    # 状态, 否则 stdio 模式下依赖 secrets 的工具 (如 codegarden GitHub 同步)
-    # 会因未解锁而不可用。失败仅告警, 不阻断启动。
-    try:
-        from backend.services.secrets_service import try_auto_unlock
-        if try_auto_unlock():
-            print("Secrets auto-unlock: OK (restored from keychain)", file=sys.stderr)
-        else:
-            print(
-                "Secrets auto-unlock: skipped (no persisted master key)",
-                file=sys.stderr,
-            )
-    except Exception as e:
-        log.warning(f"mcp_stdio_main: auto-unlock failed (ignored): {e}")
-        print(f"WARNING: secrets auto-unlock failed (ignored): {e}", file=sys.stderr)
-
     # 构造 FastAPI app + FastApiMCP
     from backend.main import app  # 复用 main.py 完整 app
     mcp = build_mcp_server(app)

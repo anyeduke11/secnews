@@ -41,7 +41,7 @@ macos_only = pytest.mark.skipif(
 @pytest.fixture
 def ws(tmp_path) -> str:
     """workspace 锁定根 (realpath — Seatbelt 匹配 realpath)。"""
-    root = tmp_path / "codegarden" / "demo"
+    root = tmp_path / "workspace" / "demo"
     (root / "out").mkdir(parents=True)
     (root / "src").mkdir(parents=True)
     (root / "src" / "a.txt").write_text("hello", encoding="utf-8")
@@ -123,7 +123,7 @@ def test_profile_deny_repo_root_precedes_read_allow():
     last-match-wins: 放行必须排在两条 deny 之后, 否则声明内也不可读;
     反之若两条 deny 排在放行之后, 声明外仍可读 — 边界形同虚设。
     """
-    ws = os.path.realpath("/tmp/repo/codegarden/demo")
+    ws = os.path.realpath("/tmp/repo/workspace/demo")
     repo = os.path.realpath("/tmp/repo")
     profile = build_sandbox_profile(
         _spec(ws, readable_paths=("src",), repo_root=repo))
@@ -145,7 +145,7 @@ def test_profile_skips_repo_deny_when_repo_is_workspace():
 
 def test_profile_uses_realpath_not_symlink_path(tmp_path):
     """Seatbelt 匹配 realpath — /tmp/x 实为 /private/tmp/x, 不用 realpath 会失效。"""
-    root = tmp_path / "codegarden" / "demo"
+    root = tmp_path / "workspace" / "demo"
     root.mkdir(parents=True)
     profile = build_sandbox_profile(_spec(str(root)))
     assert os.path.realpath(str(root)) in profile
@@ -262,7 +262,7 @@ def test_sandbox_blocks_credential_file_read(ws, tmp_path, monkeypatch):
     (repo / "backend").mkdir(parents=True)
     (repo / ".env").write_text("MASTER_KEY=leak-me\n", encoding="utf-8")
     (repo / "hotspot.db").write_text("secret-db", encoding="utf-8")
-    work = repo / "codegarden" / "demo"
+    work = repo / "workspace" / "demo"
     work.mkdir(parents=True)
     (work / "src").mkdir()
     (work / "src" / "a.txt").write_text("ok", encoding="utf-8")

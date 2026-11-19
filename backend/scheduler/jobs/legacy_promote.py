@@ -8,7 +8,7 @@ migrate_resume: 扫 v1_legacy_mapping.status='awaiting_review' (apply 中断 res
 + 走 promote 路径; 同步清 v1_legacy_mapping.status='failed' 重试 1 次.
 
 注册入口: scheduler.py:_register_knowledge_jobs (T13 已建, C13 扩展)
-worker_pump 风格 job 56/57 (job 53=worker_queue_pump, 54=legacy_hold_reap, 55=knowledge_review_due)
+worker_pump 风格 job 56/57 (job 53/54 已随四域清理退役, 55=knowledge_review_due)
 """
 from __future__ import annotations
 

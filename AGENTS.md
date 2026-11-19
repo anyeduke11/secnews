@@ -2,6 +2,7 @@
 
 > **当前状态 (2026-11-17, v0.8.9)**: v0.8 Sentinel **四菜单** (`/` 资讯 → `/knowledge` 知识 → `/action` 行动 → `/settings` 设置) 是**唯一壳** (SentinelShell 4-tab + 管道心跳条全站常驻), v1.0 九领域对象/三类 receipt 只能以嵌入四菜单的能力区块进入 (SignalPanel/CaseQueuePanel/ExecOverviewPanel); v1 四入口 `/workbench` `/intel` `/cases` 仅为重定向兼容 (透传 query)。**唯一权威产品文档 = `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`**; 唯一权威 spec = `docs/v0.8.5/V0.8.5_PLAN.md` (§5 路由表 / §6 接口消费表 / §10 一致性门); 实现与验证分离, 实现侧不得自评 PASS。新能力只能以四菜单区块进入, 禁止新一级入口/新壳 (frontend/src/AGENTS.md 硬规则)。dsh 为受管子进程 (:3210, 降级链 not_configured→mock→ai_hub), 新文档勿再写"独立网关"。**当前阶段**: v0.8.9 主干流量专项 P0~P6 已交付 (试点演练①~⑥ 全 PASS); P7 收口 C7-1 已交付 (版本 0.8.9 置位 + 全链版本对齐), **C7-2 `git tag v0.8.9` 待 owner** (观测窗 2026-11-14 → 2026-12-14 满窗 + G1 计数达标)。版本演进史见 `docs/CHANGELOG.md` + git log + `PROGRESS.md` 活跃段, 不在本文件累积。
 > 历史决策 (三层架构裁决 / wiki-first 存储哲学 / Phase 7 退役冻结 / v1.0 四入口弯路与回摆) 见 `PROJECT.md`、`PROGRESS.md`、`docs/README.md` 与 `git log`, 不在此重复。
+> **2026-11-19 四域整体删除裁决**: owner 裁决工坊 CodeGarden / 技能库 skills / 密钥 secrets / 跨端同步 sync **四域整体删除** (前端页面+路由、后端 router/service/repo、feature gate、数据库表、技能域内部运行时), gate 16 → 10、routers 99 → 88、services 155 → 138、jobs 56 → 48; 阅读前提见权威 PRD `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md`「阅读前提：2026-11-19 四域整体删除裁决」, 审计留痕 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-19.md`。
 
 ## 文档地图
 
@@ -13,7 +14,7 @@
 
 ## 架构数字门禁
 
-架构数字由 `scripts/generate_meta.py` AST 反推维护 (56 jobs / 19 collectors / 99 routers / 155 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py --fix` (CI 有 `--check`)。
+架构数字由 `scripts/generate_meta.py` AST 反推维护 (48 jobs / 19 collectors / 88 routers / 138 services)。改动注册代码后必须同步 ARCHITECTURE.md: `python scripts/generate_meta.py --fix` (CI 有 `--check`)。
 
 ## 单一权威 PRD 维护纪律
 
@@ -25,12 +26,12 @@
 - **审计留痕**：重大设计/计划变更须在 `docs/audit/` 留痕，文件名格式 `PRD_ALIGNMENT_AUDIT_YYYY-MM-DD.md`。
 - **DEV_LOG 联动**：PRD/spec 变更须在 DEV_LOG 追加记录（关联文件包含被修改的 PRD 文档）。
 
-- **开关源**: `backend/config/feature_gates.toml` — 16 gate: 默认开启 15 (codegarden / codegarden_phase2b / sync / tech_stack / security_graph / secnews / dsh + v0.8 四 gate info_filter·skill_registry·trigger_gate·user_skills + interest_engine·semantic_filter·ai_classify·pipeline_ner); 默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring; crm 键已随 migration 116 整体删除)。gate 化须随消费点同时登记 (user_skills 先例)
+- **开关源**: `backend/config/feature_gates.toml` — 10 gate: 默认开启 9 (tech_stack / security_graph / secnews / dsh + info_filter · interest_engine · semantic_filter · ai_classify · pipeline_ner); 默认关闭 1 (mcp — extension gate 只管 /api/mcp/* 调试路由, server 本体由 is_mcp_enabled() 读 config.feature_mcp, 双开关契约见 mcp_config.py docstring; crm 键已随 migration 116 整体删除)。2026-11-19 四域删除退役 6 键: codegarden / codegarden_phase2b / sync / skill_registry / trigger_gate / user_skills。gate 化须随消费点同时登记 (历史遗漏先例: user_skills 曾漏登记, 该域已于 2026-11-19 退役)
 - **core 永不消失**: `backend/core/routers.py` core router 白名单, 与扩展域防重叠断言; 扩展 router 按 `is_extension_enabled()` 条件注册 (关闭时路由 404)
 - **job 门控**: `scheduler.py` `_is_job_enabled()` 按扩展归属过滤 8 个扩展 job
 - **env 覆盖**: `HOTSPOT_FEATURE_GATES='{"extensions": {...}}'` 优先级高于 TOML (CI core-only 用)
 - **测试约定**: conftest autouse fixture 测试环境全开 gates; 组合矩阵见 `backend/tests/test_feature_gates.py`
-- 详细设计: [`docs/CodeGarden_PRD_v1.7.md`](docs/CodeGarden_PRD_v1.7.md) (CodeGarden 域唯一设计入口; cg_resources 端口保护 + Fernet 加密)
+- 详细设计: ~~[`docs/CodeGarden_PRD_v1.7.md`](docs/CodeGarden_PRD_v1.7.md)~~ — **已退役** (2026-11-19 工坊域整体删除, 该 PRD 降为历史档案, 不再作为设计入口)
 
 ## Core 路径边界声明 (core.include / core.exclude)
 

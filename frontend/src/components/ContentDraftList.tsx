@@ -7,8 +7,6 @@ import {
   listContentDrafts,
 } from '../api/shared';
 import { useAbortGuard } from '../hooks/useAbortGuard';
-import { PublishDialog } from './PublishDialog';
-import { PublishHistory } from './PublishHistory';
 
 export function ContentDraftList() {
   const [drafts, setDrafts] = useState<ContentDraft[]>([]);
@@ -19,9 +17,6 @@ export function ContentDraftList() {
   const [loadingContent, setLoadingContent] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
-  const [publishDraftId, setPublishDraftId] = useState<number | null>(null);
-  const [publishDraftTitle, setPublishDraftTitle] = useState('');
-  const [historyDraftId, setHistoryDraftId] = useState<number | null>(null);
   const dead = useAbortGuard(); // P1-7 竞态守卫: 卸载后不写状态
 
   const loadDrafts = useCallback(() => {
@@ -168,22 +163,6 @@ export function ContentDraftList() {
                   {new Date(d.updated_at).toLocaleDateString('zh-CN')}
                 </span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setPublishDraftId(d.id); setPublishDraftTitle(d.title); }}
-                  className="text-[10px] px-1 shrink-0"
-                  style={{ color: 'var(--color-ai)' }}
-                  title="发布"
-                >
-                  发布
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setHistoryDraftId(d.id); }}
-                  className="text-[10px] px-1 shrink-0"
-                  style={{ color: 'var(--text-muted)' }}
-                  title="发布历史"
-                >
-                  历史
-                </button>
-                <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }}
                   className="text-[10px] px-1 shrink-0"
                   style={{ color: 'var(--color-error)' }}
@@ -204,16 +183,6 @@ export function ContentDraftList() {
           ))}
         </div>
       )}
-      <PublishDialog
-        draft_id={publishDraftId}
-        draft_title={publishDraftTitle}
-        onClose={() => setPublishDraftId(null)}
-        onPublished={() => loadDrafts()}
-      />
-      <PublishHistory
-        draft_id={historyDraftId}
-        onClose={() => setHistoryDraftId(null)}
-      />
     </div>
   );
 }

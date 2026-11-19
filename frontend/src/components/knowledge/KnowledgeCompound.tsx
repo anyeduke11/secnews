@@ -6,14 +6,12 @@
  *  - 掌握度雷达图 (MasteryGauge)
  *  - 创作日历 (ContentCalendar)
  *  - 草稿箱 (ContentDraftList)
- *  - 技能入口 (SkillEntryGrid)
  */
 import React from 'react';
 import { LearningPanel } from '../LearningPanel';
 import { MasteryGauge } from '../MasteryGauge';
 import { ContentCalendar } from '../ContentCalendar';
 import { ContentDraftList } from '../ContentDraftList';
-import { SkillEntryGrid } from '../SkillEntryGrid';
 import { KnowledgeCompoundingDashboard } from './KnowledgeCompoundingDashboard'; // P3-5 挂载
 import { KnowledgePlanningPanel } from './KnowledgePlanningPanel'; // P3-5 挂载
 import { Icon } from '../../primitives/Icon';
@@ -59,7 +57,7 @@ export function KnowledgeCompound() {
               知识复利 · 学习、掌握、产出
             </h3>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              从「输入」到「产出」的价值闭环：学习路径驱动掌握度，积累到阈值后转化为创作草稿，最终发布为可复用技能。
+              从「输入」到「产出」的价值闭环：学习路径驱动掌握度，积累到阈值后转化为创作草稿，最终沉淀为可复用的方法论。
             </p>
           </div>
         </div>
@@ -147,8 +145,8 @@ export function KnowledgeCompound() {
         </div>
       </section>
 
-      {/* 草稿箱 + 技能入口 */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* 草稿箱 */}
+      <section>
         <div
           className="rounded-[var(--radius-md)] p-3.5"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
@@ -172,32 +170,6 @@ export function KnowledgeCompound() {
             草稿箱
           </h3>
           <ContentDraftList />
-        </div>
-
-        <div
-          className="rounded-[var(--radius-md)] p-3.5"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
-        >
-          <h3
-            className="text-sm font-semibold flex items-center gap-2 mb-2"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            <span
-              className="w-5 h-5 rounded-sm flex items-center justify-center"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--area-accent) 14%, transparent)',
-                color: 'var(--area-accent)',
-              }}
-            >
-              <Icon size={11}>
-                <polyline points="16 18 22 12 16 6" />
-                <polyline points="8 6 2 12 8 18" />
-                <line x1="12" y1="2" x2="12" y2="22" />
-              </Icon>
-            </span>
-            技能入口
-          </h3>
-          <SkillEntryGrid />
         </div>
       </section>
 

@@ -24,31 +24,6 @@ export const SettingsPage = React.lazy(() =>
 export const HistoryPage = React.lazy(() =>
   import('../components/HistoryPage').then(m => ({ default: m.HistoryPage }))
 );
-export const SkillsPage = React.lazy(() =>
-  import('../components/SkillsPage').then(m => ({ default: m.SkillsPage }))
-);
-// v0.8 Phase A (A4): Skill Store — /skill-registry 技能商店 (/skills 已被 Phase 41 技能库占用)
-export const SkillStore = React.lazy(() =>
-  import('../components/skills/SkillStore').then(m => ({ default: m.SkillStore }))
-);
-// v0.8 Phase B (B6): Skill 详情页 + 运行历史回放 + 反馈打分
-export const SkillDetail = React.lazy(() =>
-  import('../components/skills/SkillDetail').then(m => ({ default: m.SkillDetail }))
-);
-// v0.8 Phase C (C4): Skill Builder 4 步向导
-export const SkillBuilder = React.lazy(() =>
-  import('../components/skills/SkillBuilder').then(m => ({ default: m.SkillBuilder }))
-);
-// v0.8 Phase D D2: Dashboard — skill 状态矩阵 + 触发器时间线 + 健康指标
-export const Dashboard = React.lazy(() =>
-  import('../components/dashboard/Dashboard').then(m => ({ default: m.Dashboard }))
-);
-export const SecretsPage = React.lazy(() =>
-  import('../components/secrets/SecretsPage').then(m => ({ default: m.SecretsPage }))
-);
-export const SyncPage = React.lazy(() =>
-  import('../components/sync').then(m => ({ default: m.SyncPage }))
-);
 export const ReportPage = React.lazy(() =>
   import('../components/report/ReportPage').then(m => ({ default: m.ReportPage }))
 );
@@ -92,13 +67,7 @@ export const AttentionHeatmap = React.lazy(() =>
   import('../components/knowledge/AttentionHeatmap').then(m => ({ default: m.AttentionHeatmap }))
 );
 
-// CodeGarden / 深读 / 简报 / 质检
-export const CodegardenPage = React.lazy(() =>
-  import('../components/CodegardenPage').then(m => ({ default: m.CodegardenPage }))
-);
-export const CodegardenPhase2bPage = React.lazy(() =>
-  import('../components/CodegardenPhase2bPage').then(m => ({ default: m.CodegardenPhase2bPage }))
-);
+// 深读 / 简报 / 质检
 export const ReviewPage = React.lazy(() =>
   import('../components/ReviewPage').then(m => ({ default: m.ReviewPage }))
 );
@@ -152,10 +121,7 @@ export const UnifiedSearchPage = React.lazy(() =>
   import('../components/search/UnifiedSearchPage').then(m => ({ default: m.UnifiedSearchPage }))
 );
 
-// D1 (Batch ⑧): OAuth 授权回调页 — OAuth 解锁跳转回此页处理 code
-export const OAuthCallbackPage = React.lazy(() =>
-  import('./oauth-callback').then(m => ({ default: m.OAuthCallbackPage }))
-);
+// D1 (Batch ⑧): OAuth 授权回调页已随密钥域退役删除 (2026-11-19 四域删除)
 
 // NAV4 P3 (2026-09-13, DEV-0178): 临时页面 — /maint
 // /maint: 维护诊断 (走 /api/maintenance/* 已注册端点)

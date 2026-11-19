@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-WS = "codegarden/p5-drill"
+WS = "workspace/p5-drill"
 
 
 def _setup_workspace() -> None:

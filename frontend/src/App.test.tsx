@@ -67,9 +67,7 @@ vi.mock('./hooks/useSSE', () => ({
 // v0.4.3: feature flag mock — 路由测试全部开启, 保证扩展路由可渲染
 // (真实默认值 codegarden/mcp 关闭, 见 hooks/useFeatureFlags DEFAULT_FLAGS)
 const mockFlags = {
-  codegarden: true,
   mcp: true,
-  sync: true,
   techStack: true,
   securityGraph: true,
 };
@@ -83,16 +81,12 @@ const ROUTES = [
   // 移出 ROUTES (依赖异步 Navigate, MemoryRouter 渲染不稳定, 端到端 e2e 验证)
   // { path: '/category/ai', label: /正在排版|工作台/ },
   { path: '/history', label: /正在排版/ },
-  { path: '/skills', label: /正在排版/ },
-  { path: '/secrets', label: /正在排版/ },
-  { path: '/sync', label: /正在排版/ },
   { path: '/weekly-report', label: /正在排版/ },
   { path: '/knowledge', label: /正在排版/ },
   { path: '/knowledge/import', label: /正在排版/ },
   { path: '/knowledge/process', label: /正在排版/ },
   { path: '/knowledge/compile', label: /正在排版/ },
   { path: '/knowledge/compound', label: /正在排版/ },
-  { path: '/codegarden', label: /正在排版/ },
 ];
 
 describe('App routing', () => {

@@ -53,7 +53,7 @@
 
 | 路径 | 组件 | 说明 |
 |---|---|---|
-| `/settings` | SettingsPage | **7 配置分区**（overview/general/models/collection/network/connectivity/ops） |
+| `/settings` | SettingsPage | **6 配置分区**（overview/general/models/collection/network/ops） |
 | `/sentinel/settings` | → `/settings?cat=general` | 兼容重定向 |
 | `/secrets` | SecretsPage | 密钥管理 |
 | `/sync` | SyncPage | 同步与备份（gate `sync`） |
@@ -78,7 +78,6 @@
 
 | 路径 | 组件 | 归属菜单 |
 |---|---|---|
-| `/oauth-callback` | OAuthCallbackPage | - |
 
 ## 二、后端 API 域 → 前端消费关系
 

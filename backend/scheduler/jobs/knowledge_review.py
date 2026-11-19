@@ -5,7 +5,7 @@
 (contracts §9.2 硬约束: 过期不改 status, 改 related case blocker).
 
 注册入口: scheduler.py:_register_knowledge_jobs (T13 新增)
-worker_pump 风格 job 55 (job 53=worker_queue_pump, job 54=legacy_hold_reap)
+worker_pump 风格 job 55 (job 53/54 已随四域清理退役)
 """
 from __future__ import annotations
 

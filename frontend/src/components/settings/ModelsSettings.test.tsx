@@ -37,12 +37,6 @@ function makeFetch() {
     if (url.startsWith('/api/llm/pool')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(POOL_FIXTURE) } as Response);
     }
-    if (url.startsWith('/api/secrets/status')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ initialized: true, unlocked: false }) } as Response);
-    }
-    if (url.startsWith('/api/secrets')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], total: 0 }) } as Response);
-    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
   });
 }
@@ -58,7 +52,8 @@ describe('ModelsSettings — 模型配置区', () => {
     await waitFor(() => expect(screen.getByTestId('pool-sensenova')).toBeInTheDocument());
     expect(screen.getByTestId('pool-sensenova')).toHaveTextContent('可用 1 款模型');
     expect(screen.getByTestId('agent-pi')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('secrets-panel')).toBeInTheDocument());
+    // 2026-11-19 密钥域退役: SecretsPanel 不再装配 (env-only)
+    expect(screen.queryByTestId('secrets-panel')).not.toBeInTheDocument();
     // 四卡之 provider 卡: st-section aria-label 即可访问名
     expect(screen.getByRole('region', { name: '默认 LLM Provider' })).toBeInTheDocument();
     // 四卡之三场景卡: ScenarioModelsPanel data-testid = `${scope}-panel`, scope="settings-models"

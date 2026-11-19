@@ -194,14 +194,14 @@ def test_unknown_preferred_agent_rejected(cfg):
 
 
 # ---------------------------------------------------------------------------
-# workspace 安全边界 (§19.3-3: 仅 codegarden/<project>/)
+# workspace 安全边界 (§19.3-3: 仅 workspace/<project>/)
 # ---------------------------------------------------------------------------
-def test_workspace_outside_codegarden_rejected():
+def test_workspace_outside_workspace_root_rejected():
     with pytest.raises(ValueError):
         agent_bridge.resolve_workspace("/etc")
     with pytest.raises(ValueError):
         agent_bridge.resolve_workspace("../escape")
-    assert agent_bridge.resolve_workspace("codegarden/myproj") == "codegarden/myproj"
+    assert agent_bridge.resolve_workspace("workspace/myproj") == "workspace/myproj"
     assert agent_bridge.resolve_workspace(None) is None
     assert agent_bridge.resolve_workspace("") is None
 

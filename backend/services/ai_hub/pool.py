@@ -9,9 +9,8 @@ key 即可, 自动识别有哪些模型可用"):
 - **llm.yaml providers** = 路由配置 (哪个任务用哪个 provider/model), 不因
   本目录扩大而膨胀; 平台接入流程 = 池内存 key → 探测确认 → 需要参与路由时
   再在 llm.yaml 加 provider 条目。
-- 密钥解析与 AIService._resolve_api_key 同链: env (key_env/别名) > 加密
-  保险箱 (llm_secrets WHERE provider=<平台名>)。env 永不落库, 保险箱经
-  Fernet 加密。
+- 密钥解析与 AIService._resolve_api_key 同链: **env-only** (key_env/别名)。
+  2026-11-19: 加密保险箱 (llm_secrets) 已随密钥域整体退役, env 永不落库。
 - 探测: GET {base_url}/models (OpenAI 兼容), 6s 超时, 401/403 = 密钥无效,
   404/405 = 平台不提供模型列表接口 (key 有效与否未知 → unknown), 其余报错
   截断 120 字。附带凭据前过 check_credential_egress (C3 门禁同链)。
@@ -25,13 +24,11 @@ from typing import Any
 
 import httpx
 
-from backend.logging_config import logger
-
 
 # 内置平台目录 — 全部 OpenAI 兼容网关。新增平台: 加条目 + egress.py 登记 host。
 @dataclass(frozen=True)
 class PlatformPreset:
-    name: str            # 平台标识 (llm_secrets.provider 与此对齐)
+    name: str            # 平台标识 (env key_env 与此对齐)
     label: str           # 中文展示名
     base_url: str        # OpenAI 兼容 base
     key_env: str         # 首选环境变量名
@@ -65,9 +62,10 @@ _PROBE_TIMEOUT = 6.0
 
 
 def resolve_preset_key(name: str) -> tuple[str, str]:
-    """解析平台密钥, 返回 (key, source); source ∈ env|secrets|none。
+    """解析平台密钥, 返回 (key, source); source ∈ env|none。
 
-    与 AIService._resolve_api_key 同链 (env 优先, 保险箱兜底, fail-soft)。
+    2026-11-19: 密钥服务 (llm_secrets vault) 已整体退役, 改为 env-only —
+    env 优先, 未设即 none (fail-soft, 不抛)。
     """
     preset = PRESETS_BY_NAME.get(name)
     if preset is None:
@@ -75,18 +73,7 @@ def resolve_preset_key(name: str) -> tuple[str, str]:
     for env_name in (preset.key_env, *preset.key_env_aliases):
         if v := os.environ.get(env_name, ""):
             return v, "env"
-    try:
-        from backend.repository.secrets_repo import SecretRepository
-        from backend.services.secrets_service import SecretsService, _is_unlocked
-        item = SecretRepository().get_by_provider(name)
-        if item is None:
-            return "", "none"
-        if not _is_unlocked(item.encryption_key_id):
-            return "", "none"
-        return SecretsService().decrypt_for_internal_use(item.id) or "", "secrets"
-    except Exception as e:
-        logger.warning("pool key read for %s failed: %s", name, e)
-        return "", "none"
+    return "", "none"
 
 
 def probe_platform(preset: PlatformPreset) -> dict[str, Any]:

@@ -35,7 +35,7 @@ CORE_ROUTERS: frozenset[str] = frozenset({
     # 行动层
     # DEV-0178: "bid_alert" 已随标讯剔除移除 (core 白名单同步)
     # R-13: "todos" 已随待办域退役移除 (repo/表保留, 仅 router 退场)
-    "content", "secrets", "skills",
+    "content",
     "reports", "maintenance",
     # 复利引擎 (kl_* core 域)
     "kl_compounding_api", "kl_metrics_api", "kl_rollback_api", "kl_planning_api",

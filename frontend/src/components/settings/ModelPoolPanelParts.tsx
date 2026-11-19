@@ -2,6 +2,7 @@
  * ModelPoolPanel 拆分零件 — 平台行 / 状态 chip / 路由档位常量
  *
  * 从 ModelPoolPanel.tsx 原样搬运, 仅 props 化; 行为 / DOM / 文案零变更。
+ * 2026-11-19: 密钥域退役 — 平台行不再提供密钥输入, 改为提示环境变量 (p.key_env)。
  */
 import type { PoolPlatform } from '../../api/settings';
 import { StatusBadge } from '../../primitives/StatusBadge';
@@ -30,29 +31,23 @@ const TIER_OPTIONS: Array<{ key: string; label: string }> = [
 
 export interface PoolPlatformRowProps {
   p: PoolPlatform;
-  keyDraft: string;
   routeOpen: boolean;
   routeDraft?: { tier: string; model: string };
   isWriting: boolean;
-  onKeyDraftChange: (v: string) => void;
   onToggleRoute: () => void;
   onTierChange: (tier: string) => void;
   onModelChange: (model: string) => void;
-  onSave: () => void;
   onWriteRoute: (tier: string, model: string) => void;
 }
 
 export function PoolPlatformRow({
   p,
-  keyDraft,
   routeOpen,
   routeDraft,
   isWriting,
-  onKeyDraftChange,
   onToggleRoute,
   onTierChange,
   onModelChange,
-  onSave,
   onWriteRoute,
 }: PoolPlatformRowProps) {
   return (
@@ -70,25 +65,7 @@ export function PoolPlatformRow({
       <div className="st-ctrl">
         <PlatformChip p={p} />
         {!p.configured && (
-          <div className="st-ctrlrow">
-            <input
-              type="password"
-              className="st-input"
-              style={{ maxWidth: 180 }}
-              placeholder={`${p.label} API Key`}
-              aria-label={`${p.label} API Key`}
-              value={keyDraft}
-              onChange={e => onKeyDraftChange(e.target.value)}
-            />
-            <button
-              type="button"
-              className="st-btn primary"
-              onClick={onSave}
-              aria-label={`保存并检测 ${p.label}`}
-            >
-              保存并检测
-            </button>
-          </div>
+          <span className="st-cellnote">环境变量 {p.key_env} 未配置 — 配置后重启后端再「重新探测」</span>
         )}
         {(p.available === true || p.configured) && (
           <button

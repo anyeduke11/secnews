@@ -419,45 +419,6 @@ class HotspotScheduler:
             replace_existing=True,
         )
 
-    def _register_codegarden_jobs(self, _now_utc: datetime) -> None:
-        """CodeGarden 扩展域: 上游同步 + 服务网格 + 事件总线 + 漂移评估。"""
-        # Phase 2a CodeGarden: job 15 — 上游同步 (每日 09:00 Asia/Shanghai)
-        if _is_job_enabled("cg_upstream_sync"):
-            self.scheduler.add_job(
-                jobs.cg_upstream_sync_job,
-                trigger=CronTrigger(hour=9, timezone=SHANGHAI_TZ),
-                id="cg_upstream_sync",
-                name="codegarden upstream sync (daily 09:00)",
-                replace_existing=True,
-            )
-        # Phase 2b CodeGarden: job 16 — 服务网格自动发现 (每 5 分钟)
-        if _is_job_enabled("cg_service_scan"):
-            self.scheduler.add_job(
-                jobs.cg_service_scan_job,
-                trigger=IntervalTrigger(seconds=300, start_date=_now_utc),
-                id="cg_service_scan",
-                name="codegarden service scan (every 5min)",
-                replace_existing=True,
-            )
-        # Phase 2b CodeGarden: job 17 — 事件总线处理 (每 60 秒)
-        if _is_job_enabled("cg_event_process"):
-            self.scheduler.add_job(
-                jobs.cg_event_process_job,
-                trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-                id="cg_event_process",
-                name="codegarden event process (every 60s)",
-                replace_existing=True,
-            )
-        # Phase 14: job 38 — 技术栈漂移评估 (每小时)
-        if _is_job_enabled("cg_drift_assess"):
-            self.scheduler.add_job(
-                jobs.cg_drift_assess_job,
-                trigger=IntervalTrigger(seconds=3600, start_date=_now_utc),
-                id="cg_drift_assess",
-                name="codegarden tech stack drift assess (every 3600s)",
-                replace_existing=True,
-            )
-
     def _register_security_jobs(self, _now_utc: datetime) -> None:
         """安全图谱域: MITRE 同步 + CVE 同步 + security↔knowledge 实体统一。"""
         # Phase 2 Security Graph: job 18 — MITRE ATT&CK 同步 (每周日 04:00 Asia/Shanghai)
@@ -484,15 +445,6 @@ class HotspotScheduler:
             trigger=IntervalTrigger(seconds=600, start_date=_now_utc),
             id="security_entity_concept_sync",
             name="security entity ↔ knowledge concept sync (every 600s)",
-            replace_existing=True,
-        )
-        # v0.7 Batch ⑨ B9-2: secrets 主密钥轮换检查 (每日 09:00 Asia/Shanghai)
-        # 调 SecretsService.rotation_status(), 超 90 天阈值则触发告警通道 + audit
-        self.scheduler.add_job(
-            jobs.secrets_rotation_check_job,
-            trigger=CronTrigger(hour=9, minute=0, timezone="Asia/Shanghai"),
-            id="secrets_rotation_check",
-            name="secrets master key rotation check (daily 09:00 Asia/Shanghai)",
             replace_existing=True,
         )
         # MP-2: 事件类型实例化 — 采集 agent_A~E → 抽取 technique 候选 → 入池
@@ -537,19 +489,7 @@ class HotspotScheduler:
         )
 
     def _register_maintenance_jobs(self, _now_utc: datetime) -> None:
-        """运维 / 观测域: 跨端同步 + 周维护 + 遥测/备份 + 观测表 TTL/roll-up + 衰减。"""
-        # Phase 42: job 6 — 跨端配置同步 (Q2 决策: 每周一 10:30 Asia/Shanghai)
-        if _is_job_enabled("sync"):
-            self.scheduler.add_job(
-                jobs.sync_job,
-                trigger=CronTrigger(
-                    day_of_week="mon", hour=10, minute=30,
-                    timezone=SHANGHAI_TZ,
-                ),
-                id="sync",
-                name="cross-device config sync (Mon 10:30)",
-                replace_existing=True,
-            )
+        """运维 / 观测域: 周维护 + 遥测/备份 + 观测表 TTL/roll-up + 衰减。"""
         # v1.8 R3: 原 job 10 (compile_weekly, 周日 03:00) 已删除 — 与
         # compile_daily 重复注册同一函数, 周日会在 02:00/03:00 跑两次
         # v1.8 R3: 原 soul_weekly (Sun 04:00) / migrate_weekly (Sun 05:00) /
@@ -622,24 +562,6 @@ class HotspotScheduler:
             name="profile weight decay (03:00 Shanghai)",
             replace_existing=True,
         )
-        # v1.0 T09: job 53 — worker_queue_pump (每 60s 拉 trigger_gate/ai_hub/case_service 队列)
-        self.scheduler.add_job(
-            jobs.worker_queue_pump_job,
-            trigger=IntervalTrigger(seconds=60, start_date=_now_utc),
-            id="worker_queue_pump",
-            name="worker queue pump: trigger_gate/ai_hub/case_service (every 60s)",
-            replace_existing=True,
-        )
-        # v1.0 T09: job 54 — legacy_hold_reap (周一 04:30 Asia/Shanghai, F01 收尾)
-        self.scheduler.add_job(
-            jobs.legacy_hold_reap_job,
-            trigger=CronTrigger(
-                day_of_week="mon", hour=4, minute=30, timezone=SHANGHAI_TZ
-            ),
-            id="legacy_hold_reap",
-            name="legacy hold reap: F01 53 pending → legacy_hold (Mon 04:30 Shanghai)",
-            replace_existing=True,
-        )
         # v1.0 T13: job 55 — knowledge_review_due (每日 04:00 Asia/Shanghai, SK-06 复查扫描)
         self.scheduler.add_job(
             jobs.knowledge_review_due_job,
@@ -686,7 +608,6 @@ class HotspotScheduler:
         self._register_ingest_jobs(_now_utc)
         self._register_kl_jobs(_now_utc)
         self._register_knowledge_jobs(_now_utc)
-        self._register_codegarden_jobs(_now_utc)
         self._register_security_jobs(_now_utc)
         self._register_digest_jobs(_now_utc)
         self._register_maintenance_jobs(_now_utc)
@@ -746,30 +667,9 @@ class HotspotScheduler:
             self.logger.warning(f"_on_job_missed record failed (ignored): {e}")
 
     async def _run_initial(self) -> None:
-        """启动后延迟 5s 执行首次采集 + 跨端同步 catch-up 检查"""
+        """启动后延迟 5s 执行首次采集"""
         await asyncio.sleep(5)
         await jobs.collect_all_job()
-        # Phase 42: 启动 catch-up (Q2 决策; v0.4.3: sync 扩展关闭时跳过)
-        if not _is_job_enabled("sync"):
-            self.logger.info("sync extension disabled, skipping catch-up check")
-            return
-        try:
-            from backend.repository.sync_configs_repo import SyncConfigRepository
-            from backend.scheduler.jobs import should_run_catchup
-            cfg = SyncConfigRepository().get_default()
-            if cfg is not None and cfg.auto_sync_enabled:
-                now_sh = datetime.now(tz=SHANGHAI_TZ)
-                if should_run_catchup(cfg.last_sync_at, now_sh):
-                    self.logger.info(
-                        f"sync catch-up: 本周一 10:30 后未同步 (last_sync_at={cfg.last_sync_at})"
-                    )
-                    await jobs.sync_job(force=True)
-                else:
-                    self.logger.info(
-                        f"sync catch-up: 无需 (last_sync_at={cfg.last_sync_at}, now={now_sh.isoformat()})"
-                    )
-        except Exception as e:
-            self.logger.warning(f"sync catch-up check failed (ignored): {e}")
 
     def stop(self, wait: bool = True, timeout: float = 60.0) -> None:
         """优雅关闭调度器（Phase 8 容错版：所有异常内部吞掉，returncode=0）"""

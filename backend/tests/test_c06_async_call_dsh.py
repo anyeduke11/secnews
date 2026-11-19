@@ -1,12 +1,11 @@
-"""v1.0 C06 反例测试 — 4 service _call_dsh 异步边界 (R07).
+"""v1.0 C06 反例测试 — 3 service _call_dsh 异步边界 (R07).
 
 依据 [docs/v1.0/V1.0.0_CLOSEOUT_TASKS.md §7 C06] + [REVIEW_2026-09-07.md R07]
 
-范围 (本测试): 4 业务 service 的 ``_call_dsh`` 同步 ctx 异步边界.
+范围 (本测试): 3 业务 service 的 ``_call_dsh`` 同步 ctx 异步边界.
   - judgment_service._call_dsh
   - action_service._call_dsh
   - knowledge_service._call_dsh
-  - sk01_daily_priority.DailyPriorityIntelService._call_dsh
 
 反例:
   旧实现 ``_call_dsh`` 直调 ``ai_service.generate_text`` (async 函数) 当 sync
@@ -121,19 +120,6 @@ def test_knowledge_call_dsh_returns_string_not_corobject(fake_dsh_caller, fake_a
     assert out.startswith("fake-vendor-ok:") and "knowledg" in out
 
 
-def test_sk01_call_dsh_returns_string_not_corobject(fake_dsh_caller, fake_ai_hub_async):
-    """R07 反例基线: sk01._call_dsh() 必返字符串."""
-    from backend.services.skill_registry.sk01_daily_priority import (
-        DailyPriorityIntelService,
-    )
-    svc = DailyPriorityIntelService(dsh_caller=fake_dsh_caller)
-    out = svc._call_dsh("test prompt for sk01 R07")
-    assert isinstance(out, str), (
-        f"R07 修复断言: sk01._call_dsh 应返 str, 实际 type={type(out).__name__}"
-    )
-    assert out.startswith("fake-vendor-ok:") and "sk01" in out
-
-
 # ---------------------------------------------------------------------------
 # 修复断言 2: 默认路径 — DSHVendorUnavailableError → ai_hub 显式 fallback
 # ---------------------------------------------------------------------------
@@ -200,24 +186,6 @@ def test_knowledge_call_dsh_default_falls_back_to_ai_hub_explicitly(monkeypatch,
     out = svc._call_dsh("knowledge default path test")
     assert isinstance(out, str), (
         f"knowledge 默认路径应走 ai_hub fallback 返字符串, 实际 type={type(out).__name__}"
-    )
-
-
-def test_sk01_call_dsh_default_falls_back_to_ai_hub_explicitly(monkeypatch, fake_ai_hub_async):
-    """R07+R06 修复断言: sk01 默认路径 — vendor blocked → ai_hub fallback."""
-    from backend.services.dsh_adapter import DSHVendorUnavailableError
-    from backend.services.skill_registry.sk01_daily_priority import (
-        DailyPriorityIntelService,
-    )
-
-    monkeypatch.setattr(
-        "backend.services.dsh_adapter.probe_dsh_vendor",
-        lambda *, timeout_s=2.0: DSHVendorUnavailableError("forced D3"),
-    )
-    svc = DailyPriorityIntelService()
-    out = svc._call_dsh("sk01 default path test")
-    assert isinstance(out, str), (
-        f"sk01 默认路径应走 ai_hub fallback 返字符串, 实际 type={type(out).__name__}"
     )
 
 
@@ -309,20 +277,4 @@ def test_knowledge_dsh_caller_field_type_is_callable_not_any():
     assert dsh_param is not None and dsh_param.annotation != inspect.Parameter.empty
     assert "Callable" in str(dsh_param.annotation), (
         f"F821 修复断言: knowledge dsh_caller 应为 Callable, 实际={dsh_param.annotation!r}"
-    )
-
-
-def test_sk01_dsh_caller_field_type_is_callable_not_any():
-    """F821 修复断言: DailyPriorityIntelService.dsh_caller 是 Callable."""
-    import inspect
-
-    from backend.services.skill_registry.sk01_daily_priority import (
-        DailyPriorityIntelService,
-    )
-
-    sig = inspect.signature(DailyPriorityIntelService.__init__)
-    dsh_param = sig.parameters.get("dsh_caller")
-    assert dsh_param is not None and dsh_param.annotation != inspect.Parameter.empty
-    assert "Callable" in str(dsh_param.annotation), (
-        f"F821 修复断言: sk01 dsh_caller 应为 Callable, 实际={dsh_param.annotation!r}"
     )

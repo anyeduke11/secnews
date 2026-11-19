@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased] — 2026-11-19 四域整体删除
+
+owner 2026-11-19 裁决: 工坊 CodeGarden / 技能库 skills / 密钥 secrets / 跨端同步 sync **四域整体删除**（前端页面+路由、后端 router/service/repo、feature gate、数据库表、技能域内部运行时）。版本号保持 **0.8.9** 不升。
+
+### 删除
+- 前端 94 文件: `components/{codegarden,secrets,skills,sync}/` 四目录及对应页面/路由/api 客户端; `/garden` 仅保留重定向到 `/action`
+- 后端包/模块: `backend/services/{skill_registry, skill_runner, skill_eval, skill_builder, trigger_gate, playbook_engine, agent_loop, agent_memory, worker_coordinator, legacy_hold_service, sync_service, sync_bundle, sync_merge, codegarden_*, secrets_service}`、`backend/repository/{secrets_repo, codegarden_repo, encryption_keys_repo}`、`backend/api` 四域路由文件、`backend/scheduler/jobs/worker_pump.py`
+- feature gate: `codegarden` / `codegarden_phase2b` / `sync` / `skill_registry` 删除, 连带技能域 `trigger_gate` / `user_skills` 共退役 6 键, gate 总数 **16 → 10**（默认开 9 + mcp 默认关 1）
+- 端点: content publish 流退役（skill 驱动）; `/api/tech-stack/impact`、`/api/digests/priority`、MCP `trigger-codegarden-drift` 删除
+- 架构数字: **48 jobs / 19 collectors / 88 routers / 138 services**（jobs 56→48, routers 99→88, services 155→138）
+
+### 改造
+- ai_hub 密钥解析改 **env-only**（env 主名 > 别名 > 无; fail-soft 不抛; 无 secrets vault 回退）
+- 告警 SMTP 凭据改用环境变量 `HOTSPOT_ALERT_SMTP_PASSWORD`
+- 工作区根 `codegarden/` → `workspace/`（agent_bridge / execution_plan/enforcer / 演练脚本 / .gitignore）
+- `alert_engine`: `tech_stack_cve` 规则随工坊域退役（数据源 `cg_projects` 已 DROP）; `scripts/retention.json` 移除 26 条已删表的保留策略
+
+### 数据
+- 新增 `backend/repository/migrations/137_drop_four_domains.sql`（append-only, 历史 SQL 不删）: DROP 工坊 9 表（`cg_*`）/ 技能库 4 表（`knowledge_skill_config`, `user_skills`, `skill_runs`, `skills`）/ 密钥 3 表（`secret_access_logs`, `llm_secrets`, `encryption_keys`）/ 同步 3 表（`sync_history`, `sync_states`, `sync_configs`）+ 内部运行时孤儿 8 表（`dead_letter`, `worker_runs`, `loop_checkpoints`, `feedback_log`, `agent_preferences`, `playbook_runs`, `playbook_schedules`, `trigger_tickets`）
+- 迁移文件累计 134 个（001-137, 066-069 为历史空洞）
+
+### 文档
+- 权威 PRD `docs/HOTSPOT_SECURITY_AI_WORKBENCH_PRD.md` 增「阅读前提：2026-11-19 四域整体删除裁决」, 并回写 §1.1 / §3.2 / §3.4 / §4.3 / §5.2 / §6.1 / §6.2 / §6.3
+- audit 留痕 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-19.md`; `AGENTS.md` / `CLAUDE.md` / `frontend/src/AGENTS.md` 同步回写; `DEV_LOG.md` 新增 DEV-0409
+- 验证: pytest 全量 4727 passed / 5 skipped / 0 failed; 前端 tsc + vitest（99 文件 674 测试）+ vite build 全绿; `generate_meta.py --check` / `harness_analyze.py --check` / `ruff check backend/` 通过
+
 ## v0.8.9 (2026-11-17) — 主干流量专项: 执行链从断点到可运营 (tag 待 owner 打点)
 
 **版本性质**: v0.8.8 是重构版 (零新业务能力), 本版是**主干流量版** —— 补齐 v0.8.6 遗留的执行链六断点, 让"资讯→Signal→Case→Claim→Run→Artifact→Knowledge"全链真实流动。P0~P6 七阶段 18 commit 全交付。版本族文档 = `docs/v0.8.9/V0.8.9_PRD.md` + `V0.8.9_IMPLEMENTATION_PLAN.md`。

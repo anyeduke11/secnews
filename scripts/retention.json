@@ -114,19 +114,6 @@
       "notes": ""
     },
     {
-      "table": "agent_preferences",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "agent_runs",
       "temp": "HOT",
       "layer": "db",
@@ -348,123 +335,6 @@
       "notes": ""
     },
     {
-      "table": "cg_dependencies",
-      "temp": "WARM",
-      "layer": "db",
-      "ts_column": "created_at",
-      "ts_format": "iso",
-      "retention_days": 60,
-      "action": "truncate",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
-      "table": "cg_drift_assessments",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_events",
-      "temp": "WARM",
-      "layer": "db",
-      "ts_column": "created_at",
-      "ts_format": "iso",
-      "retention_days": 60,
-      "action": "truncate",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
-      "table": "cg_project_activities",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "event",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_project_links",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_project_stages",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_projects",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_resources",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "cg_services",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "collect_validations",
       "temp": "WARM",
       "layer": "db",
@@ -634,19 +504,6 @@
       "notes": ""
     },
     {
-      "table": "dead_letter",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "deep_reads",
       "temp": "HOT",
       "layer": "db",
@@ -670,19 +527,6 @@
       "source": "index",
       "recovery": "recompute",
       "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
-      "table": "encryption_keys",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -772,19 +616,6 @@
       "retention_days": null,
       "action": "keep",
       "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "feedback_log",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
       "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
@@ -1206,19 +1037,6 @@
       "notes": ""
     },
     {
-      "table": "knowledge_skill_config",
-      "temp": "WARM",
-      "layer": "db",
-      "ts_column": "created_at",
-      "ts_format": "iso",
-      "retention_days": 90,
-      "action": "truncate",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
       "table": "knowledge_tasks",
       "temp": "WARM",
       "layer": "db",
@@ -1245,19 +1063,6 @@
       "notes": ""
     },
     {
-      "table": "llm_secrets",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "llm_usage_log",
       "temp": "WARM",
       "layer": "db",
@@ -1268,19 +1073,6 @@
       "source": "telemetry",
       "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
-      "table": "loop_checkpoints",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -1346,32 +1138,6 @@
       "source": "state",
       "recovery": "unrecoverable",
       "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
-      "table": "playbook_runs",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "playbook_schedules",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
       "notes": ""
     },
     {
@@ -1506,19 +1272,6 @@
       "notes": ""
     },
     {
-      "table": "secret_access_logs",
-      "temp": "WARM",
-      "layer": "db",
-      "ts_column": "created_at",
-      "ts_format": "iso",
-      "retention_days": 90,
-      "action": "truncate",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "weekly_maintenance",
-      "notes": ""
-    },
-    {
       "table": "security_edges",
       "temp": "HOT",
       "layer": "db",
@@ -1597,32 +1350,6 @@
       "notes": ""
     },
     {
-      "table": "skill_runs",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "skills",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "sm2_reviews",
       "temp": "HOT",
       "layer": "db",
@@ -1684,45 +1411,6 @@
       "action": "keep",
       "source": "index",
       "recovery": "recompute",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "sync_configs",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "sync_history",
-      "temp": "WARM",
-      "layer": "db",
-      "ts_column": "started_at",
-      "ts_format": "iso",
-      "retention_days": 90,
-      "action": "truncate",
-      "source": "event",
-      "recovery": "unrecoverable",
-      "scheduled_in": "weekly_maintenance",
-      "notes": "既有 cleanup_history() 已处理 (90 天)"
-    },
-    {
-      "table": "sync_states",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     },
@@ -1805,19 +1493,6 @@
       "notes": ""
     },
     {
-      "table": "trigger_tickets",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
       "table": "unified_fts",
       "temp": "WARM",
       "layer": "db",
@@ -1897,19 +1572,6 @@
     },
     {
       "table": "user_memory",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "state",
-      "recovery": "unrecoverable",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "user_skills",
       "temp": "HOT",
       "layer": "db",
       "ts_column": "",
@@ -2230,19 +1892,6 @@
       "action": "keep",
       "source": "index",
       "recovery": "recompute",
-      "scheduled_in": "none",
-      "notes": ""
-    },
-    {
-      "table": "worker_runs",
-      "temp": "HOT",
-      "layer": "db",
-      "ts_column": "",
-      "ts_format": "iso",
-      "retention_days": null,
-      "action": "keep",
-      "source": "telemetry",
-      "recovery": "unrecoverable",
       "scheduled_in": "none",
       "notes": ""
     }

@@ -1,10 +1,9 @@
 """MCP Agent 侧写 tool（副作用模式，原 Phase 8）
 
-提供 4 个独立写 tool：
+提供 3 个独立写 tool：
 - score_item: 写入 ai_scores 表
 - enrich_concept: 写入 concepts/{name}.md
 - link_items: 写入 knowledge_links 表
-- trigger_codegarden_drift: 评估 project tech_stack（当前 stub）
 """
 from __future__ import annotations
 
@@ -59,10 +58,6 @@ class LinkItemsRequest(BaseModel):
     to_id: str = Field(..., min_length=1)
     link_type: str = Field(..., pattern=r"^(similar|prerequisite|extension|contradiction|source)$")
     confidence: float | None = Field(default=0.5, ge=0, le=1)
-
-
-class TriggerDriftRequest(BaseModel):
-    project_id: str = Field(..., min_length=1)
 
 
 # ---------------------------------------------------------------------------
@@ -145,18 +140,6 @@ async def link_items(req: LinkItemsRequest):
     except Exception as e:
         logger.error("link_items failed", extra={"trace_id": "", "error": str(e)})
         raise HTTPException(status_code=500, detail={"message": str(e)})
-
-
-# ---------------------------------------------------------------------------
-# trigger_codegarden_drift — 评估 project tech_stack（Phase 13 完善）
-# ---------------------------------------------------------------------------
-@router.post("/trigger-codegarden-drift")
-async def trigger_codegarden_drift(req: TriggerDriftRequest):
-    """评估 project tech_stack（MCP tool: trigger_codegarden_drift）。
-
-    Phase 13 实现完整的 tech_stack 评估；当前返回 stub（drift_score=0.0）。
-    """
-    return {"status": "ok", "drift_score": 0.0}
 
 
 __all__ = ["router"]

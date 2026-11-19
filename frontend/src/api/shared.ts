@@ -153,21 +153,6 @@ export function deleteContentDraft(id: string | number): Promise<void> {
   return apiFetch<void>(`/api/content/drafts/${id}`, { method: 'DELETE' });
 }
 
-/** GET /api/knowledge/skills/{name}/validate — 发布前平台 skill 校验 */
-export function validateKnowledgeSkill<T = { valid: boolean; reason?: string }>(
-  skillName: string,
-): Promise<T> {
-  return getJSON<T>(`/api/knowledge/skills/${encodeURIComponent(skillName)}/validate`);
-}
-
-/** POST /api/content/drafts/{id}/publish — 创建发布任务 */
-export function publishContentDraft<T = unknown>(
-  draftId: string | number,
-  body: { platform: string; skill_name: string; options: { dry_run: boolean; tags: string[] } },
-): Promise<T> {
-  return postJSON<T>(`/api/content/drafts/${draftId}/publish`, body);
-}
-
 // ---------------------------------------------------------------------------
 // 刷新间隔偏好 / 知识导入 (kl)
 // ---------------------------------------------------------------------------

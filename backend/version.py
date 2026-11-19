@@ -38,6 +38,9 @@ Phase C: playbook_engine (skill/api/condition 三类 Step) + cron 调度持久�
 (user_skills 表 + 4 步向导) + skill_eval 5 黄金 fixtures 评测框架;
 Phase D: webhook/KL 事件/collector failure 三触发源 + /dashboard 看板 + i18n 双语补齐;
 见 docs/V0.8_REFACTOR_PLAN.md / docs/V0.8_USER_GUIDE.md。
+注: Phase A/B/C 的 trigger_gate / skill_registry / skill_builder / skill_eval / playbook_engine
+(及 agent_loop / agent_memory / worker_coordinator) 已于 2026-11-19 随技能域整体退役删除,
+本节仅作历史记录 (version 保持 0.8.9, 不因删除变动)。
 
 v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — Day 0 graceful shutdown
 (utils/shutdown.py: drain_in_flight 有界等在跑 job + wal_checkpoint) + 七 gate

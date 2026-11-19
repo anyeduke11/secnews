@@ -26,6 +26,17 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 - 视觉条款：重构契约 §3 取代 `design/UI_UX_CONTRACT.md` 的视觉 token 与组件密度条款。
 - 每批交付须同步 `docs/CHANGELOG.md` 与 `DEV_LOG.md`；首屏性能与覆盖率基线实测存档于 `docs/audit/`，实现侧不得自评 PASS。
 
+## 阅读前提：2026-11-19 四域整体删除裁决
+
+owner 2026-11-19 裁决：**工坊 CodeGarden / 技能库 skills / 密钥 secrets / 同步 sync 四个域整体删除**（真·全删，含前端页面与路由、后端接口与 service、feature gate、数据库表、技能域内部运行时）。
+
+- **范围**: 前端四域页面/组件/路由 + 后端 router/service/repo + `backend/services/skill_registry|skill_runner|skill_eval|skill_builder|trigger_gate|playbook_engine` + `agent_loop|agent_memory|worker_coordinator|legacy_hold_service` 内部运行时 + 调度 job（worker pump / legacy hold reap）全部移除。
+- **密钥**: `llm_secrets` vault 退役，ai_hub 密钥解析改 **env-only**（env 主名 > 别名 > 无；fail-soft 不抛）。告警通道 SMTP 凭据同步改 env-only。
+- **数据**: 新增销毁型迁移 `backend/repository/migrations/137_drop_four_domains.sql`（历史 SQL 文件不删，遵循 append-only）；DROP 覆盖工坊 9 表 / 技能库 4 表 / 密钥 3 表 / 同步 3 表 + 内部运行时孤儿 8 表。
+- **执行链**: 工作区根由 `codegarden/` 改为 **`workspace/`**（enforcer / agent_bridge / 演练脚本 / .gitignore 同步）。
+- **壳不变**: SentinelShell 四菜单（`/` `/knowledge` `/action` `/settings`）仍是唯一壳；v1 九领域对象与三类 receipt 只以嵌入区块进入。
+- **文档效力**: 本文以下章节中凡出现 CodeGarden / 技能库 / 密钥库 / 跨端同步的能力、分期、路由与验收描述，**一律视为已废止**；架构数字以 §6 更新值为准。审计留痕见 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-11-19.md`。
+
 ## 第 1 章 · 产品概述与核心飞轮
 
 ### 1.0 v0.8.6 产品裁决增量
@@ -38,7 +49,7 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 
 ### 1.1 一句话定位
 
-**面向安全从业者的单人本地 AI 工作台**：SecNews 资讯聚合 + 知识复利 + 安全实践域执行，运行在用户自有机器上。**本地运行不等于数据不出域**：配置外部模型或 WebDAV 同步时，相关内容可离开本机；离线模式、资料分级与外部推理限制不能视为已实现承诺。
+**面向安全从业者的单人本地 AI 工作台**：SecNews 资讯聚合 + 知识复利 + 安全实践域执行，运行在用户自有机器上。**本地运行不等于数据不出域**：配置外部模型时相关内容可离开本机；离线模式、资料分级与外部推理限制不能视为已实现承诺。（跨端同步域已于 2026-11-19 整体退役。）
 
 ### 1.2 核心目标
 
@@ -321,14 +332,16 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 
 **不做的**：shell=True、workspace 外写、交互式输入、凭据传递。
 
-### 5.2 CodeGarden 安全实践域（4 期）
+### 5.2 ~~CodeGarden 安全实践域（4 期）~~ — 已废止
+
+**2026-11-19 裁决**: 工坊域整体删除（前端页面/路由 + 后端接口 + 9 张 `cg_*` 表 + 服务网格/资源中枢）。以下四期规划不再执行，保留原文仅作历史对照。
 
 | 期 | 内容 | 工作量 |
 |---|---|---|
-| **CP-1** | S1 全量开源信号提取（9,872 条实跑）+ 候选池端点 | 2-3 天 |
-| **CP-2** | S2 立项四阶段 + 行动侧入口 | 2-3 天 |
-| **CP-3** | S3 产物沉淀 + 知识联动 | 2-3 天 |
-| **CP-4** | S4 工具台账 + phase2b 删除裁决 | 1-2 天 |
+| ~~CP-1~~ | ~~S1 全量开源信号提取（9,872 条实跑）+ 候选池端点~~ | 已废止 |
+| ~~CP-2~~ | ~~S2 立项四阶段 + 行动侧入口~~ | 已废止 |
+| ~~CP-3~~ | ~~S3 产物沉淀 + 知识联动~~ | 已废止 |
+| ~~CP-4~~ | ~~S4 工具台账 + phase2b 删除裁决~~ | 已废止 |
 
 ### 5.3 MITRE ATT&CK MP-3 / MP-4
 
@@ -345,22 +358,22 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 
 | 指标 | 数值 | 说明 |
 |---|---|---|
-| **Routers** | 99 | AST 反推 (generate_meta --check 维护, 2026-11-17); 含聚合 router; v0.8.9 C1-2 / C3-4 各 +1 |
-| **Services** | 155 | 13 包 + v1 域服务 (2026-11-17); v0.8.8 P2.5 备份链退役 −2 + P4.5 R-16 孤儿清理 −4; v0.8.9 +observability_alert / retrospective |
-| **Migrations** | 133 | 缺号 066-069 为历史编号空洞 (informational, 勿改名) |
-| **Jobs** | 56 | APScheduler (2026-11-14); v0.8.8 P3 −3 / 备份链 −2 / log_trim_job +1 / fts_rebuild_job −1 |
+| **Routers** | 88 | AST 反推 (generate_meta --check 维护, 2026-11-19); 含聚合 router; 四域删除 −11 |
+| **Services** | 138 | 13 包 + v1 域服务 (2026-11-19); 四域删除 −17 (含技能域内部运行时) |
+| **Migrations** | 134 | 001-137, 缺号 066-069 为历史编号空洞 (informational, 勿改名); 137 = 四域 DROP |
+| **Jobs** | 48 | APScheduler (2026-11-19); 四域删除 −8 (worker pump / legacy hold reap 等) |
 | **Collectors** | 19 | SSRF 防护走 url_safety (2026-11-14 实测) |
-| **Feature Gates** | 16 | 开 15 / 关 1 (mcp；管线 LLM 三 gate semantic_filter / ai_classify / pipeline_ner 2026-09-19 开闸, env HOTSPOT_FEATURE_GATES 可应急回关) |
-| **Tests** | 5,374 passed | 全量 pytest (2026-11-14, 7 skipped, 0 failed); 数字随提交滚动, 以最近 DEV_LOG 为准 |
-| **MCP Tools** | 23 | 16 读 + 7 写 (v0.8.7 P3-B +4 只读: list_proposals/runs/artifacts/cases) |
+| **Feature Gates** | 10 | 2026-11-19: codegarden / codegarden_phase2b / sync / skill_registry 四 gate 随域删除 |
+| **Tests** | 4,7xx passed | 全量 pytest (2026-11-19); 数字随提交滚动, 以最近 DEV_LOG 为准 |
+| **MCP Tools** | 22 | 16 读 + 6 写 (2026-11-19 删 trigger-codegarden-drift) |
 
 ### 6.2 前端
 
 | 指标 | 数值 | 说明 |
 |---|---|---|
 | **Routes** | 53 | 全 lazy |
-| **Components** | ~284 | 18 组件域 |
-| **Tests** | 496 | Vitest + jsdom |
+| **Components** | 239 组件 + 66 测试 | 17 组件域 (2026-11-19 四域删除后) |
+| **Tests** | 675 | Vitest + jsdom (2026-11-19, 99 文件全绿) |
 | **i18n keys** | 120+ | zh-CN / en-US |
 | **Theme modes** | 3 | light / dark / paper |
 
@@ -370,7 +383,7 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 |---|---|
 | SQLite HOT/WARM/COLD | 三库架构仍在；本轮未核验当前生产文件、数量和有效路径 |
 | Wiki-first | 7,734 FTS 条目嵌入 HOT 库；`llm-wiki-2.0/` md 真源 |
-| WebDAV | 同步能力，出站范围需与本地优先定位对齐；与采集停启不是同一件事 |
+| WebDAV | 已退役 (2026-11-19 同步域整体删除，不再作为出站边界) |
 
 ### 6.4 AI
 
@@ -438,16 +451,16 @@ owner 2026-11-17 裁决启动前端全量重构（全量重写 / 桌面端口径
 
 | 维度 | 数值 | 来源 |
 |---|---|---|
-| Routers | 86 | `backend/api/_registry.py` |
-| Services | 145 | `backend/services/` `*_service.py` |
-| Migrations | 117 | `backend/repository/migrations/*.sql` |
-| Jobs | 51 | `backend/scheduler/jobs/` |
+| Routers | 88 | `backend/api/_registry.py` |
+| Services | 138 | `backend/services/` (2026-11-19 四域删除后) |
+| Migrations | 134 | `backend/repository/migrations/*.sql` |
+| Jobs | 48 | `backend/scheduler/jobs/` |
 | Frontend routes | 53 | `frontend/src/routes/index.tsx` |
-| Frontend tests | 496 | Vitest |
-| Backend tests | 4,598 | pytest |
-| Builtin skills | 20 | `builtin.py` (8 ops + 6 comp + 4 analysis + 2 report) |
-| v1 skills | 6 | `v1_skills.py` (SK-01~SK-06) |
-| Total skills | 26 | BUILTIN 单例 |
+| Frontend tests | 675 | Vitest (2026-11-19) |
+| Backend tests | 4,7xx | pytest |
+| ~~Builtin skills~~ | 已删除 | 2026-11-19 技能域整体退役 |
+| ~~v1 skills~~ | 已删除 | 2026-11-19 技能域整体退役 |
+| ~~Total skills~~ | 已删除 | 2026-11-19 技能域整体退役 |
 | HOT hotspots | 14,503 | `backend/hotspot.db` |
 | v1_materials | 6 | `backend/hotspot.db` |
 | v1_signals | 5 | `backend/hotspot.db` |
@@ -519,7 +532,7 @@ Hotspot 是面向安全从业者的本地优先 AI 工作台，将经过门禁�
 | 标准事项 | 漏洞治理、研究实践、情报响应、合规整改、管理决策模板 | 用户确认 → Case/Action | P0 |
 | 自定义事项 | 字段、状态、步骤、规则、审批、输出模板、提醒可配置 | 配置 → 版本化流程 | P0 |
 | 事项执行 | 判断、审批、执行计划、Run、Artifact、人工回执 | Action → 可验收成果 | P0/P1 |
-| CodeGarden | 开源候选、research/setup/exercise/retro 阶段 | 项目 → 实践产物 | P1 |
+| ~~CodeGarden~~ | 已废止 (2026-11-19 工坊域整体删除) | — | — |
 | 知识复用 | 条件化经验、复查、采用回执 | 成果 → Knowledge | P0 |
 | 设置治理 | AI 提供商、数据分级、出站策略、策略版本、审计 | 配置 → 生效策略 | P0 |
 
@@ -529,9 +542,9 @@ Hotspot 是面向安全从业者的本地优先 AI 工作台，将经过门禁�
 
 ### 3.4 设置页能力（2026-09-22 IA 重构落账，DEV-0227）
 
-设置页 = 用户对系统可持久化偏好的低频写入口，纯配置心智（只读监控/数据浏览/一次性动作不混入）。侧栏 **7 cat / 5 组**：`overview`（总览）· `general`（通用：主题/模式/刷新/兴趣画像/能力开关）· `models`（模型配置唯一入口：Provider/密钥/模型池/三场景）· `collection`（采集与管线）· `network`（代理）· `connectivity`（同步/MCP/密钥状态）· `ops`（维护/导出/dsh 启停）。
+设置页 = 用户对系统可持久化偏好的低频写入口，纯配置心智（只读监控/数据浏览/一次性动作不混入）。侧栏 **6 cat / 4 组**：`overview`（总览）· `general`（通用：主题/模式/刷新/兴趣画像/能力开关）· `models`（模型配置唯一入口：Provider/模型池/三场景；密钥读取改 env-only）· `collection`（采集与管线）· `network`（代理）· `ops`（维护/导出/dsh 启停）。原 `connectivity` 分组的同步/密钥状态面板随同步域与密钥域退役（2026-11-19）。
 
-接口消费：GET `/api/settings/features`（16 gate 单源）、GET/PUT `/api/settings/mcp/*`（ungated 开关 + 配置）、GET/PUT `/api/settings/feature-gates*`（TOML 写入 + audit，env 覆盖 409）、GET/PATCH `/api/settings/auto-intake`（自动入管配置 + 今日已入管数，2026-09-26 DEV-0231，collection 分区设置卡消费）、settings kv 读写走 `SettingsService` 前缀契约（`collection./llm./interest./quality./feature./feature-gates./state./secrets.oauth_allowlist`，未注册前缀 fail-loud）。`webhook.secret` 已迁加密存储不入明文 KV；跨端 sync bundle 仅打包 config namespace（`settings_sync_allowed` 白名单）。详见 `docs/audit/PRD_ALIGNMENT_AUDIT_2026-09-23.md`。
+接口消费：GET `/api/settings/features`（10 gate 单源）、GET/PUT `/api/settings/mcp/*`（ungated 开关 + 配置）、GET/PUT `/api/settings/feature-gates*`（TOML 写入 + audit，env 覆盖 409）、GET/PATCH `/api/settings/auto-intake`（自动入管配置 + 今日已入管数，2026-09-26 DEV-0231，collection 分区设置卡消费）、settings kv 读写走 `SettingsService` 前缀契约（`collection./llm./interest./quality./feature./feature-gates./state.`，未注册前缀 fail-loud）。跨端 sync bundle 已随同步域退役（2026-11-19）。
 
 ## 第4章 系统架构设计
 
@@ -548,7 +561,7 @@ React/Vite 前端通过 FastAPI 领域 API 访问 SQLite HOT/WARM/COLD 数据层
 
 ### 4.3 外部依赖
 
-外部资讯源、模型提供商、WebDAV 和执行环境均视为潜在出站边界。资料分级、允许目标、凭据隔离和失败可见性由平台策略控制。
+外部资讯源、模型提供商和执行环境均视为潜在出站边界。资料分级、允许目标、凭据隔离和失败可见性由平台策略控制。（WebDAV 同步域已于 2026-11-19 退役。）
 
 ## 第5章 业务流分析
 

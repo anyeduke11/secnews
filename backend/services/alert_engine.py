@@ -3,8 +3,11 @@
 AlertEngine 是一个独立引擎, 不替代 Phase 3 的 alert_service.py.
 它评估规则 (DEV-0183: 原 bid_match 已随标讯下线移除), 将结果写入 alert_events 表:
 
-- tech_stack_cve: 新 CVE 命中 cg_projects.tech_stack
 - critical_cve:   NVD CVSS ≥ 9.0 的 CVE
+
+2026-11-19 (四域删除): tech_stack_cve 规则随 CodeGarden 域退役 —
+数据源 cg_projects 已被 migration 137 DROP, 该规则类型不再评估
+(存量规则行由 137 置 enabled=0, 命中 _evaluate_rule 的 unknown 分支)。
 
 设计决策:
 - 使用 knowledge_items.cve_ids (JSON 数组) 作为 CVE 信息来源
@@ -25,7 +28,7 @@ logger = logging.getLogger("hotspot.alert_engine")
 
 
 class AlertEngine:
-    """Alert rule engine - evaluates 3 types of rules against recent data."""
+    """Alert rule engine - evaluates alert rules against recent data."""
 
     def __init__(self) -> None:
         self.rules = self._load_rules()
@@ -80,77 +83,18 @@ class AlertEngine:
     def _evaluate_rule(self, rule: dict[str, Any]) -> int:
         """Evaluate a single rule."""
         rule_type = rule["rule_type"]
-        if rule_type == "tech_stack_cve":
-            return self._evaluate_tech_stack_cve(rule)
-        elif rule_type == "critical_cve":
+        if rule_type == "critical_cve":
             return self._evaluate_critical_cve(rule)
         # DEV-0183: "bid_match" 规则已随标讯下线移除 (存量 bid 规则走 unknown 分支)
+        # 2026-11-19: "tech_stack_cve" 随 CodeGarden 域退役 (cg_projects 已 DROP)
         logger.warning("unknown rule_type", extra={"trace_id": "", "rule_type": rule_type})
         return 0
 
     # ------------------------------------------------------------------
-    # Rule 1: tech_stack_cve
-    # ------------------------------------------------------------------
-    def _evaluate_tech_stack_cve(self, rule: dict[str, Any]) -> int:
-        """Rule 1: New CVE hits cg_projects.tech_stack.
-
-        Queries recent knowledge_items with CVE IDs, matches against
-        non-archived cg_projects.tech_stack (JSON array of stack names).
-        """
-        config = self._parse_config(rule)
-        window_hours = int(config.get("window_hours", 24))
-
-        # 1. Load project tech stacks
-        project_tech_stacks = self._load_project_tech_stacks()
-        if not project_tech_stacks:
-            return 0
-
-        # 2. Query recent knowledge items with CVE IDs
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
-        conn = get_connection()
-        cve_rows = conn.execute(
-            f"SELECT id, title, cve_ids, source_url FROM {knowledge_items_table()} "
-            "WHERE cve_ids IS NOT NULL AND cve_ids != '[]' AND ingested_at >= ? "
-            "ORDER BY ingested_at DESC LIMIT 200",
-            (cutoff,),
-        ).fetchall()
-
-        triggered = 0
-        for row in cve_rows:
-            r = dict(row)
-            cve_ids = self._parse_cve_ids(r.get("cve_ids"))
-            if not cve_ids:
-                continue
-
-            title_lower = (r.get("title") or "").lower()
-
-            for cve_id in cve_ids:
-                cve_lower = str(cve_id).lower()
-                for pid, pinfo in project_tech_stacks.items():
-                    for stack in pinfo["stacks"]:
-                        if stack in title_lower or stack in cve_lower:
-                            if self._trigger_alert(
-                                rule_type="tech_stack_cve",
-                                title=f"技术栈 CVE 影响: {cve_id}",
-                                description=(
-                                    f"CVE {cve_id} 影响项目 {pinfo['name']} "
-                                    f"的技术栈 {stack}"
-                                ),
-                                severity="high",
-                                source=cve_id,
-                                source_url=r.get("source_url"),
-                                item_id=r.get("id"),
-                                project_id=pid,
-                            ):
-                                triggered += 1
-                            break  # one alert per CVE per project
-        return triggered
-
-    # ------------------------------------------------------------------
-    # Rule 2: critical_cve
+    # Rule: critical_cve
     # ------------------------------------------------------------------
     def _evaluate_critical_cve(self, rule: dict[str, Any]) -> int:
-        """Rule 2: Critical CVE (CVSS >= configured threshold).
+        """Rule: Critical CVE (CVSS >= configured threshold).
 
         Queries security_entities (entity_type='CVE') with CVSS score
         in metadata JSON.  Falls back to knowledge_items.cve_ids for
@@ -245,7 +189,6 @@ class AlertEngine:
         source: str | None = None,
         source_url: str | None = None,
         item_id: str | None = None,
-        project_id: int | None = None,
     ) -> int:
         """Write an alert event to the alert_events table.
 
@@ -282,8 +225,8 @@ class AlertEngine:
         cursor = conn.execute(
             """INSERT INTO alert_events
                (rule_id, rule_type, title, description, severity,
-                source, source_url, item_id, project_id, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                source, source_url, item_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 rule_id,
                 rule_type,
@@ -293,7 +236,6 @@ class AlertEngine:
                 source,
                 source_url,
                 item_id,
-                project_id,
                 now,
             ),
         )
@@ -309,30 +251,6 @@ class AlertEngine:
             (rule_type, source, cutoff),
         ).fetchone()
         return row is not None
-
-    def _load_project_tech_stacks(self) -> dict[int, dict[str, Any]]:
-        """Load non-archived project tech stacks.
-
-        Returns:
-            dict mapping project_id → {name, stacks: [lowercase stack names]}
-        """
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT id, name, tech_stack FROM cg_projects "
-            "WHERE status NOT IN ('archived', 'deprecated')"
-        ).fetchall()
-
-        result: dict[int, dict[str, Any]] = {}
-        for row in rows:
-            r = dict(row)
-            ts_raw = r.get("tech_stack")
-            stacks = self._parse_json_array(ts_raw) if ts_raw else []
-            if stacks:
-                result[r["id"]] = {
-                    "name": r["name"],
-                    "stacks": [s.lower() for s in stacks],
-                }
-        return result
 
     @staticmethod
     def _parse_config(rule: dict[str, Any]) -> dict[str, Any]:
@@ -366,17 +284,3 @@ class AlertEngine:
                 return [raw]
         return [str(raw)]
 
-    @staticmethod
-    def _parse_json_array(raw: Any) -> list[str]:
-        """Parse a JSON array from string, or return as-is if already a list."""
-        if isinstance(raw, list):
-            return [str(s) for s in raw]
-        if isinstance(raw, str):
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    return [str(s) for s in parsed]
-            except (TypeError, ValueError):
-                pass
-            return [raw]
-        return []

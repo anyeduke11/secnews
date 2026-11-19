@@ -2,7 +2,8 @@
  * QualitySettings 组件测试 — 2026-09-22 IA 重构后修剪.
  *
  * 2026-09-22 IA 重构: Provider/密钥/场景模型面板迁出至 ModelsSettings (模型配置唯一入口),
- * 对应用例 (ProviderPanel 切换 / SecretsPanel CRUD / ScenarioModelsPanel) 已删除,
+ * 对应用例 (ProviderPanel 切换 / SecretsPanel CRUD / ScenarioModelsPanel) 已删除
+ * (SecretsPanel 本身 2026-11-19 随密钥域一并删除),
  * 面板行为契约由 ModelsSettings 装配测试 + 面板未改动的既有实现兜底。
  *
  * 覆盖 (DEV-0243 改版):

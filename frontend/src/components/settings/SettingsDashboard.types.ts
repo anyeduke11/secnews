@@ -33,12 +33,6 @@ export interface HealthPayload {
   cache?: { hit_rate?: number };
 }
 
-export interface SecretsStatus {
-  initialized?: boolean;
-  unlocked?: boolean;
-  source?: 'os_keyring' | 'session' | 'uninitialized';
-}
-
 export interface StatsPayload {
   total_hotspots?: number;
   collect_runs_24h?: number;
@@ -58,7 +52,6 @@ export const QUICK_JUMPS: Array<{ cat: SectionKey; label: string; key: string; n
   { cat: 'general', label: '通用', key: 'general', note: '主题/模式/能力开关' },
   { cat: 'models', label: '模型配置', key: 'models', note: 'Provider/密钥/场景模型' },
   { cat: 'collection', label: '采集与管线', key: 'collection', note: '信源/质量/KL 队列/门禁' },
-  { cat: 'network', label: '网络', key: 'network', note: '代理/连接' },
-  { cat: 'connectivity', label: '集成与凭据', key: 'connectivity', note: '同步/MCP/主密钥' },
+  { cat: 'network', label: '网络', key: 'network', note: '代理/MCP' },
   { cat: 'ops', label: '运维', key: 'ops', note: '维护/导出/dsh' },
 ];

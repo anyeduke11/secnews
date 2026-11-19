@@ -387,7 +387,7 @@ def _interpreter_paths() -> tuple[str, ...]:
 def _repo_root() -> str | None:
     """仓库根 (凭据载体所在处) — 沙箱内整体禁读。
 
-    workspace 锁定根是 ``codegarden/<project>/`` (相对 CWD), 故仓库根 = CWD。
+    workspace 锁定根是 ``workspace/<project>/`` (相对 CWD), 故仓库根 = CWD。
     CWD 非仓库根时 (如测试的 tmp_path) 返回 None — 不做仓库级收窄, 只靠
     凭据载体 deny, 避免误伤。
     """

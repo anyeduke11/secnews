@@ -2,7 +2,7 @@
  * QualitySettings — 质量设置主入口 / 组合层 (V2 哨兵化)
  *
  * v0.7.x SettingsHub V2:
- *  - 原 879 行单体拆为 quality/ProviderPanel + quality/SecretsPanel +
+ *  - 原 879 行单体拆为 quality/ProviderPanel + (原 SecretsPanel, 密钥域退役已删) +
  *    quality/LlmDetectionPanel + quality/QualityRulesPanel + ScenarioModelsPanel
  *  - 本文件只负责初始数据加载 + providerOptions 共享 + 5 子组件组合
  *  - 全部走 settings-shell.css 的 st-* 原子样式

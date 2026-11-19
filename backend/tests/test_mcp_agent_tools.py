@@ -1,11 +1,10 @@
-"""Phase 8 — 4 个新 MCP tool 测试.
+"""Phase 8 — 3 个 MCP tool 测试.
 
-4 tool × 2 用例（正常 + 异常）= 8 个单测:
+3 tool × 2 用例（正常 + 异常）= 6 个单测:
 
 - score_item: 写入 ai_scores 表
 - enrich_concept: 写入 concepts/{name}.md
 - link_items: 写入 knowledge_links 表
-- trigger_codegarden_drift: 评估 project tech_stack（stub）
 """
 from __future__ import annotations
 
@@ -171,23 +170,3 @@ def test_link_items_invalid_type(client, temp_db):
     assert res.status_code == 422, res.text
 
 
-# ---------------------------------------------------------------------------
-# trigger_codegarden_drift — 正常 + 异常
-# ---------------------------------------------------------------------------
-def test_trigger_drift_ok(client, temp_db):
-    """返回 drift_score（当前 stub）。"""
-    res = client.post("/api/mcp/phase8/trigger-codegarden-drift", json={
-        "project_id": "proj-42",
-    })
-    assert res.status_code == 200, res.text
-    data = res.json()
-    assert data["status"] == "ok"
-    assert data["drift_score"] == 0.0
-
-
-def test_trigger_drift_missing_project(client, temp_db):
-    """project_id 为空报错 422。"""
-    res = client.post("/api/mcp/phase8/trigger-codegarden-drift", json={
-        "project_id": "",
-    })
-    assert res.status_code == 422, res.text

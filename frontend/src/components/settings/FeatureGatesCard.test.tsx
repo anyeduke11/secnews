@@ -1,6 +1,6 @@
 /**
  * FeatureGatesCard — 能力开关卡测试
- * 意图: 16 gate 从 /api/settings/feature-gates 富信息呈现 (enabled/source/scope);
+ * 意图: 10 gate (2026-11-19 四域删除后) 从 /api/settings/feature-gates 富信息呈现 (enabled/source/scope);
  * toggle 经 PUT /api/settings/feature-gates/{name} 可写化 — 成功更新行状态,
  * 失败 (409 env 覆盖 / 404 未知键) 行内展示 note; source=env 只读。
  */
@@ -11,13 +11,12 @@ import { FeatureGatesCard } from './FeatureGatesCard';
 type GateItem = { name: string; enabled: boolean; source: string; effective_scope: string };
 
 const NAMES = [
-  'secnews', 'codegarden', 'codegarden_phase2b', 'mcp', 'sync', 'tech_stack',
-  'security_graph', 'dsh', 'info_filter', 'skill_registry', 'trigger_gate',
-  'user_skills', 'interest_engine', 'semantic_filter', 'ai_classify', 'pipeline_ner',
+  'secnews', 'mcp', 'tech_stack', 'security_graph', 'dsh',
+  'info_filter', 'interest_engine', 'semantic_filter', 'ai_classify', 'pipeline_ner',
 ];
 
 const GATES_RESPONSE = {
-  version: 'test', count: 16,
+  version: 'test', count: 10,
   items: NAMES.map<GateItem>(name => ({
     name,
     enabled: name !== 'mcp',
@@ -46,14 +45,14 @@ describe('FeatureGatesCard — 能力开关 (可写化)', () => {
   beforeEach(() => { vi.stubGlobal('fetch', mockFetch()); });
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-  it('渲染 16 个 gate 与启停状态, mcp=false 显示 OFF', async () => {
+  it('渲染 10 个 gate 与启停状态, mcp=false 显示 OFF', async () => {
     render(<FeatureGatesCard />);
     await waitFor(() => expect(screen.getByText('能力开关')).toBeInTheDocument());
     expect(screen.getByText('secnews')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('mcp')).toBeInTheDocument());
     await waitFor(() => {
       const rows = screen.getAllByRole('switch');
-      expect(rows).toHaveLength(16);
+      expect(rows).toHaveLength(10);
     });
   });
 

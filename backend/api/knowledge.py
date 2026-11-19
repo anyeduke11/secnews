@@ -7,7 +7,6 @@
 - ``knowledge_concepts.py`` — concepts + graph + federation + concepts/link/batch
 - ``knowledge_ops.py``      — sync + tasks + health
 - ``knowledge_import.py``   — bookmarks/import + import-from-history + soul + compile + classify
-- ``knowledge_skills.py``   — skills (Phase 7 后 deprecated) + seed + validate
 - ``knowledge_obsidian.py`` — obsidian vault + watchdog
 - ``knowledge_plans.py``    — learning plans + progress + summaries
 
@@ -26,7 +25,6 @@ from backend.api.knowledge_items import router as items_router
 from backend.api.knowledge_obsidian import router as obsidian_router
 from backend.api.knowledge_ops import router as ops_router
 from backend.api.knowledge_plans import router as plans_router
-from backend.api.knowledge_skills import router as skills_router
 
 router = APIRouter()
 
@@ -34,6 +32,5 @@ router.include_router(items_router)
 router.include_router(concepts_router)
 router.include_router(ops_router)
 router.include_router(import_router)
-router.include_router(skills_router)
 router.include_router(obsidian_router)
 router.include_router(plans_router)

@@ -147,7 +147,7 @@ def compile_enforcement(
         raise BoundaryViolation("E_WORKSPACE_INVALID", str(e)) from e
     if ws is None:
         raise BoundaryViolation(
-            "E_WORKSPACE_INVALID", "执行必须落在 codegarden/<project>/ 锁定根内")
+            "E_WORKSPACE_INVALID", "执行必须落在 workspace/<project>/ 锁定根内")
 
     return EnforcementSpec(
         run_id=run_id,

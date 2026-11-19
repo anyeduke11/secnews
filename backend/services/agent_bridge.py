@@ -38,8 +38,9 @@ from backend.logging_config import logger
 from backend.observability import reset_trace_id, set_trace_id
 from backend.observability_records import finish_agent_run, start_agent_run
 
-# {workspace} 模板只允许落在 codegarden/<project>/ 下 (agents.yaml §19.3-3)
-_WORKSPACE_ROOT = Path("codegarden")
+# {workspace} 模板只允许落在 workspace/<project>/ 下 (agents.yaml §19.3-3)
+# 2026-11-19: 原 codegarden/<project>/ 锁定根随工坊域退役, 换为 workspace/
+_WORKSPACE_ROOT = Path("workspace")
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +67,7 @@ def available_agents(config: AgentsConfig | None = None) -> dict[str, Any]:
 
 
 def resolve_workspace(workspace: str | None) -> str | None:
-    """校验 workspace 模板展开目标: 仅允许 codegarden/<project>/ 子路径。
+    """校验 workspace 模板展开目标: 仅允许 workspace/<project>/ 子路径。
 
     v0.8.9 P4: 执行体 (execution_plan.enforcer) 复用同一锁定语义, 故去掉
     私有前缀 — 该规则已是跨模块契约 (L2 进程层 workspace 锁定根)。
@@ -75,9 +76,9 @@ def resolve_workspace(workspace: str | None) -> str | None:
         return None
     ws = Path(workspace.strip())
     if ws.is_absolute() or ".." in ws.parts:
-        raise ValueError(f"workspace 必须是 codegarden/<project>/ 相对路径: {workspace}")
+        raise ValueError(f"workspace 必须是 workspace/<project>/ 相对路径: {workspace}")
     if ws.parts[:1] != _WORKSPACE_ROOT.parts or len(ws.parts) < 2:
-        raise ValueError(f"workspace 锁定 codegarden/<project>/: {workspace}")
+        raise ValueError(f"workspace 锁定 workspace/<project>/: {workspace}")
     return str(ws)
 
 

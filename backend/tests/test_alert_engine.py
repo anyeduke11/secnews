@@ -2,18 +2,19 @@
 
 覆盖测试用例:
 1.  test_alert_engine_load_rules       — 加载启用的规则
-2.  test_tech_stack_cve_trigger        — CVE 命中 tech_stack 触发告警
-3.  test_tech_stack_cve_no_match       — CVE 未命中不触发
-4.  test_critical_cve_trigger          — CVSS ≥ 9.0 触发告警
-5.  test_critical_cve_below_threshold  — CVSS < 9.0 不触发
-6.  test_alert_event_stored            — 告警写入 alert_events 表
-7.  test_alert_event_api_get           — GET /api/alerts/v2 返回列表
-8.  test_alert_event_mark_read         — PUT /api/alerts/v2/{id}/read 标记已读
-9.  test_alert_event_read_all          — PUT /api/alerts/v2/read-all 全部标记已读
-12. test_alert_unread_count            — GET /api/alerts/v2/unread-count 返回计数
-13. test_alert_rule_disabled           — 禁用规则不被评估
-14. test_alert_concurrent_triggers     — 重复触发不创建重复事件
-15. test_alert_evaluate_all            — evaluate_all 返回正确统计
+2.  test_critical_cve_trigger          — CVSS ≥ 9.0 触发告警
+3.  test_critical_cve_below_threshold  — CVSS < 9.0 不触发
+4.  test_alert_event_stored            — 告警写入 alert_events 表
+5.  test_alert_event_api_get           — GET /api/alerts/v2 返回列表
+6.  test_alert_event_mark_read         — PUT /api/alerts/v2/{id}/read 标记已读
+7.  test_alert_event_read_all          — PUT /api/alerts/v2/read-all 全部标记已读
+8.  test_alert_unread_count            — GET /api/alerts/v2/unread-count 返回计数
+9.  test_alert_rule_disabled           — 禁用规则不被评估
+10. test_alert_concurrent_triggers     — 重复触发不创建重复事件
+11. test_alert_evaluate_all            — evaluate_all 返回正确统计
+
+2026-11-19 (四域删除): tech_stack_cve 规则随 CodeGarden 域退役
+(cg_projects 已 DROP) — 对应用例已删除, 引擎只保留 critical_cve。
 """
 from __future__ import annotations
 
@@ -70,51 +71,18 @@ def client(temp_db, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 def _seed_rules(conn) -> None:
-    """Insert 3 seed rules into alert_rule_definitions."""
+    """Insert the single live seed rule (critical_cve) into alert_rule_definitions.
+
+    2026-11-19: tech_stack_cve 已退役, 种子只保留 critical_cve。
+    """
     conn.execute("DELETE FROM alert_rule_definitions")
     conn.execute(
         """INSERT INTO alert_rule_definitions
                (id, name, description, rule_type, enabled, config)
-           VALUES (1, '技术栈 CVE 影响', 'CVE 命中 tech_stack',
-                   'tech_stack_cve', 1, '{"window_hours": 24}')"""
-    )
-    conn.execute(
-        """INSERT INTO alert_rule_definitions
-               (id, name, description, rule_type, enabled, config)
-           VALUES (2, '关键 CVE 告警', 'CVSS >= 9.0',
+           VALUES (1, '关键 CVE 告警', 'CVSS >= 9.0',
                    'critical_cve', 1, '{"min_cvss": 9.0}')"""
     )
     conn.commit()
-
-
-def _ensure_status_column(conn) -> None:
-    """Add status column to cg_projects if missing (needed by alert_engine queries)."""
-    cols = [r["name"] for r in conn.execute("PRAGMA table_info(cg_projects)").fetchall()]
-    if "status" not in cols:
-        conn.execute("ALTER TABLE cg_projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
-
-
-def _insert_project(conn, pid: str, name: str, tech_stack: list[str], status: str = "active") -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    conn.execute(
-        """INSERT OR REPLACE INTO cg_projects
-               (id, name, type, source_type, lifecycle_stage, status, tech_stack, created_at)
-           VALUES (?, ?, 'web_application', 'manual', 'development', ?, ?, ?)""",
-        (pid, name, status, json.dumps(tech_stack), now),
-    )
-
-
-def _insert_knowledge_item_with_cve(
-    conn, kid: str, title: str, cve_ids: list[str], ingested_seconds_ago: int = 3600
-) -> None:
-    now = datetime.now(timezone.utc)
-    ingested = (now - timedelta(seconds=ingested_seconds_ago)).isoformat()
-    conn.execute(
-        """INSERT OR REPLACE INTO knowledge_items
-               (id, title, source, source_url, cve_ids, ingested_at, updated_at)
-           VALUES (?, ?, 'nvd', ?, ?, ?, ?)""",
-        (kid, title, f"https://example.com/{kid}", json.dumps(cve_ids), ingested, ingested),
-    )
 
 
 def _insert_security_entity_cve(conn, cve_id: str, cvss: float, created_seconds_ago: int = 600) -> None:
@@ -127,6 +95,7 @@ def _insert_security_entity_cve(conn, cve_id: str, cvss: float, created_seconds_
         (cve_id, cve_id, f"Description for {cve_id}",
          json.dumps({"cvss": cvss}), created, created),
     )
+
 
 def _count_alerts(conn) -> int:
     return conn.execute("SELECT COUNT(*) AS c FROM alert_events").fetchone()["c"]
@@ -143,76 +112,21 @@ def _get_alert_count(conn, rule_type: str) -> int:
 # 1. test_alert_engine_load_rules
 # ===========================================================================
 
+
 def test_alert_engine_load_rules(temp_db):
-    """加载启用的规则: 2 条种子规则全部加载 (DEV-0183: bid_match 已移除)."""
+    """加载启用的规则: 唯一存活种子 critical_cve 被加载."""
     conn = get_connection()
     _seed_rules(conn)
 
     engine = AlertEngine()
 
-    assert len(engine.rules) == 2
-    rule_names = {r["name"] for r in engine.rules}
-    assert "技术栈 CVE 影响" in rule_names
-    assert "关键 CVE 告警" in rule_names
-    for r in engine.rules:
-        assert r["enabled"] == 1
+    assert len(engine.rules) == 1
+    assert engine.rules[0]["name"] == "关键 CVE 告警"
+    assert engine.rules[0]["enabled"] == 1
 
 
 # ===========================================================================
-# 2. test_tech_stack_cve_trigger
-# ===========================================================================
-
-def test_tech_stack_cve_trigger(temp_db):
-    """CVE 命中 tech_stack → 触发告警."""
-    conn = get_connection()
-    _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-1", "Test Project", ["fastapi", "python"])
-    _insert_knowledge_item_with_cve(
-        conn, "ki-1",
-        "FastAPI CVE-2024-1234 vulnerability",
-        ["CVE-2024-1234"],
-    )
-    conn.commit()
-
-    engine = AlertEngine()
-    results = engine.evaluate_all()
-
-    assert results.get("技术栈 CVE 影响", -1) == 1
-    assert _get_alert_count(conn, "tech_stack_cve") == 1
-    alert = conn.execute(
-        "SELECT * FROM alert_events WHERE rule_type = 'tech_stack_cve'"
-    ).fetchone()
-    assert alert is not None
-    assert "CVE-2024-1234" in alert["title"]
-
-
-# ===========================================================================
-# 3. test_tech_stack_cve_no_match
-# ===========================================================================
-
-def test_tech_stack_cve_no_match(temp_db):
-    """CVE 未命中 tech_stack → 不触发."""
-    conn = get_connection()
-    _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-2", "Test Project", ["fastapi", "python"])
-    # CVE ID 和标题均不包含 tech_stack 关键词
-    _insert_knowledge_item_with_cve(
-        conn, "ki-2",
-        "Unrelated CVE report",
-        ["CVE-2024-5678"],
-    )
-    conn.commit()
-
-    engine = AlertEngine()
-    results = engine.evaluate_all()
-
-    assert results.get("技术栈 CVE 影响", -1) == 0
-
-
-# ===========================================================================
-# 4. test_critical_cve_trigger
+# 2. test_critical_cve_trigger
 # ===========================================================================
 
 def test_critical_cve_trigger(temp_db):
@@ -236,7 +150,7 @@ def test_critical_cve_trigger(temp_db):
 
 
 # ===========================================================================
-# 5. test_critical_cve_below_threshold
+# 3. test_critical_cve_below_threshold
 # ===========================================================================
 
 def test_critical_cve_below_threshold(temp_db):
@@ -252,20 +166,16 @@ def test_critical_cve_below_threshold(temp_db):
     assert results.get("关键 CVE 告警", -1) == 0
     assert _count_alerts(conn) == 0
 
-# 8. test_alert_event_stored
+
+# ===========================================================================
+# 4. test_alert_event_stored
 # ===========================================================================
 
 def test_alert_event_stored(temp_db):
     """告警记录写入 alert_events 表, 字段完整."""
     conn = get_connection()
     _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-5", "Project", ["fastapi"])
-    _insert_knowledge_item_with_cve(
-        conn, "ki-8",
-        "FastAPI CVE-2024-1111",
-        ["CVE-2024-1111"],
-    )
+    _insert_security_entity_cve(conn, "CVE-2024-1111", 9.8)
     conn.commit()
 
     engine = AlertEngine()
@@ -283,7 +193,9 @@ def test_alert_event_stored(temp_db):
     assert "source" in alert
     assert "source_url" in alert
     assert "item_id" in alert
+    # project_id 列随工坊域退役不再写入 (引擎不再传值), 列保留但为 NULL
     assert "project_id" in alert
+    assert alert["project_id"] is None
     assert "status" in alert
     assert "created_at" in alert
     assert alert["status"] == "unread"
@@ -291,18 +203,18 @@ def test_alert_event_stored(temp_db):
 
 
 # ===========================================================================
-# 9. test_alert_event_api_get
+# 5. test_alert_event_api_get
 # ===========================================================================
 
 def test_alert_event_api_get(client, temp_db):
     """GET /api/alerts/v2 返回告警列表."""
     conn = get_connection()
     _seed_rules(conn)
-    # 直接插入测试告警, 绕过引擎 bug
+    # 直接插入测试告警
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT INTO alert_events (rule_id, rule_type, title, description, severity, source, created_at) "
-        "VALUES (1, 'tech_stack_cve', 'CVE-2024-2222', 'Test alert', 'high', 'CVE-2024-2222', ?)",
+        "VALUES (1, 'critical_cve', 'CVE-2024-2222', 'Test alert', 'high', 'CVE-2024-2222', ?)",
         (now,),
     )
     conn.commit()
@@ -318,7 +230,7 @@ def test_alert_event_api_get(client, temp_db):
 
 
 # ===========================================================================
-# 10. test_alert_event_mark_read
+# 6. test_alert_event_mark_read
 # ===========================================================================
 
 def test_alert_event_mark_read(client, temp_db):
@@ -329,7 +241,7 @@ def test_alert_event_mark_read(client, temp_db):
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT INTO alert_events (rule_id, rule_type, title, description, severity, source, created_at) "
-        "VALUES (1, 'tech_stack_cve', 'CVE-2024-3333', 'Test alert', 'high', 'CVE-2024-3333', ?)",
+        "VALUES (1, 'critical_cve', 'CVE-2024-3333', 'Test alert', 'high', 'CVE-2024-3333', ?)",
         (now,),
     )
     conn.commit()
@@ -352,7 +264,7 @@ def test_alert_event_mark_read(client, temp_db):
 
 
 # ===========================================================================
-# 11. test_alert_event_read_all
+# 7. test_alert_event_read_all
 # ===========================================================================
 
 def test_alert_event_read_all(client, temp_db):
@@ -363,12 +275,12 @@ def test_alert_event_read_all(client, temp_db):
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT INTO alert_events (rule_id, rule_type, title, description, severity, source, created_at) "
-        "VALUES (1, 'tech_stack_cve', 'CVE-2024-4444', 'Test alert 1', 'high', 'CVE-2024-4444', ?)",
+        "VALUES (1, 'critical_cve', 'CVE-2024-4444', 'Test alert 1', 'high', 'CVE-2024-4444', ?)",
         (now,),
     )
     conn.execute(
         "INSERT INTO alert_events (rule_id, rule_type, title, description, severity, source, created_at) "
-        "VALUES (1, 'tech_stack_cve', 'CVE-2024-5555', 'Test alert 2', 'high', 'CVE-2024-5555', ?)",
+        "VALUES (1, 'critical_cve', 'CVE-2024-5555', 'Test alert 2', 'high', 'CVE-2024-5555', ?)",
         (now,),
     )
     conn.commit()
@@ -384,7 +296,7 @@ def test_alert_event_read_all(client, temp_db):
 
 
 # ===========================================================================
-# 12. test_alert_unread_count
+# 8. test_alert_unread_count
 # ===========================================================================
 
 def test_alert_unread_count(client, temp_db):
@@ -395,7 +307,7 @@ def test_alert_unread_count(client, temp_db):
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT INTO alert_events (rule_id, rule_type, title, description, severity, source, created_at) "
-        "VALUES (1, 'tech_stack_cve', 'CVE-2024-6666', 'Test alert', 'high', 'CVE-2024-6666', ?)",
+        "VALUES (1, 'critical_cve', 'CVE-2024-6666', 'Test alert', 'high', 'CVE-2024-6666', ?)",
         (now,),
     )
     conn.commit()
@@ -416,97 +328,64 @@ def test_alert_unread_count(client, temp_db):
 
 
 # ===========================================================================
-# 13. test_alert_rule_disabled
+# 9. test_alert_rule_disabled
 # ===========================================================================
 
 def test_alert_rule_disabled(temp_db):
     """禁用规则不被加载, 不被评估."""
     conn = get_connection()
     _seed_rules(conn)
-    # 禁用 tech_stack_cve 规则
     conn.execute("UPDATE alert_rule_definitions SET enabled = 0 WHERE id = 1")
-    conn.commit()
-
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-dis", "Project", ["fastapi"])
-    # 插入不含 CVE 的知识条目, 避免 critical_cve 二次路径误触发
-    now = datetime.now(timezone.utc)
-    ingested = (now - timedelta(seconds=3600)).isoformat()
-    conn.execute(
-        "INSERT INTO knowledge_items (id, title, source, source_url, cve_ids, ingested_at, updated_at) "
-        "VALUES (?, ?, 'test', ?, '[]', ?, ?)",
-        ("ki-dis", "FastAPI article", "https://example.com/ki-dis", ingested, ingested),
-    )
+    _insert_security_entity_cve(conn, "CVE-2024-7777", 9.9)
     conn.commit()
 
     engine = AlertEngine()
-    assert len(engine.rules) == 1  # 3 条种子禁用 1 条 → 1 条启用 (DEV-0183 后共 2 条种子)
+    assert len(engine.rules) == 0
 
     results = engine.evaluate_all()
 
-    # 禁用规则不在结果中
-    assert "技术栈 CVE 影响" not in results
+    assert results == {}
     assert _count_alerts(conn) == 0
 
 
 # ===========================================================================
-# 14. test_alert_concurrent_triggers
+# 10. test_alert_concurrent_triggers
 # ===========================================================================
 
 def test_alert_concurrent_triggers(temp_db):
     """重复触发不创建重复告警事件 (24h 内同 source + rule_type 去重)."""
     conn = get_connection()
     _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-dup", "Project", ["fastapi"])
-    _insert_knowledge_item_with_cve(
-        conn, "ki-dup", "FastAPI CVE-2024-0001", ["CVE-2024-0001"],
-    )
+    _insert_security_entity_cve(conn, "CVE-2024-0001", 9.5)
     conn.commit()
 
     engine = AlertEngine()
-    # 第一次评估
     results1 = engine.evaluate_all()
-    assert results1.get("技术栈 CVE 影响", -1) == 1
+    assert results1.get("关键 CVE 告警", -1) == 1
 
     # 第二次评估 (同 source = CVE-2024-0001, 同 rule_type, 24h 内)
     results2 = engine.evaluate_all()
-    assert results2.get("技术栈 CVE 影响", -1) == 0  # 去重, 不新增
+    assert results2.get("关键 CVE 告警", -1) == 0  # 去重, 不新增
 
-    # 总共只有 1 条告警
-    assert _get_alert_count(conn, "tech_stack_cve") == 1
+    assert _get_alert_count(conn, "critical_cve") == 1
 
 
 # ===========================================================================
-# 15. test_alert_evaluate_all
+# 11. test_alert_evaluate_all
 # ===========================================================================
 
 def test_alert_evaluate_all(temp_db):
     """evaluate_all 返回包含所有规则名称的统计字典, 数值正确."""
     conn = get_connection()
     _seed_rules(conn)
-    _ensure_status_column(conn)
-    _insert_project(conn, "proj-eval", "Project", ["fastapi", "python"])
-    _insert_knowledge_item_with_cve(
-        conn, "ki-eval-1", "FastAPI CVE-2024-9991", ["CVE-2024-9991"],
-    )
-    _insert_knowledge_item_with_cve(
-        conn, "ki-eval-2", "Python CVE-2024-9992", ["CVE-2024-9992"],
-    )
+    _insert_security_entity_cve(conn, "CVE-2024-9991", 9.5)
+    _insert_security_entity_cve(conn, "CVE-2024-9992", 9.8)
     conn.commit()
 
     engine = AlertEngine()
     results = engine.evaluate_all()
 
-    # 返回 dict
     assert isinstance(results, dict)
-    # 包含所有规则名称 (DEV-0183: bid_match 规则已移除, 共 2 条)
-    assert "技术栈 CVE 影响" in results
-    assert "关键 CVE 告警" in results
-    # tech_stack_cve 应触发 (2 个 CVE 都命中)
-    assert results["技术栈 CVE 影响"] == 2
-    # 关键 CVE 告警 二次路径: 2 个 knowledge_items 都含 CVE ID
+    # 唯一存活规则 (2026-11-19: tech_stack_cve 已随工坊域退役)
     assert results["关键 CVE 告警"] == 2
-    # 总告警数 = tech_stack_cve + critical_cve
-    total = _count_alerts(conn)
-    assert total == results["技术栈 CVE 影响"] + results["关键 CVE 告警"]
+    assert _count_alerts(conn) == results["关键 CVE 告警"]

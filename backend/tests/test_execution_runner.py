@@ -18,7 +18,7 @@ from backend.services.execution_plan.service import boundary_hash
 from backend.services.execution_runner import ExecutorDisabledError, execute_plan
 from backend.services.execution_runner import runner as runner_mod
 
-_WS = "codegarden/demo"
+_WS = "workspace/demo"
 
 
 def _plan(commands: list[list[str]], **overrides) -> dict:

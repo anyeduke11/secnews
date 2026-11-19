@@ -6,15 +6,8 @@
 Watches:
 - ``items/``            → 单文件增量投影 sync_item_to_db (P1-4)
 - ``concepts/``         → 单文件增量投影 sync_concept_to_db
-- ``learning/``         → conflict detection + publish task status sync
+- ``learning/``         → conflict detection + compile done 文件触发 _MAP.md 更新
 - ``content/drafts/``   → draft 正文投影 sync_draft_to_db
-
-Publish task status sync (spec 6.4):
-- When ``knowledge/learning/tasks/done/task-{id}.md`` is created, the watcher
-  parses ``published_url`` from frontmatter and calls
-  :func:`content_service.update_publish_status` with status="done".
-- When ``knowledge/learning/tasks/failed/task-{id}.md`` is created, the
-  watcher calls ``update_publish_status`` with status="failed".
 
 Conflict detection (simplified):
 - If the same .md file is modified within ``_CONFLICT_WINDOW_SECONDS`` (2s) of
@@ -39,7 +32,6 @@ from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from backend.services import content_service as _content_service
 from backend.services.knowledge_sync import (
     KNOWLEDGE_DIR,
     sync_concept_to_db,
@@ -215,10 +207,8 @@ class _KnowledgeEventHandler(FileSystemEventHandler):
             self._timers.pop(path, None)
         sync_file_func = _SYNC_FILE_FUNCS.get(self._subdir)
         if sync_file_func is None:
-            # learning/ subdir: check for publish task status files (spec 6.4)
-            # and compile done files for _MAP.md update (spec 6.3)
+            # learning/ subdir: compile done 文件触发 _MAP.md 更新 (spec 6.3)
             if self._subdir == "learning":
-                _maybe_sync_publish_status(path)
                 _maybe_update_map(path)
             else:
                 log.debug("watchdog: change in %s/ (no DB sync): %s", self._subdir, path)
@@ -313,73 +303,6 @@ _watcher_instance: _Watcher | None = None
 # ── Publish task status sync (spec 6.4) ────────────────────────
 
 _TASK_FILE_RE = re.compile(r"task-(\d+)\.md$")
-
-
-def _maybe_sync_publish_status(path: str) -> None:
-    """Check if *path* is a publish task status file and sync draft status.
-
-    Triggered when files under ``learning/tasks/done/`` or
-    ``learning/tasks/failed/`` are created/modified. Parses the task id
-    from the filename and ``published_url`` (for done) from frontmatter,
-    then calls :func:`content_service.update_publish_status`.
-    """
-    match = _TASK_FILE_RE.search(path)
-    if match is None:
-        return
-    task_id = int(match.group(1))
-
-    # Determine status from parent directory name.
-    normalized = path.replace("\\", "/")
-    if "/tasks/done/" in normalized:
-        status = "done"
-    elif "/tasks/failed/" in normalized:
-        status = "failed"
-    else:
-        # pending/ or processing/ — no status update needed.
-        return
-
-    published_url: str | None = None
-    error: str | None = None
-
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except Exception as e:
-        log.warning("watchdog: failed to read task file %s: %s", path, e)
-        return
-
-    if text.startswith("---"):
-        parts = text.split("---", 2)
-        frontmatter = parts[1] if len(parts) >= 3 else ""
-        if status == "done":
-            url_match = re.search(
-                r'published_url:\s*"?([^\n"]+)"?', frontmatter
-            )
-            if url_match:
-                published_url = url_match.group(1).strip()
-        elif status == "failed":
-            err_match = re.search(
-                r'error:\s*"?(.+?)"?\s*$', frontmatter, re.MULTILINE
-            )
-            if err_match:
-                error = err_match.group(1).strip().strip('"').strip("'")
-
-    # Update publish status
-    try:
-        _content_service.update_publish_status(
-            task_id=task_id,
-            status=status,
-            published_url=published_url,
-            error=error,
-        )
-        log.info(
-            "watchdog synced publish status: task %d → %s (published_url=%s)",
-            task_id, status, published_url,
-        )
-    except Exception as e:
-        log.error(
-            "watchdog: failed to sync publish status for task %d: %s",
-            task_id, e,
-        )
 
 
 def _maybe_update_map(path: str) -> None:

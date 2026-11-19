@@ -1,10 +1,13 @@
-"""v1.7 Phase 2 — 端到端验收测试 (4 项验收标准).
+"""v1.7 Phase 2 — 端到端验收测试 (3 项验收标准).
 
 验收标准 (来自 docs/v1.7_development_plan.md Task 2.6):
   1. 新学概念创建后 24h 出现在复习队列
   2. 评分后间隔按 SM-2 延长
   3. 笔记 CRUD 正常
-  4. FastAPI 漏洞文章匹配到使用 FastAPI 的项目
+
+原验收 4 (FastAPI 漏洞文章匹配到使用 FastAPI 的项目) 依赖 CodeGarden 域
+(codegarden_repo + /api/tech-stack/impact), 已随工坊域整体删除退役
+(2026-11-19)。
 
 本文件是端到端验收: 通过 FastAPI TestClient 走完整 HTTP 链路,
 不直接调用 service/repo, 确保从 API → service → repo → DB 全链路正确.
@@ -22,7 +25,6 @@ from backend.api.middleware import TraceIDMiddleware
 from backend.config import config
 from backend.exceptions import register_exception_handlers
 from backend.repository import db
-from backend.repository.codegarden_repo import CodegardenProjectRepository
 
 
 @pytest.fixture
@@ -254,85 +256,3 @@ class TestAcceptance3AnnotationCRUD:
         assert r.json()["count"] == 3
 
 
-# ---------------------------------------------------------------------------
-# 验收 4: FastAPI 漏洞文章匹配到使用 FastAPI 的项目
-# ---------------------------------------------------------------------------
-class TestAcceptance4FastApiBridge:
-    """验收 4: FastAPI 漏洞文章匹配到使用 FastAPI 的项目.
-
-    流程:
-      1. 插入一篇 FastAPI 漏洞文章 (含 "FastAPI" 关键词)
-      2. 创建使用 FastAPI 的项目 + 不使用 FastAPI 的项目
-      3. GET /api/tech-stack/impact?article_id=...
-      4. 验证匹配到使用 FastAPI 的项目, 且不匹配无关项目
-    """
-
-    def _insert_hotspot(self, hotspot_id: str, title: str, summary: str, category: str = "security"):
-        from backend.repository.db import get_connection
-        now = datetime.now(timezone.utc).isoformat()
-        get_connection().execute(
-            """
-            INSERT OR REPLACE INTO hotspots
-                (id, title, summary, source, url, category, published_at, score,
-                 fetched_at, is_fallback, quality_score, quality_flags, url_check_status, ingested_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                hotspot_id, title, summary, "test-source",
-                f"https://example.com/{hotspot_id}",
-                category, now, 50.0, now, 0, 80, "[]", "pending", now,
-            ),
-        )
-
-    def _create_project(self, name: str, tech_stack: list[str]) -> dict:
-        repo = CodegardenProjectRepository()
-        return repo.create(
-            name=name,
-            type="library",
-            source_type="imported",
-            lifecycle_stage="development",
-            tech_stack=tech_stack,
-        )
-
-    def test_fastapi_article_matches_fastapi_project(self, client):
-        """验收 4 核心场景: FastAPI 漏洞文章 → 使用 FastAPI 的项目."""
-        # 1. FastAPI 漏洞文章
-        self._insert_hotspot(
-            "acc-fastapi-vuln",
-            "FastAPI 远程代码执行漏洞 CVE-2024-9999",
-            "FastAPI 框架被发现存在 RCE 漏洞, 影响 FastAPI 0.100 以下版本.",
-        )
-        # 2. 两个项目: 一个用 FastAPI, 一个用 Flask
-        proj_fa = self._create_project("my-fastapi-service", ["fastapi", "sqlalchemy"])
-        self._create_project("flask-app", ["flask"])
-
-        # 3. 影响分析
-        r = client.get("/api/tech-stack/impact", params={"article_id": "acc-fastapi-vuln"})
-        assert r.status_code == 200
-        data = r.json()
-
-        # 4. 断言
-        assert data["article_id"] == "acc-fastapi-vuln"
-        # 提取到 fastapi 标签
-        tag_ids = {t["tag_id"] for t in data["tags"]}
-        assert "fastapi" in tag_ids, f"应提取 fastapi 标签, got {tag_ids}"
-        # 匹配到使用 FastAPI 的项目
-        project_ids = {p["id"] for p in data["projects"]}
-        assert proj_fa["id"] in project_ids, "应匹配到 FastAPI 项目"
-        assert len(data["projects"]) == 1, f"应只匹配 1 个项目, got {len(data['projects'])}"
-
-    def test_non_fastapi_article_does_not_match(self, client):
-        """非 FastAPI 文章不应匹配 FastAPI 项目."""
-        self._insert_hotspot(
-            "acc-other",
-            "数据库性能优化技巧",
-            "PostgreSQL 索引优化与查询计划分析.",
-        )
-        self._create_project("api-server", ["fastapi"])
-
-        r = client.get("/api/tech-stack/impact", params={"article_id": "acc-other"})
-        assert r.status_code == 200
-        # 不应提取 fastapi 标签, 不应匹配项目
-        tag_ids = {t["tag_id"] for t in r.json()["tags"]}
-        assert "fastapi" not in tag_ids
-        assert r.json()["projects"] == []

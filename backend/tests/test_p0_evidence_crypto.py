@@ -9,10 +9,8 @@ P0-E 证据收据死信:
   4. 超时 pending intent 经 maintenance 小时级钩子 (observability_ttl_job)
      被回收, 失败不影响主 job
 
-P0-G 假加密:
-  5. codegarden env_template 敏感字段加解密往返 (vault 解锁态)
-  6. 未解锁 / 无密钥态读取一律 ****** 掩码 (含非 dict 明文残留, 不回传原值)
-  7. vault 锁定时保存含敏感字段的模板 fail-fast (拒绝明文落库)
+P0-G 假加密 (原 5-7: codegarden env_template 加解密往返 / 掩码 / vault 锁定 fail-fast):
+  已随工坊域 + 密钥域整体删除退役 (2026-11-19)。
 """
 from __future__ import annotations
 
@@ -196,100 +194,8 @@ def test_observability_ttl_job_reaps_and_survives(temp_db) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. P0-G: codegarden env_template 加密
+# 4. P0-G (codegarden env_template 加密) 随工坊域 + 密钥域整体删除退役 (2026-11-19)
 # ---------------------------------------------------------------------------
-MK = "unittest-master-key-0123456789"
-
-
-@pytest.fixture
-def unlocked_vault(temp_db):
-    """temp_db + 默认主密钥行 + 进程内解锁态注入 (unlock 等价物)."""
-    import time
-
-    from backend.crypto import derive_fernet_key
-    from backend.repository.encryption_keys_repo import EncryptionKeyRepository
-    from backend.services import secrets_service
-
-    ek = EncryptionKeyRepository().setup_default(master_key=MK)
-    fernet_key = derive_fernet_key(MK, ek.salt, ek.iterations)
-    secrets_service._unlock_state[ek.id] = {
-        "fernet_key": fernet_key,
-        "expires_at": time.time() + 3600,
-    }
-    yield ek, fernet_key
-    secrets_service._unlock_state.pop(ek.id, None)
-
-
-def test_env_template_roundtrip(temp_db, unlocked_vault) -> None:
-    """P0-G: 敏感字段 hex 密文落库 + 解锁态解密往返还原明文."""
-    from backend.services.codegarden_resource_service import CodegardenResourceService
-
-    svc = CodegardenResourceService()
-    r = svc.save_env_template(
-        name="p0g-roundtrip", env_vars={"API_KEY": "s3cret-value", "DEBUG": "1"},
-    )
-    # 落库的是 hex 密文, 无明文泄漏
-    stored = svc.repo.get(r["id"])
-    meta = stored["metadata"]["env_vars"]
-    assert meta["DEBUG"] == "1"
-    assert set(meta["API_KEY"].keys()) == {"ciphertext", "encrypted"}
-    assert "s3cret-value" not in json.dumps(stored["metadata"])
-    # 解锁态加载 → 明文往返
-    loaded = svc.load_env_template(r["id"])
-    assert loaded["env_vars"]["API_KEY"] == "s3cret-value"
-    assert loaded["env_vars"]["DEBUG"] == "1"
-
-
-def test_env_template_locked_masks_everything(temp_db, unlocked_vault) -> None:
-    """P0-G: 未解锁态读取 → 加密值与非 dict 明文/旧格式残留一律 ****** 掩码."""
-    from backend.services.codegarden_resource_service import CodegardenResourceService
-    from backend.services.secrets_service import _unlock_state
-
-    svc = CodegardenResourceService()
-    r = svc.save_env_template(
-        name="p0g-locked", env_vars={"API_KEY": "s3cret-value", "DEBUG": "1"},
-    )
-    # 锁定 (等价 lock 清空解锁态)
-    ek, _ = unlocked_vault
-    _unlock_state.pop(ek.id, None)
-    loaded = svc.load_env_template(r["id"])
-    assert loaded["env_vars"]["API_KEY"] == "******"
-    # 旧格式/明文残留 (非 dict) 也不回传原值 — GET env-templates 泄明文根因
-    assert loaded["env_vars"]["DEBUG"] == "******"
-
-
-def test_env_template_legacy_plaintext_masked_while_locked(temp_db, unlocked_vault) -> None:
-    """历史明文行 (旧格式) 在锁定态读取 → 掩码, 不泄明文."""
-    from backend.services.codegarden_resource_service import CodegardenResourceService
-    from backend.services.secrets_service import _unlock_state
-
-    svc = CodegardenResourceService()
-    r = svc.repo.create(
-        type="env_template", value="p0g-legacy", status="allocated",
-        metadata={"env_vars": {"PASSWORD": "legacy-plain", "HOME": "/root"},
-                  "encrypted": True},
-    )
-    ek, _ = unlocked_vault
-    _unlock_state.pop(ek.id, None)
-    loaded = svc.load_env_template(r["id"])
-    assert loaded["env_vars"]["PASSWORD"] == "******"
-    assert loaded["env_vars"]["HOME"] == "******"
-
-
-def test_env_template_save_locked_raises(temp_db, unlocked_vault) -> None:
-    """vault 锁定时保存含敏感字段的模板 → fail-fast, 拒绝明文落库."""
-    from backend.exceptions import InternalException
-    from backend.services.codegarden_resource_service import CodegardenResourceService
-    from backend.services.secrets_service import _unlock_state
-
-    svc = CodegardenResourceService()
-    ek, _ = unlocked_vault
-    _unlock_state.pop(ek.id, None)
-    with pytest.raises(InternalException, match="未解锁"):
-        svc.save_env_template(name="p0g-denied", env_vars={"API_KEY": "x"})
-    # 未落任何行 (含明文)
-    rows, _total = svc.repo.list(type="env_template")
-    assert all(r["value"] != "p0g-denied" for r in rows)
 
 
 def test_migration_115_scrubs_plaintext_llm_key(temp_db) -> None:

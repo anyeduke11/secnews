@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { KnowledgeItem } from '../types';
 import { createAnnotation, deleteKnowledgeItem, getKnowledgeItem, listAnnotations, updateKnowledgeItem } from '../api/knowledge';
 import type { KnowledgeItemPatch } from '../api/knowledge';
-import { importFromKnowledgeWithStatus } from '../api/codegarden';
 import { ItemDetailDialogProps, ItemAnnotation } from './ItemDetailDialog.types';
 import { ItemDetailDialogHeader } from './ItemDetailDialogHeader';
 import { ItemDetailDialogFooter } from './ItemDetailDialogFooter';
@@ -149,26 +148,6 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
       .finally(() => setDeleting(false));
   };
 
-  // G10.2: 仅 type=github 的条目显示「加入 CodeGarden」CTA
-  // 调用 /api/codegarden/from-knowledge 幂等端点 (201=首次, 200=已存在)
-  const handleAddToCodegarden = async () => {
-    if (!item?.id) return;
-    try {
-      const { status } = await importFromKnowledgeWithStatus({
-        item_id: item.id,
-        source_type: 'reference',
-      });
-      if (status === 201) {
-        window.alert('✓ 已加入 CodeGarden');
-      } else {
-        window.alert('ℹ 该项目已在 CodeGarden 中');
-      }
-      onClose();
-    } catch (e: any) {
-      window.alert(`加入失败: ${e?.message || e}`);
-    }
-  };
-
   return (
     <div
       onClick={onClose}
@@ -231,13 +210,11 @@ export function ItemDetailDialog({ item_id, onClose }: ItemDetailDialogProps) {
             <MasterySection mastery={mastery} onMasteryChange={setMastery} />
             <ContentSection content={content} />
             <ItemDetailDialogFooter
-              item={item}
               saving={saving}
               deleting={deleting}
               confirmDelete={confirmDelete}
               toast={toast}
               onSave={handleSave}
-              onAddToCodegarden={handleAddToCodegarden}
               onRequestDelete={() => setConfirmDelete(true)}
               onCancelDelete={() => setConfirmDelete(false)}
               onDelete={handleDelete}

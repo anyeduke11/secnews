@@ -22,14 +22,13 @@ _GATES_PATH = Path(__file__).resolve().parent.parent / "config" / "feature_gates
 
 # v0.8.2 Y-A2: gate 读数热重载 — 5s TTL + mtime 变更检测 (info_filter 5s TTL 模式)。
 # 语义边界 (诚实声明): 热重载只影响**运行时动态读数** (is_extension_enabled 的
-# per-request 判定, 如 dsh 控制面/info_filter hook/skill gate); 路由注册与
+# per-request 判定, 如 dsh 控制面/info_filter hook); 路由注册与
 # job 调度是**启动期快照**, 增删 router/job 仍需重启生效。
 _GATES_TTL = 5.0
 
 # 全部扩展域名称（含无 router 的 security_graph —— 只占 job）
-# P1.6: codegarden (M1 项目核心) 与 codegarden_phase2b (M2/M3/M4 服务网格等) 拆开
 _EXTENSION_NAMES = (
-    "codegarden", "codegarden_phase2b", "mcp", "sync",
+    "mcp",
     "tech_stack", "security_graph", "secnews",
     # crm 域已整体删除 (migration 116), 不再登记
     # dsh 桥接: _registry.py 以 is_extension_enabled("dsh") 守卫 dsh_api。
@@ -37,20 +36,6 @@ _EXTENSION_NAMES = (
     "dsh",
     # v0.8 P1 info_filter: 独立资讯筛选门禁 (源级 allow/deny 名单, 实时启停)
     "info_filter",
-    # v0.8 Phase A A3: skill_registry — Skill 商店 (20 内置 skill 注册 + 启停
-    # + trigger-gate 触发)。TOML 默认 false (fail-closed), 开闸决策归 A5。
-    # 不登记此名则 TOML/env 的同名 key 会被 _load_gates 过滤, gate 永远 False。
-    "skill_registry",
-    # v0.8 Phase A A1+A5: trigger_gate — skill/playbook 触发单一入口
-    # (限流 + 持久化队列 + 三档优先级 + worker 出队泵)。服务包 A1 已落地,
-    # gate 控制后续 worker/触发器接线的可见性 (Phase B/D)。
-    "trigger_gate",
-    # v0.8.1 Day 0 开闸演练 (2026-09-05): user_skills 自 Phase C C3 落地后
-    # 一直漏登记 → _load_gates 过滤恒 False → /api/skill-builder 从未注册,
-    # Skill Builder 前端永远 404。Phase A "关键事实"预言的"随实现登记"欠账。
-    # (v0.8.2 X-B3 治理: agent_loop / playbook_engine / skill_eval 三个无消费点
-    # 死键已从 TOML 移除; gate 化须随消费点同时登记, 勿再留无效配置键。)
-    "user_skills",
     # DEV-0182 Workbench Focus: 兴趣引擎 (行为信号 + 域权重 + Feed 排序乘子)。
     # 内容门禁 L3, 与质量门禁 (info_filter) 分离; owner 裁决新建独立 gate。
     "interest_engine",
@@ -63,23 +48,16 @@ _EXTENSION_NAMES = (
 )
 
 # 扩展→router 映射（每个 router 是 backend.api 中的模块名）
-# 与 backend/api/_registry.py 的 gate 分支保持一致 (存量 bug 清扫 D5 批:
-# phase14 错绑 codegarden 已改 phase2b; dsh/mcp/secnews 名单补齐).
+# 与 backend/api/_registry.py 的 gate 分支保持一致。
+# 2026-11-19: codegarden / sync / skill_registry / user_skills / trigger_gate
+# 域已整体删除 (owner 裁决真·全删), 对应 gate/router/job 登记同步移除。
 EXTENSION_ROUTERS: dict[str, list[str]] = {
-    "codegarden": [
-        "codegarden",           # Phase 2a 项目生命周期 (M1 核心)
-    ],
-    "codegarden_phase2b": [
-        "codegarden_ops",       # Phase 2b 服务网格/资源中枢/联动引擎 (M2/M3/M4)
-        "codegarden_phase14",   # Phase 14 子系统联动 (漂移评估 + CVE 同步) — D5 起跟随 phase2b
-    ],
     "mcp": [
         "mcp",                  # MCP 调试端点 (/api/mcp/*)
         "mcp_adapters",         # MCP 适配端点 (/api/profile, /api/cubox/sync, ...)
         "mcp_agent_tools",      # 4 个 Agent 侧写 tool
         "mcp_phase5_tools",     # Phase 5 扩展 tool (kl_router + dsh_router)
     ],
-    "sync": ["sync"],           # 跨端配置同步 (WebDAV)
     "tech_stack": ["tech_stack"],  # 技术栈管理 + 漂移评估
     "secnews": [                  # 安全看板 (KL 管线 + Feed + Dashboard)
         "kl_pipeline_api",
@@ -95,21 +73,8 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
     "info_filter": [              # v0.8 P1 独立资讯筛选门禁
         "info_filter_api",        #   /api/info-filter/* (CRUD + preview + gate)
     ],
-    "trigger_gate": [             # P0-8 (E11 完整性): _registry.py 按
-        "trigger_webhook_api",    #   is_extension_enabled("trigger_gate") 注册
-    ],                            #   webhook /trigger/* (此前漏登记, features 端点漏报)
     "interest_engine": [          # DEV-0182 Workbench Focus: 兴趣引擎
         "interest_api",           #   /api/interest/* (信号 + 权重 + reset)
-    ],
-    "user_skills": [              # v0.8 C3 Skill Builder (v0.8.1 Day 0 补登记)
-        "skill_builder_api",      #   /api/skill-builder/* (6 端点)
-    ],
-    "skill_registry": [           # v0.8 Phase A A3: Skill 商店
-        "skill_registry_api",     #   /api/skill-registry/* (列表/详情/启停/run 入队)
-        # P0-8 (E11 完整性): 同 gate 分支还有 2 个模块此前漏登记 —
-        # _registry.py skill_registry 分支共注册 3 个 router
-        "skill_registry_v1_api",  #   /api/skill-registry/v1/* (v1 路径, 须先注册)
-        "skill_registry_runs_api",  # /api/skill-registry/* 运行历史 + 反馈
     ],
     # security_graph 不占 router (security / kl_* 属 core 核心安全数据),
     # 只控制 mitre_sync / cve_sync_to_security 两个 job
@@ -119,14 +84,6 @@ EXTENSION_ROUTERS: dict[str, list[str]] = {
 # 此前 _JOB_EXT_MAP 散落在 backend/scheduler/scheduler.py + 测试三处重复;
 # 现统一在此声明, scheduler.py 与测试反向派生.
 EXTENSION_JOBS: dict[str, list[str]] = {
-    "sync": ["sync"],                       # 跨端配置同步 (Mon 10:30)
-    "codegarden": [
-        "cg_upstream_sync",                 # 上游同步 (daily 09:00) — M1 核心
-    ],
-    "codegarden_phase2b": [
-        "cg_service_scan",                  # 服务网格自动发现 (5min) — M2, P1.6
-        "cg_event_process",                 # 事件总线处理 (60s) — M4, P1.6
-    ],
     "tech_stack": [
         "cg_drift_assess",                  # 技术栈漂移评估 (3600s)
     ],
@@ -206,7 +163,7 @@ def _load_gates() -> dict[str, bool]:
     else:
         _GATES_MTIME_NS = _toml_mtime_ns()
 
-    # CI/测试覆盖: HOTSPOT_FEATURE_GATES='{"extensions": {"codegarden": false, ...}}'
+    # CI/测试覆盖: HOTSPOT_FEATURE_GATES='{"extensions": {"dsh": false, ...}}'
     # 优先级: 默认 < TOML < env
     env_json = os.environ.get("HOTSPOT_FEATURE_GATES")
     if env_json:

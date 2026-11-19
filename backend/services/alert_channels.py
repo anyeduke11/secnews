@@ -2,7 +2,7 @@
 
 设计原则
 --------
-- **配置源**: 凭据仅从环境变量或密钥服务读取 (不写源码 / 测试可用凭据字面量)
+- **配置源**: 凭据仅从环境变量读取 (2026-11-19: 密钥服务已退役, 改 env-only)
 - **URL 安全**: webhook / slack / 飞书 / 钉钉 均强制 https (除 slack webhook 例外允许 http localhost for testing)
 - **签名**: 飞书 / 钉钉 HMAC-SHA256 签名 (verify by secret); slack 不签名 (token 校验)
 - **失败模式**: 通道 dispatch 异常 swallow + log, 不阻塞主流程; 但写入 alert_deliveries 表留痕
@@ -125,8 +125,7 @@ class EmailChannel(AlertChannel):
         self.host = os.environ.get("HOTSPOT_ALERT_SMTP_HOST", "").strip()
         self.port = int(os.environ.get("HOTSPOT_ALERT_SMTP_PORT", "587"))
         self.user = os.environ.get("HOTSPOT_ALERT_SMTP_USER", "").strip()
-        # 密码从密钥服务读 (避免明文进 env / 测试)
-        self._password: str | None = None
+        self._password = os.environ.get("HOTSPOT_ALERT_SMTP_PASSWORD", "").strip()
         self.sender = os.environ.get("HOTSPOT_ALERT_SMTP_SENDER", "").strip()
         self.recipients = [
             r.strip()
@@ -140,17 +139,6 @@ class EmailChannel(AlertChannel):
     async def send(self, payload: AlertPayload) -> dict[str, Any]:
         if not self.is_configured():
             raise RuntimeError("EmailChannel 未配置 (SMTP host / sender / recipients 缺失)")
-        if self._password is None:
-            try:
-                from backend.services.secrets_service import SecretsService
-
-                svc = SecretsService()
-                # 尝试读 SMTP password from secrets (provider=email_alert)
-                from backend.repository.secrets_repo import SecretRepository
-                item = SecretRepository().get_by_provider("email_alert")
-                self._password = svc.decrypt_for_internal_use(item.id) if item else ""
-            except Exception:
-                self._password = ""
 
         msg = EmailMessage()
         msg["Subject"] = f"[{payload.level.upper()}] {payload.metric} 触发阈值告警"

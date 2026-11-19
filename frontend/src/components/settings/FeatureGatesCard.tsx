@@ -22,17 +22,11 @@ interface RowNote {
 
 const GATE_DESCS: Record<string, string> = {
   secnews: '情报核心: 三层工作流/判读台/知识管线',
-  codegarden: '代码花园视图',
-  codegarden_phase2b: 'CodeGarden 运维层 (服务网格/资源中枢)',
   mcp: 'MCP 工具面 (agent 适配端点)',
-  sync: 'WebDAV 跨设备同步',
   tech_stack: '技术栈图谱',
   security_graph: 'ATT&CK / CVE 安全图谱',
   dsh: 'dsh 认知大脑 (受管子进程)',
   info_filter: '独立资讯筛选门禁',
-  skill_registry: 'Skill 商店',
-  trigger_gate: '触发源门禁 (webhook/KL/collector)',
-  user_skills: '用户自建 Skill',
   interest_engine: '兴趣引擎 (行为信号+域权重)',
   semantic_filter: '语义筛选',
   ai_classify: 'AI 分类',
@@ -68,7 +62,7 @@ export function FeatureGatesCard() {
     }
   }, []);
 
-  // GATE_DESCS 16 键常量驱动顺序 (描述层); 后端 items 为事实源
+  // GATE_DESCS 10 键常量驱动顺序 (2026-11-19 四域删除后); 后端 items 为事实源
   const byName = new Map((gates ?? []).map(g => [g.name, g]));
   const keys = Object.keys(GATE_DESCS);
 

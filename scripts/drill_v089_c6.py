@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-WS = "codegarden/p6-drill"
+WS = "workspace/p6-drill"
 RUN_TAG = "c6drill"
 
 

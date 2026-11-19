@@ -11,11 +11,7 @@ import { useEffect, useState } from 'react';
 import { getFeatureFlagsRaw } from '../api/shared';
 
 export interface FeatureFlags {
-  codegarden: boolean;
-  /** P1.6: M2/M3/M4 (服务网格/资源中枢/联动引擎) 独立 gate */
-  codegardenPhase2b: boolean;
   mcp: boolean;
-  sync: boolean;
   techStack: boolean;
   securityGraph: boolean;
   /** v0.6: SecNews 安全看板 */
@@ -25,10 +21,7 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
-  codegarden: false,
-  codegardenPhase2b: false,
   mcp: false,
-  sync: true,
   techStack: false,
   securityGraph: false,
   secnews: true,
@@ -68,10 +61,7 @@ async function fetchFlags(): Promise<FeatureFlags> {
   try {
     const data = await getFeatureFlagsRaw();
     const flags: FeatureFlags = {
-      codegarden: !!data.codegarden,
-      codegardenPhase2b: !!((data.codegarden_phase2b as boolean | undefined) ?? data.codegardenPhase2b),
       mcp: !!data.mcp,
-      sync: !!data.sync,
       techStack: !!((data.techStack as boolean | undefined) ?? data.tech_stack),
       securityGraph: !!((data.securityGraph as boolean | undefined) ?? data.security_graph),
       secnews: !!((data.secnews as boolean | undefined) ?? true),

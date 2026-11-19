@@ -6,7 +6,6 @@
 - GET    /api/tech-stack/{id}            查看 (含 404)
 - PUT    /api/tech-stack/{id}            更新 (含 404)
 - DELETE /api/tech-stack/{id}            删除 (含 404)
-- GET    /api/tech-stack/impact          影响分析桥接
 - 校验: proficiency 越界 / 空名 / 不存在 404
 """
 from __future__ import annotations
@@ -141,19 +140,4 @@ class TestTechStackGetUpdateDelete:
         assert r.status_code == 404
 
 
-class TestTechStackImpact:
-    """影响分析端点 (验收 4 的 API 层覆盖)."""
 
-    def test_impact_missing_article_returns_empty(self, client):
-        """不存在的 article_id → 空结果 (不报错)."""
-        r = client.get("/api/tech-stack/impact", params={"article_id": "no-such"})
-        assert r.status_code == 200
-        data = r.json()
-        assert data["article_id"] == "no-such"
-        assert data["projects"] == []
-        assert data["tags"] == []
-
-    def test_impact_missing_param_rejected(self, client):
-        """缺 article_id 参数 → 422."""
-        r = client.get("/api/tech-stack/impact")
-        assert r.status_code == 422

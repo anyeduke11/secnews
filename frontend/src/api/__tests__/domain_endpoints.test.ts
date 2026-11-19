@@ -3,7 +3,7 @@
  *
  * 域模块是 URL + method + body 的唯一搬运点, 组件层不再直调 lib/api。
  * 这些断言锁定"搬过来的 URL 一个字符都没变", 任一侧改错即红:
- *  - report / security / skills 三个 B3 新建/收敛模块
+ *  - report / security 两个 B3 新建/收敛模块
  *
  * 模式: mock lib/api, 断言底层调用参数 (经 getJSON/postJSON/apiFetch 透传)。
  */
@@ -38,18 +38,6 @@ import {
   getCveHeatmap,
   getSecurityEntityRelated,
 } from '../security';
-import {
-  runSkill,
-  submitSkillFeedback,
-  validateSkillDraft,
-  createSkill,
-  listSkills,
-  getSkillCountsBySource,
-  createSkillItem,
-  updateSkillItem,
-  deleteSkillItem,
-  updateKnowledgeSkill,
-} from '../skills';
 
 beforeEach(() => {
   mocks.getJSON.mockReset().mockResolvedValue({ ok: true });
@@ -128,57 +116,5 @@ describe("security 域: /api/security|compliance|cve/*", () => {
     expect(mocks.getJSON).toHaveBeenLastCalledWith(
       `/api/security/entities/${encodeURIComponent('cve/2026-1')}/related?depth=2`,
     );
-  });
-});
-
-describe("skills 域: 技能运行 / 反馈 / 构建 / CRUD", () => {
-  it("run 与 feedback 走 skill-registry 子路径, id 编码", async () => {
-    await runSkill('sk 01');
-    expect(mocks.postJSON).toHaveBeenLastCalledWith(
-      `/api/skill-registry/${encodeURIComponent('sk 01')}/run`,
-      { inputs: null },
-    );
-
-    await submitSkillFeedback('run 01', 5);
-    expect(mocks.postJSON).toHaveBeenLastCalledWith(
-      `/api/skill-registry/runs/${encodeURIComponent('run 01')}/feedback`,
-      { score: 5, comment: '' },
-    );
-  });
-
-  it("builder 校验/创建 body 原样透传", async () => {
-    const payload = { name: 'demo' };
-    await validateSkillDraft(payload);
-    expect(mocks.postJSON).toHaveBeenLastCalledWith('/api/skill-builder/validate', { payload });
-
-    await createSkill({ name: 'demo2' });
-    expect(mocks.postJSON).toHaveBeenLastCalledWith('/api/skill-builder', { name: 'demo2' });
-  });
-
-  it("列表/计数走 GET, 写操作走对应 method", async () => {
-    const params = new URLSearchParams({ limit: '20' });
-    await listSkills(params, { signal: undefined });
-    expect(mocks.getJSON).toHaveBeenLastCalledWith('/api/skills?limit=20', { signal: undefined });
-
-    await getSkillCountsBySource();
-    expect(mocks.getJSON).toHaveBeenLastCalledWith('/api/skills/count_by_source');
-
-    await createSkillItem({ name: 'x' });
-    expect(mocks.postJSON).toHaveBeenLastCalledWith('/api/skills', { name: 'x' });
-
-    await updateSkillItem(7, { name: 'y' });
-    expect(mocks.apiFetch).toHaveBeenLastCalledWith('/api/skills/7', {
-      method: 'PATCH',
-      body: JSON.stringify({ name: 'y' }),
-    });
-
-    await deleteSkillItem(7);
-    expect(mocks.apiFetch).toHaveBeenLastCalledWith('/api/skills/7', { method: 'DELETE' });
-
-    await updateKnowledgeSkill(9, { starred: true });
-    expect(mocks.apiFetch).toHaveBeenLastCalledWith('/api/knowledge/skills/9', {
-      method: 'PATCH',
-      body: JSON.stringify({ starred: true }),
-    });
   });
 });

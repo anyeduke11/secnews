@@ -1,8 +1,7 @@
 import { Suspense } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { PageLayout, SentinelLayout } from '../components/PageLayout';
 import { useFavorites } from '../hooks/useFavorites';
-import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useGoBack } from '../hooks/useGoBack';
 import * as P from './lazy-imports';
 
@@ -20,7 +19,7 @@ import * as P from './lazy-imports';
 //  - 三层 Sentinel 恢复为唯一壳: / (资料层) → /judge (判断层) → /action (行动层),
 //    走 SentinelLayout 全屏组 (无 AppNav), 壳由各页内嵌 SentinelShell 提供 (心跳条常驻)
 //  - v1 四入口降级: /workbench /intel → /, /cases → /judge (QueryRedirect 透传 query)
-//  - V1SentinelShell 物理删除; /garden 恢复 (gate codegarden, 更多菜单死链自愈)
+//  - V1SentinelShell 物理删除; /garden 保留重定向到 /action (2026-11-19 工坊域删除, 旧链接兼容)
 //  - 守卫: routes/__tests__/v085_route_shell.test.tsx 锁定上述口径, 违反即 CI 红
 // NAV4 (2026-09-13): 四菜单壳 — 资讯 / 知识 / 行动 / 设置
 //  - /judge → / (透传 query); /cases → /action; /judge/graph → /knowledge/graph; /secnews → /secnews/feed
@@ -60,48 +59,9 @@ function HistoryPageRoute() {
   return <P.HistoryPage favoritedIds={favoritedIds} onToggleFavorite={toggleFavorite} />;
 }
 
-// v0.8 Phase B (B6): /skill-store 路由包装 — 导航回调在此收敛, 页面组件保持 router-free
-// 2026-09-10: onBack 统一为智能返回 (useGoBack: 有来路回上一页, 否则回 fallback), 壳已提供回首页
-function SkillStoreRoute() {
-  const navigate = useNavigate();
-  const goBack = useGoBack();
-  return (
-    <P.SkillStore
-      onBack={goBack}
-      onDetail={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
-      onHistory={id => navigate(`/skill-store/${encodeURIComponent(id)}?focus=history`)}
-    />
-  );
-}
-
-// v0.8 Phase B (B6): /skill-store/:skillId 详情页包装 — 路由参数注入 + 返回商店
-// skillId 从 useParams 注入已不需要, SkillDetail 自己 fallback 到路由
-function SkillDetailRoute() {
-  const goBack = useGoBack('/skill-store');
-  return <P.SkillDetail onBack={goBack} />;
-}
-
-// v0.8 Phase C (C4): /skill-store/new 包装 — 4 步创建向导
-function SkillBuilderRoute() {
-  const navigate = useNavigate();
-  const goBack = useGoBack('/skill-store');
-  return (
-    <P.SkillBuilder
-      onBack={goBack}
-      onCreated={id => navigate(`/skill-store/${encodeURIComponent(id)}`)}
-    />
-  );
-}
-
-// v0.8 Phase D (D2): /dashboard 包装 — 技能看板
-function DashboardRoute() {
-  const goBack = useGoBack('/skill-store');
-  return <P.Dashboard onBack={goBack} />;
-}
+// v0.8 Phase B (B6) 技能商店包装已随技能域删除 (2026-11-19)
 
 export function AppRoutes() {
-  // v0.4.3: 扩展路由按 feature flag 条件渲染 (core 路由永远注册)
-  const features = useFeatureFlags();
   const goBack = useGoBack();
 
   return (
@@ -140,20 +100,7 @@ export function AppRoutes() {
         {/* R-13: 待办域退役 — /todos 仅保留重定向兼容 (透传 query → /action) */}
         <Route path="/todos" element={<QueryRedirect to="/action" />} />
         <Route path="/history" element={<Suspense fallback={<PageFallback />}><HistoryPageRoute /></Suspense>} />
-        <Route path="/skills" element={<Suspense fallback={<PageFallback />}><P.SkillsPage onBack={goBack} /></Suspense>} />
-        {/* v0.8 Phase A (A4): 技能商店 (/skill-registry) — /skills 已被 Phase 41 技能库占用, 故用 /skill-store */}
-        <Route path="/skill-store" element={<Suspense fallback={<PageFallback />}><SkillStoreRoute /></Suspense>} />
-        {/* v0.8 Phase B (B6): 详情页 + 运行历史回放 + 反馈打分 */}
-        <Route path="/skill-store/:skillId" element={<Suspense fallback={<PageFallback />}><SkillDetailRoute /></Suspense>} />
-        {/* v0.8 Phase C (C4): Skill Builder 4 步向导 */}
-        <Route path="/skill-store/new" element={<Suspense fallback={<PageFallback />}><SkillBuilderRoute /></Suspense>} />
-        {/* v0.8 Phase D (D2): 技能看板 */}
-        <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><DashboardRoute /></Suspense>} />
 
-        <Route path="/secrets" element={<Suspense fallback={<PageFallback />}><P.SecretsPage onBack={goBack} /></Suspense>} />
-        {features.sync && (
-          <Route path="/sync" element={<Suspense fallback={<PageFallback />}><P.SyncPage onBack={goBack} /></Suspense>} />
-        )}
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><P.SettingsPage /></Suspense>} />
         <Route path="/report" element={<Suspense fallback={<PageFallback />}><P.ReportPage onBack={goBack} /></Suspense>} />
         {/* NAV4 P3 (2026-09-13, DEV-0178): 维护诊断 /maint (设置菜单「扩展域」段; 走 /api/maintenance/* 已注册端点) */}
@@ -198,14 +145,6 @@ export function AppRoutes() {
 
         {/* Phase 4 (DEV-0183): 通稿审核 — MP-2 事件类型候选人工审定 (真实 /api/event-technique 端点) */}
         <Route path="/action/events" element={<Suspense fallback={<PageFallback />}><P.EventsReviewPage /></Suspense>} />
-        {features.codegarden && (
-          <>
-            <Route path="/codegarden" element={<Suspense fallback={<PageFallback />}><P.CodegardenPage onBack={goBack} /></Suspense>} />
-            {features.codegardenPhase2b && (
-              <Route path="/codegarden/phase2b" element={<Suspense fallback={<PageFallback />}><P.CodegardenPhase2bPage onBack={goBack} /></Suspense>} />
-            )}
-          </>
-        )}
         {/* SecNews 安全看板 6 视图 — NAV4 (2026-09-13) 拆挂 PageLayout, 由 menuOf() 自动归属四菜单
          * - feed / pipeline / analytics → 资讯菜单 (data)
          * - knowledge → 知识菜单
@@ -232,8 +171,7 @@ export function AppRoutes() {
         <Route path="/extract" element={<Suspense fallback={<PageFallback />}><P.ExtractPage onBack={goBack} /></Suspense>} />
         <Route path="/search" element={<Suspense fallback={<PageFallback />}><P.UnifiedSearchPage onBack={goBack} /></Suspense>} />
 
-        {/* D1 (Batch ⑧): OAuth 授权回调页 (无 PageLayout, 全屏显示状态) */}
-        <Route path="/oauth-callback" element={<Suspense fallback={<PageFallback />}><P.OAuthCallbackPage /></Suspense>} />
+        {/* D1 OAuth 回调页已随密钥域退役删除 (2026-11-19 四域删除) */}
 
         {/* v0.7.1: 未匹配路径回落到哨兵首页 (扩展关闭时旧深链不白屏) */}
         <Route path="*" element={<Navigate to="/" replace />} />

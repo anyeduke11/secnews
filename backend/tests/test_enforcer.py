@@ -32,7 +32,7 @@ def _envelope(**plan_overrides) -> dict:
 
 def _compile(envelope: dict, expected_hash: str | None = None):
     return compile_enforcement(
-        envelope, run_id="run-1", workspace="codegarden/demo", expected_hash=expected_hash)
+        envelope, run_id="run-1", workspace="workspace/demo", expected_hash=expected_hash)
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ def test_network_default_denied_and_secrets_stripped():
         "OPENAI_API_KEY": "sk-xxx",
         "ANTHROPIC_TOKEN": "tok",
         "HTTPS_PROXY": "http://proxy:8080",
-        "HOTSPOT_EXEC_WORKSPACE": "codegarden/demo",
+        "HOTSPOT_EXEC_WORKSPACE": "workspace/demo",
     })
     assert "OPENAI_API_KEY" not in env and "ANTHROPIC_TOKEN" not in env
     assert "HTTPS_PROXY" not in env

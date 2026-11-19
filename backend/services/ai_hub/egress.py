@@ -1,10 +1,9 @@
 """LLM provider 出站凭据门禁 (C3)。
 
-威胁: provider 的 ``base_url`` 来自 ``config/llm.yaml``, 而同步包应用流程
-(``backend/services/sync_bundle.py`` 会写 ``base_url``) 让该文件成为可写面。
-一旦 ``base_url`` 被改成攻击者主机, 调用方仍会照常附上
-``Authorization: Bearer <key>`` —— 密钥与全部 prompt 内容就此外泄, 同时构成
-SSRF。
+威胁: provider 的 ``base_url`` 来自 ``config/llm.yaml``, 而 ``llm.yaml`` 是
+可写面 (配置文件本身可被本地改动)。一旦 ``base_url`` 被改成攻击者主机,
+调用方仍会照常附上 ``Authorization: Bearer <key>`` —— 密钥与全部 prompt
+内容就此外泄, 同时构成 SSRF。
 
 因此本模块提供 **代码侧常量白名单**: 白名单不读 llm.yaml, 否则就等于让被
 保护的配置自己批准自己。需要接新 provider 时, 改本文件的常量, 或用环境变量

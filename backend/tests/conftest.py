@@ -88,7 +88,7 @@ _PROD_DIR_ROOTS = tuple(
         _REPO_ROOT / "backend" / "logs",
         _REPO_ROOT / "backend" / "data",
         _REPO_ROOT / "llm-wiki-2.0",
-        _REPO_ROOT / "codegarden",
+        _REPO_ROOT / "workspace",
         _REPO_ROOT / "data",
         Path.home() / ".pi",
     )
@@ -183,8 +183,7 @@ _ENV_SNAPSHOT = {k: v for k, v in os.environ.items() if k.startswith("HOTSPOT_")
 # ---------------------------------------------------------------------------
 os.environ.setdefault(
     "HOTSPOT_FEATURE_GATES",
-    '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
-    '"mcp": true, "sync": true, "tech_stack": true, "security_graph": true, '
+    '{"extensions": {"mcp": true, "tech_stack": true, "security_graph": true, '
     '"dsh": true}}',
 )
 
@@ -332,17 +331,19 @@ def _feature_gates_all_on_for_tests() -> None:
     """v0.4.3: 测试环境默认全部扩展开启。
 
     分层重构后路由/job 注册受 feature_gates.toml 控制, 而生产默认
-    codegarden/mcp/tech_stack/security_graph=false。既有功能测试假设这些
-    功能在线, 因此测试环境通过 HOTSPOT_FEATURE_GATES env 全开。
+    mcp=false; 既有功能测试假设这些功能在线, 因此测试环境通过
+    HOTSPOT_FEATURE_GATES env 全开。
     组合矩阵 (core-only / all-on / mixed) 由 test_feature_gates.py
     和 CI backend-core-only job 专门覆盖。
+
+    2026-11-19 四域删除: codegarden / codegarden_phase2b / sync 三个 gate
+    键已从 feature_gates.toml 退役, env 串同步移除 (存量键会被忽略)。
     """
     import os
 
     from backend.extensions import reset_gates
 
     prev = os.environ.get("HOTSPOT_FEATURE_GATES")
-    # P1.6: 测试环境也全开 codegarden_phase2b (M2/M3/M4) 保证既有功能测试在线
     # v0.6.3: 补 dsh — 动态 gate 读数 (per-request) 与注册期快照保持一致
     # 2026-09-27 pi 主力化 (DEV-0234): 管线 LLM 三 gate 显式 false — 开闸是
     # 生产配置决策 (TOML), 不属于测试默认态; 否则测试机 pi 真通道可达时,
@@ -350,8 +351,7 @@ def _feature_gates_all_on_for_tests() -> None:
     # 需要语义层 ON 的用例 (test_semantic_filter_gate 等) 测试体内自行
     # setenv 显式开 (fixture 先跑, 测试体后跑, 覆盖生效)。
     os.environ["HOTSPOT_FEATURE_GATES"] = (
-        '{"extensions": {"codegarden": true, "codegarden_phase2b": true, '
-        '"mcp": true, "sync": true, '
+        '{"extensions": {"mcp": true, '
         '"tech_stack": true, "security_graph": true, "dsh": true, '
         '"semantic_filter": false, "ai_classify": false, "pipeline_ner": false}}'
     )

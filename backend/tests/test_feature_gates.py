@@ -17,10 +17,11 @@ from fastapi.testclient import TestClient
 from backend.api import register_routers
 
 ALL_OFF = {
-    "codegarden": False, "codegarden_phase2b": False,
-    "mcp": False, "sync": False,
+    "mcp": False,
     "tech_stack": False, "security_graph": False,
     "secnews": False, "dsh": False,
+    "info_filter": False, "interest_engine": False,
+    "semantic_filter": False, "ai_classify": False, "pipeline_ner": False,
 }
 ALL_ON = dict.fromkeys(ALL_OFF, True)
 
@@ -40,8 +41,6 @@ CORE_PATHS = [
     "/api/kl/metrics",
     "/api/kl/compounding",
     "/api/settings/features",
-    "/api/secrets/status",
-    "/api/skills",
     "/api/tags",
     "/api/annotations",
     "/api/digests/latest",
@@ -51,22 +50,13 @@ CORE_PATHS = [
 ]
 
 EXTENSION_PATHS = {
-    "codegarden": [
-        "/api/codegarden/projects",
-    ],
-    "codegarden_phase2b": [
-        "/api/codegarden/services",
-        "/api/codegarden/drift/assessments",
-        "/api/cve/sync",
-    ],
     "mcp": [
         "/api/mcp/status",
         "/api/mcp/tools",
         "/api/profile",
         "/api/cubox/sync",
     ],
-    "sync": ["/api/sync/status", "/api/sync/config"],
-    "tech_stack": ["/api/tech-stack", "/api/tech-stack/impact"],
+    "tech_stack": ["/api/tech-stack"],
     "secnews": [
         "/api/kl/pipeline/stats",
         "/api/feedback/profile",
@@ -76,6 +66,7 @@ EXTENSION_PATHS = {
         "/api/dsh/control/status",
         "/api/agents/available",
     ],
+    # codegarden / codegarden_phase2b / sync 域已随四域清理整体删除 (2026-11-19)
     # crm 域已随 migration 116 整体删除, 不再列入扩展矩阵
 }
 
@@ -176,12 +167,6 @@ class TestExtensionGating:
             for p in ps:
                 assert p in paths, f"{p} should be registered when all extensions on"
 
-    def test_sync_default_enabled(self):
-        """feature_gates.toml 默认 sync=true — 不注入时 sync 路由在。"""
-        app = FastAPI()
-        register_routers(app)
-        assert "/api/sync/status" in _route_paths(app)
-
 
 class TestJobGating:
     """scheduler job 按扩展归属过滤。"""
@@ -206,13 +191,11 @@ class TestJobGating:
             assert _is_job_enabled(core_id), f"core job {core_id} must always run"
 
     def test_registered_job_count_matches_scheduler(self):
-        """scheduler.py 中 add_job 数 = 56 (v1.0 T09 +2 worker_queue_pump + legacy_hold_reap,
-        T13 +1 knowledge_review_due, C13 +2 legacy_promote_due + legacy_migrate_resume,
-        v0.8.5 D1 +1 v1_signal_intake_tick; 前值 52 — v0.8.2 Y-A4 +1 backup_verify;
-        DEV-0178: bid_expiry_check 移除 58→57; DEV-0241: wiki_projection_rebuild 57→58;
-        MP-2: mp2_extract 采集→抽取→入池 58→59; R-03a: daily_snapshot + weekly_report
-        整链下线 59→57; v0.8.8 C2.1: daily_db_backup + backup_verify 退役 57→55;
-        v0.8.8 C2.2: log_trim_job 新增 55→56)。"""
+        """scheduler.py 中 add_job 数 = 49。
+
+        演进: v0.8.8 C2.2 后为 56; 2026-11-19 四域清理退役 codegarden 4 job
+        (cg_upstream_sync / cg_service_scan / cg_event_process / cg_drift_assess)
+        + sync job + worker_queue_pump + secrets_rotation_check → 56-7=49。"""
         import ast
         from pathlib import Path
         src = Path("backend/scheduler/scheduler.py").read_text(encoding="utf-8")
@@ -223,7 +206,7 @@ class TestJobGating:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr == "add_job"
         )
-        assert n == 56
+        assert n == 48
 
 
 class TestFeaturesEndpoint:
@@ -233,9 +216,7 @@ class TestFeaturesEndpoint:
         app = build_app(monkeypatch, ALL_OFF)
         with TestClient(app) as client:
             data = client.get("/api/settings/features").json()
-        assert data["codegarden"] is False
         assert data["mcp"] is False
-        assert data["sync"] is False
         assert data["tech_stack"] is False
         assert data["security_graph"] is False
 
@@ -243,13 +224,12 @@ class TestFeaturesEndpoint:
         app = build_app(monkeypatch, ALL_ON)
         with TestClient(app) as client:
             data = client.get("/api/settings/features").json()
-        assert data["codegarden"] is True
         assert data["mcp"] is True
         # 存量 bug 修复: EXTENSION_ROUTERS 此前缺 dsh 键 → enabled_extensions
         # 漏报 dsh, 该断言把错误输出固化。现在补齐后应含 dsh。
         assert data["enabled_extensions"] == [
-            "codegarden", "codegarden_phase2b", "mcp", "sync", "tech_stack",
-            "secnews", "dsh",
+            "mcp", "tech_stack", "secnews", "dsh", "info_filter",
+            "interest_engine",
         ]
 
 
@@ -262,13 +242,10 @@ class TestExtensionsModule:
         monkeypatch.delenv("HOTSPOT_FEATURE_GATES", raising=False)
         reset_gates()
         try:
-            # D5 Batch ⑧: phase2b / tech_stack / security_graph 三扩展开闸
-            assert is_extension_enabled("codegarden") is True
-            assert is_extension_enabled("codegarden_phase2b") is True
+            # D5 Batch ⑧: tech_stack / security_graph 扩展开闸
             assert is_extension_enabled("tech_stack") is True
             assert is_extension_enabled("security_graph") is True
             assert is_extension_enabled("mcp") is False
-            assert is_extension_enabled("sync") is True
         finally:
             reset_gates()
 
@@ -282,12 +259,12 @@ class TestExtensionsModule:
         import backend.extensions as extensions
         monkeypatch.setenv(
             "HOTSPOT_FEATURE_GATES",
-            '{"extensions": {"codegarden": true, "mcp": true}}',
+            '{"extensions": {"mcp": true, "tech_stack": true}}',
         )
         extensions.reset_gates()
         try:
-            assert extensions.is_extension_enabled("codegarden") is True
-            assert extensions.is_extension_enabled("sync") is True  # TOML 值保留
+            assert extensions.is_extension_enabled("mcp") is True
+            assert extensions.is_extension_enabled("tech_stack") is True  # TOML 值保留
         finally:
             extensions.reset_gates()
 
@@ -322,10 +299,10 @@ class TestSetTomlGate:
         toml_path = tmp_path / "feature_gates.toml"
         toml_path.write_text("# empty config\n", encoding="utf-8")
         monkeypatch.setattr(ext, "_GATES_PATH", toml_path)
-        ext.set_toml_gate("sync", False)
+        ext.set_toml_gate("tech_stack", False)
         text = toml_path.read_text(encoding="utf-8")
         assert "[extensions]" in text
-        assert "sync = false" in text
+        assert "tech_stack = false" in text
 
     def test_appends_to_file_tail_when_extensions_is_last_section(self, tmp_path, monkeypatch):
         """[extensions] 为最后一节时仍插文件尾 (行为不变, 显式锚定)。"""

@@ -5,27 +5,22 @@
  * (base_url 等), 用户提供 key 即可, 自动识别有哪些模型可用。
  *
  * 数据源: GET /api/llm/pool[?probe=1] (backend/services/ai_hub/pool.py)
- * 密钥写入: POST /api/secrets (provider=<平台名>, 与 SecretsPanel 同保险箱)
+ * 密钥来源 (2026-11-19 密钥域退役): 仅环境变量 (p.key_env), 本面板不再写密钥
  * pi 在 agent_channels 单列 — 本面板模型表格永不出现 pi。
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  createSecret,
   getLlmPool,
-  getLlmPoolPlatform,
   getLlmPoolRouting,
-  getSecretsStatus,
   putLlmPoolRoute,
 } from '../../api/settings';
-import type { PoolPlatform, PoolRouting, PoolSnapshot } from '../../api/settings';
+import type { PoolRouting, PoolSnapshot } from '../../api/settings';
 import { PoolPlatformRow } from './ModelPoolPanelParts';
 import { StatusBadge } from '../../primitives/StatusBadge';
 
 export function ModelPoolPanel() {
   const [snap, setSnap] = useState<PoolSnapshot | null>(null);
   const [probing, setProbing] = useState(false);
-  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
-  const [vaultUnlocked, setVaultUnlocked] = useState<boolean | null>(null);
   const [msg, setMsg] = useState<{ name: string; type: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [routing, setRouting] = useState<PoolRouting['routing']>({});
   const [routeOpen, setRouteOpen] = useState<Record<string, boolean>>({});
@@ -56,45 +51,7 @@ export function ModelPoolPanel() {
   useEffect(() => {
     load(false);
     loadRouting();
-    getSecretsStatus()
-      .then(d => setVaultUnlocked(Boolean(d?.unlocked)))
-      .catch(() => setVaultUnlocked(null));
   }, [load, loadRouting]);
-
-  const saveAndDetect = useCallback(async (p: PoolPlatform) => {
-    const key = (keyDrafts[p.name] ?? '').trim();
-    setMsg(null);
-    if (!key) {
-      setMsg({ name: p.name, type: 'error', text: '请先粘贴 API Key' });
-      return;
-    }
-    try {
-      // 与 SecretsPanel 同一保险箱通道 (provider=<平台名> 即 pool 密钥解析键)
-      await createSecret({
-        provider: p.name, name: p.label, model: '', base_url: p.base_url,
-        api_key: key, master_key: '',
-      });
-      setKeyDrafts(prev => ({ ...prev, [p.name]: '' }));
-    } catch (e) {
-      setMsg({ name: p.name, type: 'error', text: e instanceof Error && e.message ? e.message : '密钥保存失败 (保险箱未解锁?)' });
-      return;
-    }
-    setMsg({ name: p.name, type: 'ok', text: '密钥已入保险箱, 探测中…' });
-    try {
-      const d = await getLlmPoolPlatform(p.name);
-      const updated = d.platforms?.[0];
-      if (updated) {
-        setSnap(prev => prev
-          ? { ...prev, platforms: prev.platforms.map(x => (x.name === p.name ? updated : x)) }
-          : prev);
-        setMsg(updated.available === true
-          ? { name: p.name, type: 'ok', text: `检测成功: ${updated.model_count} 款模型可用` }
-          : { name: p.name, type: 'error', text: `检测未通过: ${updated.error ?? '未知'}` });
-      }
-    } catch {
-      setMsg({ name: p.name, type: 'error', text: '探测失败 (网络/后端不可达)' });
-    }
-  }, [keyDrafts]);
 
   const writeRoute = useCallback(async (platform: string, overrideKey: string, model: string, force = false) => {
     setWriting(platform);
@@ -135,8 +92,8 @@ export function ModelPoolPanel() {
         </button>
       </h3>
       <p className="st-section-desc">
-        内置国产主流平台接口信息 — 粘贴对应平台 API Key 即自动识别可用模型
-        (密钥存入加密保险箱, 一次配置长期有效)。pi 是 Agent 通道, 不属于模型池 (见下方单列)。
+        内置国产主流平台接口信息 — 在环境变量中配置对应平台 API Key 后「重新探测」即自动识别可用模型
+        (密钥域已退役, 不再写入本地保险箱)。pi 是 Agent 通道, 不属于模型池 (见下方单列)。
       </p>
 
       {!snap && <p className="st-cellnote">模型池不可用 — 后端不可达。</p>}
@@ -147,11 +104,9 @@ export function ModelPoolPanel() {
             <PoolPlatformRow
               key={p.name}
               p={p}
-              keyDraft={keyDrafts[p.name] ?? ''}
               routeOpen={Boolean(routeOpen[p.name])}
               routeDraft={routeDrafts[p.name]}
               isWriting={writing === p.name}
-              onKeyDraftChange={v => setKeyDrafts(prev => ({ ...prev, [p.name]: v }))}
               onToggleRoute={() => {
                 setRouteOpen(prev => ({ ...prev, [p.name]: !prev[p.name] }));
                 setRouteDrafts(prev => ({
@@ -167,7 +122,6 @@ export function ModelPoolPanel() {
                 ...prev,
                 [p.name]: { ...(prev[p.name] ?? { tier: 't1_score' }), model },
               }))}
-              onSave={() => saveAndDetect(p)}
               onWriteRoute={(tier, model) => writeRoute(p.name, tier, model)}
             />
           ))}
@@ -191,9 +145,6 @@ export function ModelPoolPanel() {
             </button>
           )}
         </p>
-      )}
-      {vaultUnlocked === false && (
-        <p className="st-cellnote">保险箱处于锁定状态 — 保存密钥需先在密钥管理解锁 (或填写主密钥)。</p>
       )}
 
       {routing && Object.keys(routing).length > 0 && (

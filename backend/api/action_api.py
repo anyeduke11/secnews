@@ -108,7 +108,7 @@ class StartActionRequest(StateChangeRequest):
     """start 额外需要 idempotency_key + protocol.
 
     v1.0 C07 R05 修复: protocol 必填 (旧 default='mock' 让默认路径虚报完成).
-    pattern 限制生产协议 {dsh, pi, direct}, 不再含 'mock' (mock 走 skill_runner 演示模式).
+    pattern 限制生产协议 {dsh, pi, direct}, 不再含 'mock' (mock 演示模式已随技能域退役).
     """
 
     idempotency_key: str = Field(min_length=1, max_length=200)

@@ -4,7 +4,7 @@
  * 覆盖:
  * 1. Q1 面板渲染 (用途 / 不加的代价 / 用户习惯 / 业务逻辑)
  * 2. 4 张系统子状态卡渲染 (DATABASE / COLLECT / KEYS / SCHEDULER)
- * 3. 6 张区段跳转 tile (7 cat 新 IA)
+ * 3. 5 张区段跳转 tile (6 cat 新 IA)
  * 4. 源健康概览区段
  * 5. data-testid 可被上层 SettingsPage 用作 smoke anchor
  */
@@ -27,13 +27,6 @@ function mockHealth() {
       db: { ok: true, latency_ms: 2.3, size_mb: 128.5, hotspots_count: 42 },
       scheduler: { ok: true, jobs: ['collect', 'wiki_sync', 'cg_scan'] },
     }),
-  });
-}
-
-function mockSecrets() {
-  return Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ initialized: true, unlocked: true, source: 'os_keyring' }),
   });
 }
 
@@ -60,7 +53,6 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
   it('Q1 面板渲染 (用途 / 不加的代价 / 用户习惯 / 业务逻辑)', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/health') return mockHealth();
-      if (url === '/api/secrets/status') return mockSecrets();
       if (url === '/api/stats') return mockStats();
       if (url === '/api/sources/health') return mockSources();
       return Promise.resolve({ ok: false });
@@ -82,7 +74,6 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
   it('4 张系统子状态卡渲染', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/health') return mockHealth();
-      if (url === '/api/secrets/status') return mockSecrets();
       if (url === '/api/stats') return mockStats();
       if (url === '/api/sources/health') return mockSources();
       return Promise.resolve({ ok: false });
@@ -98,14 +89,13 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
 
     expect(screen.getByText('DATABASE')).toBeInTheDocument();
     expect(screen.getByText('ONLINE')).toBeInTheDocument();
-    expect(screen.getByText('UNLOCKED')).toBeInTheDocument();
+    expect(screen.getByText('ENV')).toBeInTheDocument();
     expect(screen.getByText('3 JOBS')).toBeInTheDocument();
   });
 
-  it('6 张区段跳转 tile (7 cat 新 IA)', async () => {
+  it('5 张区段跳转 tile (6 cat 新 IA)', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/health') return mockHealth();
-      if (url === '/api/secrets/status') return mockSecrets();
       if (url === '/api/stats') return mockStats();
       if (url === '/api/sources/health') return mockSources();
       return Promise.resolve({ ok: false });
@@ -120,14 +110,12 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
     expect(screen.getByTestId('dash-tile-models')).toBeInTheDocument();
     expect(screen.getByTestId('dash-tile-collection')).toBeInTheDocument();
     expect(screen.getByTestId('dash-tile-network')).toBeInTheDocument();
-    expect(screen.getByTestId('dash-tile-connectivity')).toBeInTheDocument();
     expect(screen.getByTestId('dash-tile-ops')).toBeInTheDocument();
   });
 
   it('版本与运行状态卡 (吸收自 About, 口径 GET /api/health)', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/health') return mockHealth();
-      if (url === '/api/secrets/status') return mockSecrets();
       if (url === '/api/stats') return mockStats();
       if (url === '/api/sources/health') return mockSources();
       return Promise.resolve({ ok: false });
@@ -150,7 +138,6 @@ describe('SettingsDashboard — V2 哨兵化总览', () => {
   it('源健康概览区段', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/health') return mockHealth();
-      if (url === '/api/secrets/status') return mockSecrets();
       if (url === '/api/stats') return mockStats();
       if (url === '/api/sources/health') return mockSources();
       return Promise.resolve({ ok: false });

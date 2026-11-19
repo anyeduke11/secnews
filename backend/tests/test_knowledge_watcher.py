@@ -1,4 +1,4 @@
-"""Knowledge watcher tests — conflict detection, debounce, publish status sync.
+"""Knowledge watcher tests — conflict detection, debounce, _MAP.md update.
 
 Most watcher logic is event-driven (file system events). These tests
 focus on the detect-and-conflict logic that can be tested in isolation.
@@ -16,7 +16,6 @@ from backend.services.knowledge_watcher import (
     _COOLDOWN_SECONDS,
     _DEBOUNCE_SECONDS,
     _KnowledgeEventHandler,
-    _maybe_sync_publish_status,
     _maybe_update_map,
 )
 
@@ -106,27 +105,6 @@ class TestConflictDetection:
         assert "v2" in content
         assert "v3" in content
         assert content.count("rollup: true") == 2
-
-
-# ---------------------------------------------------------------------------
-# Publish status sync
-# ---------------------------------------------------------------------------
-
-class TestMaybeSyncPublishStatus:
-    """Test _maybe_sync_publish_status parsing logic."""
-
-    def test_skips_non_task_files(self, tmp_path: Path):
-        """Non-task file paths are skipped."""
-        # Just ensure no exception is raised
-        _maybe_sync_publish_status(str(tmp_path / "readme.md"))
-
-    def test_skips_pending_and_processing(self, tmp_path: Path):
-        """Files in pending/ or processing/ are skipped."""
-        pending = tmp_path / "tasks" / "pending" / "task-1.md"
-        pending.parent.mkdir(parents=True, exist_ok=True)
-        pending.write_text("---\ntask_type: compile\n---\nbody", encoding="utf-8")
-        # Should not raise
-        _maybe_sync_publish_status(str(pending))
 
 
 # ---------------------------------------------------------------------------

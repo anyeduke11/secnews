@@ -2,7 +2,7 @@
 
 覆盖:
 - 所有新表存在
-- 新增列存在 (hotspots/knowledge_items/cg_projects)
+- 新增列存在 (hotspots/knowledge_items)
 - 种子标签写入
 - lifecycle 数据迁移 (compiled → lifecycle)
 - unified_search 视图可查询
@@ -79,13 +79,6 @@ def test_knowledge_items_new_columns(temp_db):
     assert "lifecycle" in cols
     assert "news_type" in cols
     assert "tech_stack" in cols
-
-
-def test_cg_projects_new_column(temp_db):
-    """034: cg_projects 新增 tech_stack_ids."""
-    conn = db.get_connection()
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(cg_projects)").fetchall()}
-    assert "tech_stack_ids" in cols
 
 
 def test_seed_tags_inserted(temp_db):

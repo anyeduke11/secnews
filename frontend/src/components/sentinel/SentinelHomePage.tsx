@@ -22,7 +22,6 @@ import { HotspotItem, plainSummary } from '../../types';
 import { trackInterest } from '../../lib/interest';
 import { getQualitySummary, getNewsAlertUnread, getPickedItems } from '../../api/secnews';
 import { getRefreshIntervalSetting } from '../../api/shared';
-import { PriorityDigestCard } from './PriorityDigestCard';
 import { useReactionAction } from './ReactionButtons';
 import { SentinelShell } from '../../shell/AppShell';
 import { usePipeReloadOnSse } from '../../shell/pipe';
@@ -238,9 +237,6 @@ export function SentinelHomePage() {
             <FeedDeep items={deepItems} binding={binding} />
           ) : (
             <>
-              {/* DEV-0177 T0.5 收敛: SK-01 今日重点情报 (实践域分区) */}
-              <PriorityDigestCard />
-
               {/* ① 今日必读 — 评分最高的头条 + 次级重点 */}
               <FeedMustRead lead={lead} secondaries={secondaries} itemsCount={items.length} binding={binding} />
 

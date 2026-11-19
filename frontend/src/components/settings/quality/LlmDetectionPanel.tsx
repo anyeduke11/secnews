@@ -8,7 +8,7 @@
  *
  * 现状: 开关 = ai_service.available() (商汤 key 就绪或 ollama 在线),
  * 经 GET /api/llm/status 的 gate_detect_available 暴露。
- * 一次配置长期有效 = 密钥配进加密保险箱 (SecretsPanel) 或本地 ollama 常驻,
+ * 一次配置长期有效 = 密钥配进环境变量 (密钥域已退役) 或本地 ollama 常驻,
  * 无需任何面板开关。
  */
 import { useState } from 'react';
@@ -72,7 +72,7 @@ export function LlmDetectionPanel({ status, loading }: LlmDetectionPanelProps) {
             <div>
               <p className="st-label">检测未启用 — 完成任一项即长期生效</p>
               <p className="st-key">
-                ① 商汤密钥配入下方加密保险箱 (SecretsPanel); 或 ② 本地启动 ollama (qwen2.5:7b)
+                ① 商汤密钥配入环境变量 (SENSENOVA_API_KEY); 或 ② 本地启动 ollama (qwen2.5:7b)
               </p>
             </div>
           </div>

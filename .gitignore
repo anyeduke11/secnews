@@ -166,9 +166,10 @@ backend/**/*.lock
 
 # v0.8.9 P4/P5 试点演练工作区 (execution_runner 的 workspace 锁定根 — 演练脚本
 # 运行时创建, 是执行产物而非源码; 入仓会被沙箱视为「项目数据」)
-codegarden/p4-drill/
-codegarden/p5-drill/
-codegarden/p6-drill/
+# 2026-11-19: 锁定根由 codegarden/ 换为 workspace/ (工坊域退役后)
+workspace/p4-drill/
+workspace/p5-drill/
+workspace/p6-drill/
 # 演练落盘的 run 产物: live DB 引用的 content_ref, 与 R08 落盘一致性绑定,
 # 未入仓的不入 (但已入库的演练①产物必须保留跟踪 — 故只忽略未跟踪的新文件)。
 backend/data/run_artifacts/*.md

@@ -271,17 +271,19 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
   // 文本层断言: 壳源码集合 (src/shell/*) 必须显式包含对应 startsWith 分支.
   // 运行时层由 shell/AppShell.test.tsx 已有的 /settings /action /report 覆盖 (运行时行为验证).
 
-  it("knowledge 分支覆盖 /knowledge /deep /reviews /tags /extract /search /dashboard /skill-store", () => {
-    // line 162: /knowledge /deep /reviews → knowledge
+  it("knowledge 分支覆盖 /knowledge /deep /reviews /reader /tags /extract /search", () => {
+    // line 86: /knowledge /deep /reviews /reader → knowledge
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/knowledge['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/deep['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/reviews['"]\)/);
-    // line 167: /tags /extract /search /dashboard /skill-store → knowledge
+    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/reader['"]\)/);
+    // line 91: /tags /extract /search → knowledge
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/tags['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/extract['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/search['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/dashboard['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/skill-store['"]\)/);
+    // 2026-11-19: /dashboard /skill-store 随技能/看板域删除, 不再归属 knowledge
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/dashboard['"]\)/);
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/skill-store['"]\)/);
   });
 
   it("action 分支覆盖 /action /report (R-13: /todos 已退役, R-14: /garden 已退役)", () => {
@@ -292,13 +294,14 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
     expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/garden['"]\)/);
   });
 
-  it("settings 分支覆盖 /settings /secrets /sync /skills /codegarden /maint", () => {
+  it("settings 分支覆盖 /settings /maint (2026-11-19: /secrets /sync /skills /codegarden 已退役)", () => {
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/settings['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/secrets['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/sync['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/skills['"]\)/);
-    expect(SHELL_TSX).toMatch(/startsWith\(['"]\/codegarden['"]\)/);
     expect(SHELL_TSX).toMatch(/startsWith\(['"]\/maint['"]\)/);
+    // 反向断言: 四域删除后不再由 menuOf 归属
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/secrets['"]\)/);
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/sync['"]\)/);
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/skills['"]\)/);
+    expect(SHELL_TSX).not.toMatch(/startsWith\(['"]\/codegarden['"]\)/);
   });
 
   it("data 分支覆盖 / /judge /cases /history /quality", () => {
@@ -320,6 +323,7 @@ describe("NAV4 §5: menuOf 全分支归属守卫 (21 个未测分支)", () => {
   });
 
   it("/oauth-callback 等未命中路径 → menuOf 返回 null (兜底分支)", () => {
+    // 注: /oauth-callback 路由已于 2026-11-19 随密钥域退役; 断言仅锁 menuOf 兜底返回值
     // menuOf 末尾必须是 `return null;` 而不是 `return undefined;` 或 `return 'data';`
     expect(SHELL_TSX).toMatch(/return\s+null\s*;?\s*\n\s*\}\s*\n/);
   });
@@ -362,8 +366,9 @@ describe("Phase 2 编辑部形态: masthead + bandnav + pressbar (DEV-0181)", ()
       expect(block, `BANDNAV_DEFS.${key} 缺失`).toBeTruthy();
     }
     expect(SHELL_TSX).toMatch(/gate: 'secnews'/);
-    expect(SHELL_TSX).toMatch(/gate: 'codegarden'/);
-    expect(SHELL_TSX).toMatch(/gate: 'sync'/);
+    // 2026-11-19: codegarden / sync 域已删除, 其 gate chip 不再存在
+    expect(SHELL_TSX).not.toMatch(/gate: 'codegarden'/);
+    expect(SHELL_TSX).not.toMatch(/gate: 'sync'/);
   });
 
   it("bandnav current 判定走 chipIsCurrent 前缀匹配; 归属复用 menuOf (工具页自动高亮)", () => {

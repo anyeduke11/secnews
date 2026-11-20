@@ -31,6 +31,8 @@ data/schema/
 data/migrations/
 # dsh 受管子进程运行数据 (sessions jsonl) — 本地持久化但不入库 (per-session, 量随 dsh 启用增长)
 data/dsh/
+# 质量门禁拒收原文落盘 (真实采集内容/业务数据, 2026-11-20 敏感信息专项补)
+/data/gates/
 
 # Editor
 .vscode/
@@ -78,6 +80,14 @@ archives/
 .env
 .env.local
 .env.bak-*
+
+# 密钥/证书材料 (2026-11-20 敏感信息专项补: 仓内 0 命中, 纯防误加)
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
 
 # Node
 node_modules/
@@ -170,6 +180,8 @@ backend/**/*.lock
 workspace/p4-drill/
 workspace/p5-drill/
 workspace/p6-drill/
+# 后续演练批次 (p7-drill/…) 同属执行产物 → 通配兜底, 防逐条漏登 (workspace/.gitkeep 是文件, 不受影响)
+/workspace/*/
 # 演练落盘的 run 产物: live DB 引用的 content_ref, 与 R08 落盘一致性绑定,
 # 未入仓的不入 (但已入库的演练①产物必须保留跟踪 — 故只忽略未跟踪的新文件)。
 backend/data/run_artifacts/*.md

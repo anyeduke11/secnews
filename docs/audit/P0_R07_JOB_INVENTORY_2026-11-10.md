@@ -4,7 +4,7 @@
 > **阶段**: v0.8.8 P0 只读盘点（为 P1 裁决提供证据）
 > **性质**: 纯盘点，**零业务代码改动**；本文件是本任务唯一写入物
 > **执行时间**: 2026-11-10（Asia/Shanghai）
-> **Python 解释器**: `/Users/duke/Documents/hotspot/.venv/bin/python3`
+> **Python 解释器**: `/path/to/hotspot/.venv/bin/python3`
 
 ---
 

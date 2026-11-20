@@ -135,14 +135,14 @@ Could not resolve "../components/knowledge/KnowledgeLibraryPage" from "src/route
 # 0) 准备干净基线树
 git worktree add /tmp/hotspot-baseline-v087 8bb960b
 cd /tmp/hotspot-baseline-v087
-ln -s /Users/duke/Documents/hotspot/frontend/node_modules frontend/node_modules
+ln -s /path/to/hotspot/frontend/node_modules frontend/node_modules
 # 放入 llm-wiki-2.0/ + backend/hotspot*.db + backend/proxy_config.json
 
 # M-1 冷启动（3 次取中位数）
 python measure_coldstart.py            # 三次：6420 / 3633 / 5706 ms
 
 # M-2 路由数
-/Users/duke/Documents/hotspot/.venv/bin/python3 /Users/duke/Documents/hotspot/scripts/generate_meta.py --check
+/path/to/hotspot/.venv/bin/python3 /path/to/hotspot/scripts/generate_meta.py --check
 
 # M-3 Feed 首屏 P95（10 次）
 python serve_dist.py &                  # 8897 静态服务 + /api 反代 → 8011
@@ -158,7 +158,7 @@ HOTSPOT_DISABLE_SCHEDULER=1 python run.py --port 8011 &
 BASELINE_IDLE_SECONDS=300 python measure_rss.py   # → 15280 KB
 
 # M-6 全量 pytest 墙钟（3 次取中位数）
-for i in 1 2 3; do { /usr/bin/time -p /Users/duke/Documents/hotspot/.venv/bin/python3 -m pytest \
+for i in 1 2 3; do { /usr/bin/time -p /path/to/hotspot/.venv/bin/python3 -m pytest \
   backend/tests/ --tb=line -q -p no:randomly; } > m6_run$i.log 2>&1; done
 ```
 

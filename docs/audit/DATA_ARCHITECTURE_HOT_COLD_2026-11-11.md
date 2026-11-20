@@ -497,7 +497,7 @@ print(con.execute('SELECT COUNT(*) FROM hotspots WHERE ingested_at>=?',(cut,)).f
 | 项 | 值 |
 |---|---|
 | 采集时间 | 2026-11-11 11:40 |
-| 采集对象 | `/Users/duke/Documents/hotspot/backend/hotspot.db`（361,697,280 B） |
+| 采集对象 | `/path/to/hotspot/backend/hotspot.db`（361,697,280 B） |
 | 采集方式 | `mode=ro` 只读连接 + `dbstat` 虚表 + `PRAGMA` |
 | 采集树状态 | **含未提交改动**（P0/R-13/R-15 工作树）—— 与 P0 基线树不同，**本文件的体积数字是「当前工作树」口径**，实施后须重采 |
 | 干扰 | P2 消融在同树运行（pytest 写 `hotspot-test-iso-*` 临时根，不污染主库） |

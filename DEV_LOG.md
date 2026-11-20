@@ -1,4 +1,16 @@
 
+## [DEV-0411] security: 敏感信息排查与消除 — 独立安全 agent 全树扫描 + 审计文档 PII 中性化 + .gitignore 补缺
+- **时间**: 2026-11-20
+- **类型**: 安全卫生批（owner 指令：对 secnews 仓库做敏感信息排查和消除，含 env 配置与发布压缩包）
+- **扫描面**: 2065 跟踪文件（凭据/私钥/Fernet/PII/内网 IP/cookie 模式族 + Shannon 高熵兜底）、Release v0.8.9 附件 zip（条目 = git ls-tree 全等，digest 核验）、tag 历史 pickaxe 抽样
+- **结论**: HEAD 树 0 真值凭据 / 0 私钥 / 0 Fernet / 0 真实手机号邮箱；模板件（.env.example / proxy_config.example.json / llm.yaml）无真实值残留；测试夹具占位串（sk-1234567890… 等）非真值保留
+- **消除**:
+  - `docs/audit/*` 7 处 `/Users/duke/Documents/hotspot` 本机路径 → `/path/to/hotspot`（沿用 v0.8.7 中性化口径）
+  - `.gitignore` 补 `/data/gates/`（未跟踪真实采集原文）+ 密钥材料 6 模式 + `/workspace/*/` 防误加
+- **关联文件**: `.gitignore` · `docs/audit/DATA_ARCHITECTURE_HOT_COLD_2026-11-11.md` · `docs/audit/P0_BASELINE_METRICS_2026-11-10.md` · `docs/audit/P0_R07_JOB_INVENTORY_2026-11-10.md` · `docs/audit/V089_PILOT_DRILL_2026-11-14.md`
+- **验证**: commit `9c68454` 经 pre-commit 钩子（generate_meta --check Passed）+ 定向 pytest 8 passed；复扫跟踪树 0 PII；`origin/main == HEAD`
+- **待 owner 裁决**: (1) tag v0.8.9 制品含修复前 7 处路径 PII，重做需移 tag（破坏性）；(2) `AnyeDuke@gmail.com` 已随 ~100 历史 commit 作者元数据公开，轮换/清历史需单独授权
+
 ## [DEV-0410] fix(fe): 设置页质量规则面板永驻「加载中」修复 — 异步 props 未同步进本地 state
 - **时间**: 2026-11-20
 - **类型**: 缺陷修复（前端渲染层；后端 `GET/PUT /api/quality/rules` 实测一直正常）

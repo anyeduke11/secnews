@@ -29,6 +29,9 @@ owner 2026-11-19 裁决: 工坊 CodeGarden / 技能库 skills / 密钥 secrets /
 ### 修复 (2026-11-20, DEV-0410)
 - `/settings?cat=collection` 质量规则面板永驻「加载中 (0)」: `QualityRulesPanel` 首帧 `useState(initialRules)` 捕获空数组后不再同步异步 prop，规则行与「应用质量配置」整链死锁；补 `useEffect([initialRules])` 同步 + 2 个渲染回归用例（后端接口本身无故障）
 
+### 安全 (2026-11-20, DEV-0411)
+- 敏感信息全树排查（独立安全 agent）: HEAD 树 0 真值凭据; 审计文档 7 处本机路径中性化; `.gitignore` 补 `/data/gates/` + 密钥材料模式; Release zip 条目与 tag 树全等核验; tag 制品历史 PII 与 commit 作者邮箱轮换列 owner 裁决
+
 ## v0.8.9 (2026-11-17) — 主干流量专项: 执行链从断点到可运营 (tag `v0.8.9` @ d245a10, 2026-11-20)
 
 **版本性质**: v0.8.8 是重构版 (零新业务能力), 本版是**主干流量版** —— 补齐 v0.8.6 遗留的执行链六断点, 让"资讯→Signal→Case→Claim→Run→Artifact→Knowledge"全链真实流动。P0~P6 七阶段 18 commit 全交付。版本族文档 = `docs/v0.8.9/V0.8.9_PRD.md` + `V0.8.9_IMPLEMENTATION_PLAN.md`。

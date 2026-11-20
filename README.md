@@ -8,7 +8,7 @@
 > 全站收敛为 **NAV4 四菜单壳**：**资讯 → 知识 → 行动 → 设置**，
 > 主干为 **资讯 → Signal → Case → Claim → Run → Artifact → Knowledge** 全链证据账本
 > （Agent 产出提案 · 人负责审批 · 每个结论带证据回执 · 每次失败显式可归因）。
-> 通过 **MCP 协议** 对外暴露 **19 个工具** (11 读 + 8 写)，
+> 通过 **MCP 协议** 对外暴露 **23 个工具** (16 读 + 7 写)，
 > Cursor / Claude Desktop / Trae / Claude Code 等外部 AI Agent 零改造接入。
 >
 > 一个人 · 一台电脑 · 零外部服务。
@@ -44,7 +44,6 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 |------|------|
 | **热点聚合** | 19 采集器 · 14 质量门禁 · 7 大领域覆盖 |
 | **知识沉淀** | md 真源 · kl_pipeline 5 阶段 · FTS5 检索 · 注意力评分 |
-| **项目管理** | CodeGarden 项目生命周期 + 服务网格 + 资源中枢 |
 | **安全图谱** | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
 | **证据账本** | Run 账本 · 提案通道 · 证据回执 · 失败显式可归因 |
 | **AI 协作** | 23 MCP 工具 · 外部 AI Agent 零改造接入 |
@@ -58,10 +57,10 @@ cd frontend && npm install && npm run dev   # http://localhost:8898
 |------|------|----------|
 | **资讯** | `/` | 19 采集器 · 14 质量门禁 · Pipeline 流水线 · 趋势 / 搜索 / 导出 · 信号面板 |
 | **知识** | `/knowledge` | LLM-Wiki 2.0 · md 真源 · kl_pipeline 5 阶段 · FTS5 · 案件队列 · 画布 |
-| **行动** | `/action` | 执行总览 · CodeGarden 联动 · 项目 · 服务 · 资源 · 事件 |
-| **设置** | `/settings` | dsh 受管子进程 / pi agent / 同步策略 / MCP / 观测 |
+| **行动** | `/action` | 执行总览 · 案件队列 · 事件审核 · 周报 / 月报 |
+| **设置** | `/settings` | dsh 受管子进程 / pi agent / 模型 / 采集 / 网络 / 运维（6 分区） |
 
-工具页经 `PageLayout` + `menuOf()` 自动归属四菜单：`/skill-store`（SK 能力包）· `/knowledge/canvas`（画布 demo）· `/maint`（维护）等。
+工具页经 `PageLayout` + `menuOf()` 自动归属四菜单：`/quality`（校对室）· `/history`（浏览历史）· `/maint`（维护诊断）等。
 
 旧路由全部重定向兼容（透传 query）：`/secnews` `/judge` `/judge/graph` `/garden` → 对应四菜单；v1 四入口 `/workbench` `/intel` → `/`，`/cases` → `/action`。
 
@@ -112,13 +111,12 @@ stdio 配置（粘到你的 AI Agent 配置）：
 | 主存储 | **SQLite WAL** + `llm-wiki-2.0/` | 零部署 · FTS5 · git 友好 · LLM 可直读 · md 文件是 source of truth |
 | 调度 | APScheduler · **48 jobs** | 单进程内调度，无外部 MQ；含 8 个扩展 job 按 gate 过滤 |
 | 采集器 | **19 个** BaseCollector | 7 大领域覆盖，stdin/stdout 标准化 |
-| 路由器 | **101 个** FastAPI include_router | core 白名单 + 扩展域按 feature_gates 条件注册（16 gate） |
-| 业务服务 | **161 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge / skills 等 |
-| MCP | fastapi-mcp | OpenAPI → MCP 自动转换 · 19 个工具 |
-| 前端 | React 18 + Vite 5 + TypeScript | 210+ 组件 · 类型安全 · 热重载 |
+| 路由器 | **88 个** FastAPI include_router | core 白名单 + 扩展域按 feature_gates 条件注册（10 gate） |
+| 业务服务 | **138 个** services 包 | 含 ai_hub / kl_pipeline / dsh / wiki_fs / model_router / agent_bridge 等 |
+| MCP | fastapi-mcp | OpenAPI → MCP 自动转换 · 23 个工具 |
+| 前端 | React 18 + Vite 5 + TypeScript | 230+ 组件 · 类型安全 · 热重载 |
 | 图表 | echarts + recharts | 看板风格 |
-| 加密 | Fernet (PBKDF2 派生) | secrets · 同步包 |
-| 跨端同步 | WebDAV (坚果云) · zip 容器 | 加密包最小化 · 不依赖云服务 |
+| 加密 | Fernet (PBKDF2 派生) | COLD 库 envelope 加密（`scripts/cold_db_crypto.py`） |
 
 > 数字由 [`scripts/generate_meta.py`](./scripts/generate_meta.py) AST 反推维护，CI `generate_meta.py --check` 强约束，
 > 改完注册代码必须同步 `docs/ARCHITECTURE.md`。
@@ -126,7 +124,7 @@ stdio 配置（粘到你的 AI Agent 配置）：
 ## 路线图
 
 <p align="center">
-  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台 → v0.8.7 公开仓库交付收口 → v0.8.8 质量版重构收口 → v0.8.9 主干流量专项, v1.0 规划中">
+  <img src="./assets/readme/roadmap.svg" width="100%" alt="SecNews 路线图: v0.4.3 软分层 → v0.5.0 LLM-Wiki → v0.6.0 统一工作台 → v0.7.0 Sentinel Terminal → v0.8.0 Skills → v0.8.5 NAV4 四菜单壳 → v0.8.6 AI Native 证据工作台 → v0.8.7 公开仓库交付收口 → v0.8.8 质量版重构收口 → v0.8.9 主干流量 + 四域删除, v1.0 规划中">
 </p>
 
 ## 历史版本（GitHub Releases）
@@ -135,9 +133,9 @@ stdio 配置（粘到你的 AI Agent 配置）：
 
 | 版本 | 发布日期 | 关键里程碑 | 源码归档 |
 |------|----------|------------|----------|
+| **v0.8.9** | 2026-11-17 | 主干流量专项：P1 人工回执闭环（首个 closed case）+ P2 观测口径修复 + P3 边界协议 + P4 pi 执行 + P5 L3 沙箱加固 + P6 Case 闭环与知识回流（演练①~⑥ 全 PASS）；四域整体删除（工坊 / 技能库 / 密钥 / 跨端同步） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.9) |
+| **v0.8.8** | 2026-11-14 | 质量版重构收口：P3 零消费链路退役 + P2.5 数据热冷分层（794→111MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 | _(含于 v0.8.9 归档)_ |
 | **v0.8.7** | 2026-10-14 | 公开仓库交付收口：PII 卫生清理（本机路径/个人标识中性化）+ 版本/文档/资产全链对齐（v0.8.6 主干零改动） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.7) |
-| **v0.8.9** | 2026-11-17 | 主干流量专项：P1 人工回执闭环（首个 closed case）+ P2 观测口径修复 + P3 边界协议 + P4 pi 执行 + P5 L3 沙箱加固 + P6 Case 闭环与知识回流（演练①~⑥ 全 PASS） | _(本地 main, tag 待 owner 打点)_ |
-| **v0.8.8** | 2026-11-14 | 质量版重构收口：P3 零消费链路退役 + P2.5 数据热冷分层（794→111MB）+ P4 七段埋点/幂等语义 + P4.5 四段指挥台与孤儿清理 | _(本地 main, tag 待打)_ |
 | **v0.8.6** | 2026-10-14 | AI Native 换主干：全链证据账本（资讯→Signal→Case→Claim→Run→Artifact→Knowledge）+ 提案通道 + 对话式命令栏 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.6) |
 | **v0.8.5** | 2026-09-08 | 反向收敛：v0.8 三层 Sentinel 唯一壳恢复 + v1.0 九领域对象降级为能力区块 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.5) |
 | **v0.8.2** | 2026-09-05 | 治理合批：全局并发单一真相源 + 配置热重载（gate 5s TTL） | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.8.2) |
@@ -150,17 +148,17 @@ stdio 配置（粘到你的 AI Agent 配置）：
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5 阶段 · md 真源 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.5.0) |
 | v0.4.3 | 2026-08-19 | 软分层 / Feature Gates · core/exec 边界 | [Source code (zip)](https://github.com/anyeduke11/secnews/releases/tag/v0.4.3) |
 
-> **main 分支动态**：v0.8.9 主干流量专项已在 main 收口（tag 待 owner 打点，30 天观测窗 2026-11-14 → 2026-12-14 观测中）；上一发布 = tag `v0.8.7`。
+> **main 分支动态**：v0.8.9（主干流量专项 + 四域删除收口）已发布，tag `v0.8.9` @ d245a10（2026-11-20）。
 
 ## 测试
 
 ```bash
-# 后端（5468+ passed）
+# 后端（4,727 passed / 5 skipped / 0 failed @ 2026-11-20）
 python -m pytest backend/tests/ --tb=short -q
-python -m pytest backend/tests/ -k "merge"        # 单一域筛选
-python -m py_compile backend/services/sync_merge.py
+python -m pytest backend/tests/ -k "pipeline"        # 单一域筛选
+python -m py_compile backend/services/auto_classifier.py
 
-# 前端（722+ passed）
+# 前端（674 passed @ 2026-11-20）
 cd frontend
 npx vitest run
 npx tsc --noEmit
@@ -173,7 +171,7 @@ CI: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite
 
 **Q: 为什么不内置 LLM 推理？**
 A: 让用户在自己已配好的 AI Agent 环境（Cursor / Claude Desktop / Trae / Claude Code）中推理，
-避免重复配置和 API key 管理。SecNews 只负责数据存储 + 19 工具暴露。
+避免重复配置和 API key 管理。SecNews 只负责数据存储 + 23 工具暴露。
 
 **Q: 能多用户吗？**
 A: 当前是单用户本地工作站，无多用户 / 权限隔离。SQLite WAL 模式下 `WORKERS=1` 是约束条件。
@@ -181,12 +179,12 @@ A: 当前是单用户本地工作站，无多用户 / 权限隔离。SQLite WAL 
 **Q: 数据怎么备份？**
 A: 3 选 1：
 1. `backend/data/backup_*.db`（24h 滚动，APScheduler 自动）
-2. WebDAV 同步包（坚果云 · zip + Fernet 加密）
+2. COLD 库 Fernet envelope 密文备份（`scripts/cold_db_crypto.py`）
 3. git 跟踪 `llm-wiki-2.0/` 目录
 
 **Q: 端口冲突怎么办？**
 A: 后端改 `PORT=8001` 启动；前端改 `vite --port 8899`。
-**8898 是受保护端口**（CodeGarden 资源中枢），禁止释放。
+**8898 是前端固定 dev 端口**，不要被其他进程占用。
 
 **Q: 为什么不用 PostgreSQL / Redis / Celery？**
 A: 违反「简单胜过复杂」原则 — 单机单用户场景下 SQLite WAL + APScheduler 已足够；
@@ -200,7 +198,7 @@ A: 走前端 `/settings` 一键启停（gate `dsh=true`），
 
 新源 → 继承 `BaseCollector` + 测试
 新门禁 → 继承 `BaseGate` + 进 `pipeline.py`
-新 MCP tool → `mcp_types.py` 加 Pydantic + `mcp_config.py` 加 operation_id（当前 19 个工具: 11 读 + 8 写）
+新 MCP tool → `mcp_types.py` 加 Pydantic + `mcp_config.py` 加 operation_id（当前 23 个工具: 16 读 + 7 写）
 新前端能力 → 只能以四菜单区块进入，禁止新一级入口 / 新壳
 
 详细：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md) · [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/CHANGELOG.md`](./docs/CHANGELOG.md)
@@ -271,7 +269,7 @@ Copy `proxy_config.example.json` → `proxy_config.json` first; the real file is
 | v0.5.0 | 2026-08-23 | LLM-Wiki 2.0 · kl_pipeline 5-stage · md as source of truth |
 | v0.4.3 | 2026-08-19 | Soft core/exec partitioning · Feature Gates (TOML) |
 
-> **main branch**: v0.8.9 (main-trunk traffic release) closed on main (tag pending owner; 30-day observation window 2026-11-14 → 2026-12-14 in progress); previous release = tag `v0.8.7`.
+> **main branch**: v0.8.9 (main-trunk traffic release + four-domain removal closeout) published as tag `v0.8.9` @ d245a10 on 2026-11-20.
 
 ### License
 

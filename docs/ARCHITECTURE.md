@@ -1,57 +1,40 @@
 # SecNews（hotspot）· 现状架构文档
 
-> 📜 **状态标注 (2026-11-17)**: hotspot 活跃开发中 — 当前代码 **v0.8.9**，对应 `docs/archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md` Phase 4-6 已全部交付 (Phase 4 合规矩阵 `5c657d99` / Phase 6 wiki 迁移 `309a83da` + FTS5 同步 `e53790cc`)。
->
-> **退役文档**: [`HOTSPOT_RETIREMENT.md`](archived/2026-09-09-sweep/HOTSPOT_RETIREMENT.md) (含冻结横幅, 当前为参考档案, 2026-09-09 归档)
-> **整合 spec**: [`docs/HOTSPOT_SECNEWS_INTEGRATION.md`](archived/2026-09-09-sweep/HOTSPOT_SECNEWS_INTEGRATION.md) + [`docs/SECNEWS_INTEGRATION_TASKS.md`](archived/2026-09-09-sweep/SECNEWS_INTEGRATION_TASKS.md) (2026-09-09 归档)
-> **代码审计**: [`docs/CODE_AUDIT_2026-08-28.md`](archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md) (架构深度分析, 2026-09-09 归档)
-
-> 本文档描述 **当前代码 (v0.8.9)** 的真实架构，供新开发者快速理解系统。
-> **定位**：现状导览 (≤ 200 行)；下方「模块地图」指向 `docs/code-wiki/`（**注意：该目录为 v0.7.4 基线快照，非现行架构**）。
-> 数字口径：迁移 132 / routers 99 / jobs 56 / collectors 19 / services 155 / core_routers 67 / pytest 5,463 / vitest 717（2026-11-17 实测）。routers/jobs/collectors/services/core_routers 受 `scripts/generate_meta.py --check` 门禁管辖。
-> v0.8 Skills Phase A (2026-09-04): Skill/Playbook 双轨看板 — `trigger_gate/` (限流+持久化队列+三档优先级+worker 泵, migration 091) + `skill_registry/` (20 内置 skill, 反模式 linter) + `/api/skill-registry/*` 5 端点 + 前端 `/skill-store` + gates skill_registry/trigger_gate 默认 false。设计见 [docs/V0.8_SKILLS.md](V0.8_SKILLS.md), 进度见 PROGRESS.md。
-> v0.8 P1 (2026-09-03): 独立资讯筛选门禁 — `info_filter_service` (CRUD/校验/evaluate) + `info_filter_gate` (5s TTL cache + Layer 1 源级 + Layer 2 item 级 hooks) + `/api/info-filter/{rules,preview,gate}` 6 端点 + 前端 InfoFilterCard (SettingsHub 17 cat) + feature_gates.toml `info_filter=false` 默认关闭。详见 PROGRESS.md。
-> v0.8.1 (2026-09-05): 运行时弹性层 + Skills 通电 — 七 gate 开闸演练通过后保持 true (mcp 回关); `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples) + gateway/image 集中记账; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 场景权重重排。见 [docs/archived/2026-09-09-sweep/V0.8.1_PLAN.md](archived/2026-09-09-sweep/V0.8.1_PLAN.md)。
-> v1.0 C12 (2026-09-07): R16 修 — `v1_knowledge_refs.role='used'` 旧双职 (derived_from + adopted_by) 物理拆出, 新表 `v1_knowledge_adoptions` (migration 106, UNIQUE(kid, rev, case_id) 幂等 + 3 索引 case/decision/recent); `KnowledgeService` 加 4 method (`record_adoption` / `record_outcome` / `recall_for_case` / `_attach_blocker_to_adopted_cases`); `get_reuse_receipt` 派生 `{total, by_decision, by_outcome, recent_30d}` 替旧 `{total, by_judgment, by_action}`, 新知识 total=0 起算; 4 API 端点 (`POST /adopt` / `GET /adoptions` / `POST /outcome` / `GET /recall`); 撤回/反证 → `tags_json` 追加 `knowledge_retracted:{kid}` / `knowledge_deprecated:{kid}` (append-only, 不改 adoption 历史); `v1_skills.py` SK-05 output_schema 同步 R16.5. 详见 [docs/v1.0/task-status.md](v1.0/task-status.md) C12 行。
-> v0.7.4 (2026-09-02): ai_hub 三场景路由 (deep/light/image) — `scenarios.py` 单点 + `image_service.py` 复用 Batch ⑥ 凭据链 + `/api/image/{generate,understand}` + QualitySettings 折叠面板 + ImageStudio 工具页 + sensenova-u1.5-lite (文生图) + deepseek-v4-pro (深度档 yaml 升级)。
-> v0.7.2 (2026-08-31): llm_secrets 接入 AIService + key_source 兑现 (Batch ⑥, 详见 PROGRESS.md)
-> v0.7.0 (2026-08-30): 观测地基 (PRD §5.1) + LLM provider 四级链 (env > settings.kv > router > yaml)
-> v0.6 (2026-08-23 → 08-28): SecNews 工作台 5 视图 (Briefing/Pipeline/Knowledge/Analyze/Settings) + kl_pipeline 五阶段管线 + DSH HTTP 桥接 + CRM 业绩座舱 + wiki_items_fts 完整同步层 + dsh-SecNews 归档, 详见 `docs/archived/2026-09-09-sweep/CODE_AUDIT_2026-08-28.md`。
-> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/archived/2026-09-09-sweep/v0.5_refactor_plan/README.md`。
-> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/archived/2026-09-09-sweep/audit_first_principles_plan.md`。
-> v0.5 (2026-08-21 → 08-23): llm-wiki-2.0 数据底座 + ai_hub LLM 单出口 + Hot/Warm/Cold 分层 + dlq retry + 性能三任务, 详见 `docs/v0.5_refactor_plan/README.md`。
-> v0.4.0 (2026-08-16): 审计重构 Phase 0-6 落地, 详见 `docs/audit_first_principles_plan.md`。
+> 📜 **状态标注 (2026-11-20)**: hotspot 活跃开发中 — 当前代码 **v0.8.9**（tag `v0.8.9`，四域删除后收口）。
+> **版本演进**见 [`docs/CHANGELOG.md`](CHANGELOG.md) 与 `git log`；历史 spec / 一次性审计见 `docs/archived/`。
+> 本文档描述 **当前代码** 的真实架构，供新开发者快速理解系统。
+> **定位**：现状导览（≤ 200 行）；下方「模块地图」指向 `docs/code-wiki/`（**注意：该目录为 v0.7.4 基线快照，非现行架构**）。
+> 数字口径：迁移 134 / routers 88 / jobs 48 / collectors 19 / services 138 / core_routers 65 / MCP 23 / pytest 4,727 / vitest 674（2026-11-20 实测）。routers/jobs/collectors/services/core_routers 受 `scripts/generate_meta.py --check` 门禁管辖。
 
 ---
 
 ## 一、系统总览
 
 面向 **AI + 安全从业者** 的单机本地工作站：一个人 · 一台电脑 · 零外部服务。
-五个子系统共享同一个 FastAPI 进程与 SQLite 数据库：
+全部能力共享同一个 FastAPI 进程与 SQLite 数据库，由 **SentinelShell 四菜单** 唯一壳承载：
 
 | # | 子系统 | 说明 | 入口 |
 |---|--------|------|------|
-| 01 | **SecNews 热点聚合** | 14 采集器 · 11+ 质量门禁 · 趋势/搜索/导出 | `/` |
-| 02 | **Knowledge LLM-Wiki** | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 | `/knowledge` |
-| 03 | **CodeGarden** | 项目生命周期 + 服务网格 + 资源中枢 + 联动引擎 | `/codegarden` |
-| 04 | **Security Graph** | MITRE ATT&CK · NVD CVE · 等保/关基/数安法 | `/knowledge/process` |
-| 05 | **SecNews 统一工作台 (v0.6.3)** | 6 tab: Feed / Pipeline / Knowledge / Analyze / Analytics / Settings (workbench 已并入) | `/secnews` |
-| 06 | **CRM 业绩座舱 (v0.6.0)** | 客户/商机/状态机/KPI 聚合 | `/crm` |
+| 01 | **SecNews 热点聚合** | 19 采集器 · 14 质量门禁 · 趋势/搜索/导出 · 信号面板 | `/` |
+| 02 | **Knowledge LLM-Wiki** | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 · 案件队列 | `/knowledge` |
+| 03 | **Action 行动闭环** | 案件队列 · 执行总览 · 事件审核 · 周报/月报 | `/action` |
+| 04 | **Settings 设置** | 6 分区: 总览 / 通用 / 模型 / 采集 / 网络 / 运维 · dsh 受管子进程 | `/settings` |
+| 05 | **Security Graph** | MITRE ATT&CK · NVD CVE · 等保/关基/数安法 | `/knowledge/process` |
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Browser (React SPA, :8898) — secnews/ 统一工作台 + sentinel + crm/ + knowledge/
+│  Browser (React SPA, :8898) — SentinelShell 四菜单 + sentinel + knowledge/
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTP / JSON / SSE
 ┌───────────────▼──────────────────────────────────────────────┐
-│  FastAPI 单进程 (uvicorn, :8000) — 90 router / 153 services    │
+│  FastAPI 单进程 (uvicorn, :8000) — 88 router / 138 services   │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │
 │  │ collectors/  │→│ quality/     │→│ scheduler/ 48 jobs │   │
-│  │ 14 BaseColl.  │  │ 11+ gates    │  │ APScheduler         │   │
+│  │ 19 BaseColl.  │  │ 14 gates     │  │ APScheduler         │   │
 │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────┘   │
 │         │                │                    │             │
 │  ┌──────▼───────┐  ┌──────▼────────┐  ┌────────▼────────┐  │
-│  │ api/ 88 router│  │ services/ 138 │  │ repository/ 53  │  │
+│  │ api/ 88 router│  │ services/ 138 │  │ repository/ 48  │  │
 │  │ (lazy 注册)   │  │ (业务编排)     │  │ (SQLite DAO)    │  │
 │  └──────────────┘  └──────┬────────┘  └─────────────────┘  │
 └─────────────────────────┬──────────────────────────────────┘
@@ -59,9 +42,9 @@
         ┌─────────────────┼─────────────────────┐
         ▼                 ▼                     ▼
   ┌──────────┐     ┌───────────────┐     ┌──────────────┐
-  │ SQLite   │     │ llm-wiki-2.0/ │     │ WebDAV 同步   │
-  │ WAL+ATTACH│     │ (md 真源 + FTS) │     │ (zip+Fernet)  │
-  │ HOT/WARM │     │ + watchdog    │     │ 每周一 10:30   │
+  │ SQLite   │     │ llm-wiki-2.0/ │     │ cold_db_     │
+  │ WAL+ATTACH│     │ (md 真源 + FTS) │     │ crypto.py    │
+  │ HOT/WARM │     │ + watchdog    │     │ (COLD 密文备份)│
   │ /COLD    │     │ (P0-3 即时同步) │     └──────────────┘
   └──────────┘     └───────────────┘
 ```
@@ -78,7 +61,7 @@
 | 前端架构 | [docs/code-wiki/03-frontend.md](code-wiki/03-frontend.md) (179 行) |
 | 子系统详解 | [docs/code-wiki/04-subsystems.md](code-wiki/04-subsystems.md) (141 行) |
 | 知识库体系 | [docs/code-wiki/04-subsystems.md](code-wiki/04-subsystems.md) §2 |
-| 同步与加密 | [docs/code-wiki/02-backend.md](code-wiki/02-backend.md) §3 + §4 |
+| 加密与备份 | [docs/code-wiki/02-backend.md](code-wiki/02-backend.md) §3 + §4 |
 | 运维与部署 | [docs/code-wiki/05-running.md](code-wiki/05-running.md) (158 行) |
 | 仓库整体布局 | [docs/code-wiki/01-architecture.md](code-wiki/01-architecture.md) (225 行) |
 | Wiki 索引 | [docs/code-wiki/CODE_WIKI.md](code-wiki/CODE_WIKI.md) |
@@ -97,7 +80,7 @@
 | **HOT** (主库) | `backend/hotspot.db` | <80 MB | 否 | 每日 WAL 增量 + 周日 full |
 | **WARM** (业务流水) | `backend/hotspot-warm.db` | <80 MB | 否 | 周增量 |
 | **COLD** (审计/历史) | `backend/hotspot-cold.db` | <500 MB | **Fernet envelope** | 周 full (密文) |
-| **FROZEN** (资产/真源) | `knowledge/*.md` + `llm-wiki-2.0/*.md` | ~20 MB | 否 | git + 增量 zip |
+| **FROZEN** (资产/真源) | `llm-wiki-2.0/*.md` + `workspace/` | ~20 MB | 否 | git + 增量 zip |
 
 启动期 `db.get_connection()` 自动 ATTACH `hotspot-warm.db AS warm` + `hotspot-cold.db AS cold`；
 生产 repo 代码对 WARM 表写操作必须指 `warm.` alias（如 `INSERT INTO warm.crawler_runs`）。
@@ -115,10 +98,9 @@ COLD 加密: `scripts/cold_db_crypto.py encrypt|decrypt|verify`，格式 `<16-by
 | 3 | **6 cognitive modes** (Briefing/Scan/Alert/Outbox) | v0.7.0 已删除; Review + DeepRead 保留 |
 | 4 | **crawler-v2 strangler** | `crawler_sources` / `source_scheduler` 已建，源级调度逐步接管 |
 | 5 | **SecNEWS Phase 6 存量迁移** (S6-1..S6-4) | 已全部落地 (`309a83da`/`e53790cc`/`30146c41`) |
-| 6 | **组件过大** | `SyncPage.tsx` / `SecretsPage.tsx` 约 800 行，需拆分 |
-| 7 | **Mimosa 密封扫描** | 未启用 (P2-4, 见 [docs/SECURITY_AUDIT.md](SECURITY_AUDIT.md) §1; 工具不可用待 sandbox 释放) |
-| 8 | **info_filter 资讯筛选门禁 (v0.8 P1)** | 已落地: `info_filter_service` (CRUD/校验/evaluate, deny>allow>neutral 三优先级) + `info_filter_gate` (5s TTL cache + 2 层: Layer 1 源级 allow/deny + Layer 2 item 落库前 drop) + 6 端点 API + 前端 InfoFilterCard (SettingsHub 17 cat, V2 sentinelized) + `feature_gates.toml info_filter=false` 默认关闭 (fail-closed). 受管门禁, 路由级条件注册, gate off → 采集器自动降级全放行 |
-| 9 | **运行时弹性层 (v0.8.1)** | 已落地 + 通电 (2026-09-05 Day 0-5): 七 gate 开闸演练通过 (修复 user_skills gate 漏登记 P0) → 7 gate true; `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint, 20× SIGTERM soak 零损坏); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples=4 防单发误熔断) + gateway/_call_provider 集中记账 + image 双直连点接入; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 权重重排. 遗留: llm.yaml per-provider 阈值 (v0.8.2), pi live 实测 (次周) |
+| 6 | **Mimosa 密封扫描** | 未启用 (P2-4, 见 [docs/SECURITY_AUDIT.md](SECURITY_AUDIT.md) §1; 工具不可用待 sandbox 释放) |
+| 7 | **info_filter 资讯筛选门禁** | 已落地: `info_filter_service` (CRUD/校验/evaluate, deny>allow>neutral 三优先级) + `info_filter_gate` (5s TTL cache + 2 层: Layer 1 源级 allow/deny + Layer 2 item 落库前 drop) + 6 端点 API + 前端 InfoFilterCard (Settings 6 cat, sentinelized) + `feature_gates.toml` 默认开启. 受管门禁, 路由级条件注册, gate off → 采集器自动降级全放行 |
+| 8 | **运行时弹性层** | 已落地: `utils/shutdown.py` graceful shutdown (drain + WAL checkpoint, 20× SIGTERM soak 零损坏); `utils/circuit_breaker.py` 薄状态机 + `ai_hub/provider_health.py` 唯一判定源 (5min 滑窗 + min_samples=4 防单发误熔断) + gateway/_call_provider 集中记账 + image 双直连点接入; `/api/observability/llm/health` + reset; breaker 迁移 audit_log; `quality/scenario_router.py` deep 权重重排 |
 
 ---
 

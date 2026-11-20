@@ -16,7 +16,6 @@ FastAPI 路由层(88 routers,`include_router` 注册入口),**唯一对外 HTTP 
 | `<phase>_<feature>_api.py` | 跨阶段复合 API(如 `kl_compounding_api.py`、`knowledge_chunks_api.py`) | 严禁与 `<feature>.py` 同名共存(防重叠断言见根 AGENTS.md) |
 | `middleware.py` | FastAPI 中间件 | 不允许混编业务路由 |
 | `mcp_*.py` | MCP 扩展域路由,默认关闭(`feature_gates.toml`) | 关闭时本目录服务**不注册**;不要硬依赖 |
-| `codegarden*.py` | CodeGarden 路由,默认关闭 | 同上 |
 | `maintenance.py` / `settings.py` / `cache.py` / `health.py` | 基础设施路由 | 关闭任何一项会破坏运维面板,**禁止纳入 feature gate** |
 
 ## 就近 Owner / 测试入口
@@ -29,7 +28,7 @@ FastAPI 路由层(88 routers,`include_router` 注册入口),**唯一对外 HTTP 
   ```
 - **本地起服务**: 根 AGENTS.md 已列 `python run.py` / `uvicorn backend.main:app`。
   修改后访问 `http://127.0.0.1:8000/docs` 看 Swagger 是否列出新路由。
-- **Feature Gate 路由调试**(`codegarden*` / `mcp_*` / `tech_stack*` / `security_graph*`):
+- **Feature Gate 路由调试**(`mcp_*` / `tech_stack*` / `security_graph*`):
   默认关闭,本机需 `HOTSPOT_FEATURE_GATES='{"extensions":{"<name>":true}}'`
   或编辑 `backend/config/feature_gates.toml`。**关闭时 Swagger 应 404**;
   若仍 200 即 `register_routers` 未守住门禁,立即修复。

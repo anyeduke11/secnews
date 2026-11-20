@@ -15,7 +15,7 @@
 | `CHANGELOG.md` | 版本交付流水（时序真相） |
 | `RUNBOOK.md` / `ADMIN_MANUAL.md` | 运维手册 / 管理员手册 |
 | `PORT_SPEC.md` | hotspot → dsh-SecNews 移植对照表（跨仓库读者） |
-| `CodeGarden_PRD_v1.7.md` | CodeGarden 域当前 PRD（feature gate `codegarden*`） |
+| ~~`CodeGarden_PRD_v1.7.md`~~ | **已退役**（2026-11-19 工坊域整体删除，降为历史档案，勿作为设计入口） |
 | `Observability_PRD_v1.0.md` | 可观测性 PRD（Batch 1+2 已交付，③④⑤ 排期中） |
 | `SECURITY_KNOWLEDGE_GRAPH{,_PRD,_DEV_PLAN}.md` | 安全图谱域（feature gate `security_graph`） |
 | `WORKBENCH_FOCUS_PRD_v1.0.md` / `WORKBENCH_FOCUS_DEV_PLAN.md` | 工作台聚焦方案（2026-09-12 裁决立项：内容相关性门禁/实践域兴趣体系；双视角方案已否决，见 PRD §0） |
@@ -23,7 +23,7 @@
 | `POST_R2_ENHANCEMENTS_DESIGN_2026-09-12.md` | R2 收尾设计包（Mimosa triage 流水线 / 死列 DROP / 权重重校 / ai-tech 桶口径 / 恢复 scrub / 周审计 RUNBOOK；5 项裁决待 owner） |
 | `UI_REFACTOR_FOLLOWUP_PLAN_2026-09-16.md` / `UNIMPLEMENTED.md` | UI 重构收尾批方案（DEV-0185）/ 未实现功能台账（五视图已闭环，占位登记口径档案） |
 | `NAV4_IA_REDESIGN_2026-09-12.md` | 四大菜单 IA 重设计（资讯/知识/行动/设置；owner 2026-09-12 指令；三层壳→四菜单壳，判断层拆解归位；7 项裁决待 owner） |
-| `V0.8_SKILLS.md` / `V0.8_USER_GUIDE.md` | Skills 双轨体系 / 用户指南 |
+| ~~`V0.8_SKILLS.md`~~ / `V0.8_USER_GUIDE.md` | Skills 双轨体系（**已退役**，随技能库域删除）/ 用户指南 |
 | `DESIGN_SYSTEM.md` / `DESIGN_GUIDE.md` / `DIAGRAMS.md` | 设计契约 / 设计规范 / 图表集 |
 | `v1.0/contracts.md` | v1.0 九领域对象契约（§5 状态机 / §6.4 幂等 / receipt，v0.8.5 能力区块的底层契约） |
 | `quality_gates.md` / `llm_config.md` / `mcp_integration.md` / `mcp_tools_schema.json` | 质量门禁 / LLM 配置 / MCP 集成参考 |
@@ -45,7 +45,7 @@
 ## 设计资产（design/，root）
 
 - `UI_UX_CONTRACT.md` — v1.0.0 视觉契约（**壳层条款已 superseded**，指向 `v0.8.5/V0.8.5_PLAN.md`；视觉 token / 状态语义 / 组件密度条款继续有效）
-- `_research/` — **2026-11-17 现状实测盘点**：`routes-status.md`（44 页面路由 + 16 重定向 + 4 个 ◐ API 域 + 16 gate）· `prd-capabilities.md`（PRD 92 条能力覆盖地图，分布 61/19/7/5）· `frontend-visual.md`（三态 token 实测值 hex）
+- `_research/` — **2026-11-17 现状实测盘点**：`routes-status.md`（44 页面路由 + 16 重定向 + 4 个 ◐ API 域 + 10 gate）· `prd-capabilities.md`（PRD 92 条能力覆盖地图，分布 61/19/7/5）· `frontend-visual.md`（三态 token 实测值 hex）
 - `redesign-v1/` — 基于上述底账的可视化 demo（纯静态零依赖，`index.html` file:// 直开 / `canvas.html` 画布视图）。**原型参考，非生产代码**
 
 > 零生产依赖：全仓无 import / CI 门 / 构建步骤引用这些文件。

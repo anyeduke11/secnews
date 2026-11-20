@@ -36,11 +36,11 @@ cd frontend && npx tsc --noEmit           # 类型检查
 
 ## Architecture
 
-### Five Subsystems (v0.8.8)
+### Five Subsystems (v0.8.9)
 
 | # | Subsystem | 入口 | 说明 |
 |---|-----------|------|------|
-| 01 | **SecNews 热点聚合** | `/` | 14 采集器 · 14 质量门禁 · 趋势/搜索/导出 · 信号面板 |
+| 01 | **SecNews 热点聚合** | `/` | 19 采集器 · 14 质量门禁 · 趋势/搜索/导出 · 信号面板 |
 | 02 | **Knowledge LLM-Wiki** | `/knowledge` | `llm-wiki-2.0/` md 真源 · kl_pipeline 五阶段 · FTS5 · 案件队列 |
 | 03 | ~~CodeGarden~~ | — | **已退役** (2026-11-19 四域整体删除, 脚手架目录 `codegarden/` 由 `workspace/` 取代) |
 | 04 | **Security Graph** | `/knowledge/process` | MITRE ATT&CK · NVD CVE · 等保 / 关基 / 数安法 |
@@ -78,7 +78,7 @@ backend/
 │   ├── pipeline.py # QualityGatePipeline
 │   ├── scorer.py, config.py, jobs.py, publisher_registry.py, source_coverage.py
 │   └── *_gate.py   # ai_quality, author_verification, category_match, content_quality, custom_rules, duplicate, final_url, noise_content, recency, schema, source_reputation, title_summary, url_content, url_validity
-├── repository/     # SQLite DAO layer (57 repos, one per table)
+├── repository/     # SQLite DAO layer (46 repo 模块, one per table)
 │   ├── db.py       # init_db, get_connection (thread-local, autocommit)
 │   ├── migrations/ # 134 SQL migration files (001-137, 缺号 066-069 为历史空洞; 137 = 四域 DROP)
 │   ├── security_repo.py  # Security Knowledge Graph + Terminology
@@ -89,7 +89,7 @@ backend/
 │   ├── graph.py         # SecurityGraphEngine
 │   ├── enricher.py      # CVE/ATT&CK/合规提取
 │   └── compliance.py    # 合规种子数据
-├── services/       # Business logic (138 services / 13 包, 含 ai_hub/llm/pi/dsh/triggers 等)
+├── services/       # Business logic (138 services / 7 包, ai_hub/llm/pi/dsh/execution_plan/execution_runner/triggers)
 │   ├── auto_classifier.py      # Tag→domain classification
 │   ├── concept_linker.py       # Tag→concept mapping
 │   ├── soul_service.py         # SOUL profile generation
@@ -113,7 +113,7 @@ Key patterns:
 
 ```
 frontend/src/
-├── components/     # 239 个 React tsx 组件 (另有 66 个 *.test.tsx; 17 组件域) — secnews/ + sentinel 四菜单区块 (SignalPanel/CaseQueuePanel/ExecOverviewPanel)
+├── components/     # 233 个 React tsx 组件 (另有 66 个 *.test.tsx; 17 组件域) — secnews/ + sentinel 四菜单区块 (SignalPanel/CaseQueuePanel/ExecOverviewPanel)
 │   ├── Icon.tsx    # Shared SVG icon component
 │   ├── ReportPage.tsx  # v0.3.0: 日报/周报/月报 (AIHot 风格)
 │   ├── RegionFilter.tsx  # 标讯地区筛选 (Phase 8)
@@ -169,7 +169,7 @@ llm-wiki-2.0/
 
 ### Testing
 
-- **Backend**: 5468 tests @ 2026-10-14, pytest with `tmp_path` + `monkeypatch` for DB isolation
+- **Backend**: 4,727 tests @ 2026-11-20 (5 环境性 skip), pytest with `tmp_path` + `monkeypatch` for DB isolation
 - **Frontend**: Vitest + jsdom, tests colocated with components, 0 失败为新常态
 - **New tests (no DB)**: `test_auto_classifier.py`, `test_knowledge_watcher.py`, `test_kl_pipeline.py`, `test_secnews_dashboard.py` — pure function tests, fastest to run
 - **CI**: `.github/workflows/ci.yml` — Python compile + pytest + tsc + vitest + vite build + `generate_meta.py --check` + `harness_analyze.py --check`

@@ -89,7 +89,7 @@
           <rect width="252" height="58" rx="8" fill="#07080A" stroke="#1C1E2E" stroke-width="1"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">101 ROUTERS  ·  REST API</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">88 ROUTERS  ·  REST API</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">/hotspots  ·  /knowledge  ·  /action</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -122,7 +122,7 @@
           <rect width="252" height="58" rx="8" fill="#07080A" stroke="#1C1E2E" stroke-width="1"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">161 SERVICES  ·  business logic</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">138 SERVICES  ·  business logic</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">ai_hub  ·  Skills  ·  Security Graph</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -137,7 +137,7 @@
           <rect width="344" height="58" rx="8" fill="#07080A" stroke="#1C1E2E" stroke-width="1"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">APScheduler  ·  59 JOBS</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">APScheduler  ·  48 JOBS</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">Collection  ·  Sync  ·  Catchup  ·  Revival</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -159,7 +159,7 @@
           <rect width="344" height="58" rx="8" fill="#07080A" stroke="#00B4D8" stroke-width="1.2"/>
           <rect x="0" y="0" width="3" height="58" fill="#00B4D8" rx="1"/>
           <text x="14" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-                font-size="9" fill="#00B4D8" letter-spacing="1.5">MCP SERVER  ·  19 工具</text>
+                font-size="9" fill="#00B4D8" letter-spacing="1.5">MCP SERVER  ·  23 工具</text>
           <text x="14" y="34" font-family="-apple-system, BlinkMacSystemFont, sans-serif"
                 font-size="12" fill="#E4E9F0">11 读 + 8 写  ·  stdio / SSE</text>
           <text x="14" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"

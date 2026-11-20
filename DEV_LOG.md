@@ -1,4 +1,16 @@
 
+## [DEV-0410] fix(fe): 设置页质量规则面板永驻「加载中」修复 — 异步 props 未同步进本地 state
+- **时间**: 2026-11-20
+- **类型**: 缺陷修复（前端渲染层；后端 `GET/PUT /api/quality/rules` 实测一直正常）
+- **症状**: `/settings?cat=collection` 质量设置区块显示「质量设置 (0) / 加载中...」，「应用质量配置」点下去永远回「无变更」
+- **根因**: `quality/QualityRulesPanel.tsx` 用 `useState(initialRules)` 捕获**首帧** prop —— 父组件 `QualitySettings.tsx` 的 GET 尚未返回，首帧恒为空数组；数据到达后新 prop 不再同步，规则行永不渲染，编辑对象缺失导致 `save()` 的 `changed` 恒空，PUT 链路整条死锁
+- **修复**:
+  - `frontend/src/components/settings/quality/QualityRulesPanel.tsx`: 新增 `useEffect([initialRules])` 同步 rules + editing 草稿
+  - `frontend/src/components/settings/QualitySettings.tsx`: `.catch` 注释改为如实口径（失败时面板停在「加载中 (0)」，非「子组件自己 fallback」）
+- **关联文件**: `frontend/src/components/settings/QualitySettings.test.tsx`（新增 C 组 2 用例，锁定「GET 返回后渲染规则行」这一此前测试盲区）
+- **验证**: `npx vitest run src/components/settings/QualitySettings.test.tsx src/components/settings/quality` = 13 passed / 0 failed；`npx tsc --noEmit` = 0 错误
+- **教训**: 组件用 prop 初始化本地 state 时，若该 prop 是异步加载的，必须显式同步（effect 或派生 state），且 colocated 测试要断言**渲染结果**而非只断言请求副作用
+
 ## [DEV-0409] chore: 四域整体删除 — 工坊 / 技能库 / 密钥 / 跨端同步退役（前端 94 文件 + 后端包 + 6 gate + 16 表）
 - **时间**: 2026-11-19
 - **类型**: 域级删除批（owner 裁决；代码删除已先行，本批收口文档回写）

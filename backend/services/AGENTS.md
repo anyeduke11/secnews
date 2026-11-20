@@ -14,8 +14,7 @@ Python 3 服务编排层(138 services,`*_service.py` + `triggers/` 子目录)。
 |--------|------|----------|
 | 顶层 `*_service.py` | 业务编排服务 | 严禁 `<feature>.py`(无 `_service` 后缀)、严禁 `Service_<X>.py` 类前缀 |
 | `triggers/` | Phase 14 状态机触发器,`t<N>_<from>_to_<to>.py` 命名 | 严禁混编普通 service 文件、严禁 `trigger_<X>.py` |
-| `ai_hub.py` | LLM 唯一入口(根 AGENTS.md 已声明权威性) | 禁止绕过 ai_hub 直接 import 各 provider SDK |
-| `codegarden_*.py` | CodeGarden 扩展域,默认关闭(feature_gates.toml) | 关闭时本目录服务**不调用也不注册**,不要写硬依赖 |
+| `ai_hub/` | LLM 唯一入口(根 AGENTS.md 已声明权威性) | 禁止绕过 ai_hub 直接 import 各 provider SDK |
 
 ## 就近 Owner / 测试入口
 
@@ -27,9 +26,6 @@ Python 3 服务编排层(138 services,`*_service.py` + `triggers/` 子目录)。
 - **新服务模板**: 复制同领域最近的服务文件(同 repo 表、同 scheduler job)
   → 改类名/函数名 → 在 `backend/api/__init__.py` 配 router(若是 HTTP 入口)
   或在 `backend/scheduler/jobs.py` 配 job(若是定时任务)。
-- **CodeGarden 服务(`codegarden_*.py`)**: 默认 feature_gate=false,
-  本地调试需 `HOTSPOT_FEATURE_GATES='{"extensions":{"codegarden_phase2b":true}}'`
-  或编辑 `backend/config/feature_gates.toml`,**关闭状态下不可触发测试**。
 - **Trigger 脚本**: `python -m backend.services.triggers.t1_raw_to_refine`
   等命令直接运行,不入 pytest;输出到 `processing/` 后由调度器消费。
 
@@ -48,20 +44,17 @@ Python 3 服务编排层(138 services,`*_service.py` + `triggers/` 子目录)。
    python scripts/generate_meta.py --fix      # 同步 docs/ARCHITECTURE.md + 各 AGENTS.md 数字声明
    python scripts/generate_meta.py --check    # CI 等价检查
    ```
-4. **Feature Gate 服务(`codegarden_*`/`mcp_*`/`tech_stack_*`/`security_graph_*`)**:
+4. **Feature Gate 服务(`mcp_*`/`tech_stack_*`/`security_graph_*`)**:
    函数入口必须 `if not is_extension_enabled("xxx"): return` 守卫,
    否则关闭后调度器 / router 404 后仍会执行。
 5. **ai_hub 唯一性**: 所有 LLM 调用必须经过 `from backend.services.ai_hub import ...`,
    禁止直接 `import openai` / `import anthropic` / `import google.generativeai`。
-6. **Fernet 加密字段**(cg_resources、`sync_*` 加密列): 走
-   `backend.services.sync_fernet_mixin` 提供的方法,禁止手写 `Fernet(...)`。
+   密钥来源 **env-only**(`llm_secrets` 表已随密钥域删除),fail-soft 不抛。
 
 ## 命名约定互斥速查
 
 | 类别 | 唯一合法形态 | 禁止形态 |
 |------|-------------|----------|
 | 普通业务服务 | `<domain>_service.py` | `<domain>.py`、`Service_<X>.py`、`<feature>Service.py`(驼峰) |
-| CodeGarden 服务 | `codegarden_<feature>_service.py` | `cg_<feature>.py`、`codegarden_<feature>.py`(无 service 后缀) |
 | 触发器(仅 triggers/) | `t<N>_<from>_to_<to>.py`(N 是 1-5 数字) | `trigger_<X>.py`、`t<X>_<from>_to_<to>.py`(无数字) |
-| 同步层 Fernet mixin | `sync_fernet_mixin.py` 唯一 | 复制加密逻辑到 service 内 |
 | 测试文件 | `backend/tests/test_<service_name>.py` | `test_<X>.py` 散落其他目录 |

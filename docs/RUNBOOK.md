@@ -62,13 +62,12 @@ curl http://127.0.0.1:8000/api/health | jq '.components.scheduler'
 | 症状 | 排查 |
 |------|------|
 | 端口 8000 占用 | `scripts/restart_backend.sh --stop-only`（TERM 整组→有界等→逃逸 KILL, R5 SOP）；手工兜底 `lsof -i :8000` → 找 PID → `kill <pid>` |
-| 端口 8898 占用 | `lsof -i :8898` → 8898 是受保护端口（CodeGarden 资源中枢），禁止释放 |
+| 端口 8898 占用 | `lsof -i :8898` → 8898 是前端固定 dev 端口，先确认是否已有前端实例在跑 |
 | 启动后端报错 | 检查 `.venv` 是否激活，`pip install -r backend/requirements.txt` |
 | 前端启动报错 | `cd frontend && npm install` 重新安装依赖 |
 | 采集无数据 | 检查 `backend/proxy_config.json` 代理配置 |
 | 数据库损坏 | `sqlite3 backend/hotspot.db "PRAGMA integrity_check;"` |
 | 22h 假死 (本周资讯空) | 见下面「如何手动追抓资讯」 |
-| webhook 签名校验疑似未生效 | fail-open 语义（设计如此）: 已配 secret 但 vault 未解锁时与未配置不可区分, 均放行签名校验并落 warning; 仅 secret 存在且解锁时才 fail-closed 拒绝。排查: 检查 llm_secrets 中 `webhook.secret` 是否已解锁 |
 
 ### 日志路径
 

@@ -1,19 +1,19 @@
 # Phase 7 — MCP Server 集成指南
 
-> **版本**: v1.7.6
-> **日期**: 2026-07-25
+> **版本**: v0.8.9（2026-11-20 核对）
+> **日期**: 2026-07-25（首版）
 > **目的**: 让任意外部 AI Agent (Cursor / Claude Desktop / Trae / Workbuddy) 通过标准 MCP 协议读写 hotspot 知识库
 
 ---
 
 ## 1. 概述
 
-hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部在外部 AI Agent 侧执行，hotspot 只做**数据存储 + 本地规则提取 + 9 个 MCP 工具暴露**。
+hotspot 内置 **MCP (Model Context Protocol) Server**。LLM 推理全部在外部 AI Agent 侧执行，hotspot 只做**数据存储 + 本地规则提取 + 23 个 MCP 工具暴露**。
 
 ### 1.1 核心原则
 
 - **零状态**: hotspot 不维护 session / heartbeat / watchdog
-- **同步直返**: 9 个 MCP tool 全部同步直接返回（5 读 + 4 写）
+- **同步直返**: 23 个 MCP tool 全部同步直接返回（16 读 + 7 写）
 - **数据与智能分离**: hotspot 暴露数据 + 工具；LLM 推理由外部 AI Agent 承担
 - **本地优先**: 默认绑定 127.0.0.1，避免远程攻击
 
@@ -102,9 +102,14 @@ hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部
 
 ---
 
-## 3. 9 个 MCP Tool 详细说明
+## 3. 23 个 MCP Tool 详细说明
 
-### 3.1 读操作（5 个）
+> 完整清单以 `backend/api/mcp_types.py::MCP_TOOLS`（或 `tools/list`）为准；
+> 本节只详述 9 个高频工具，Read 另外 11 个：`wiki_search` · `wiki_read` · `wiki_graph` ·
+> `db_trace` · `kl_status` · `dsh_analyze` · `dsh_session` · `list_proposals` · `list_runs` ·
+> `list_artifacts` · `list_cases`；Write 另外 3 个：`wiki_write` · `kl_enqueue` · `kl_retry`。
+
+### 3.1 读操作（16 个，此处详述 5 个）
 
 #### `search_hotspots` — 搜索热点
 
@@ -188,7 +193,7 @@ hotspot v1.7.6 引入 **MCP (Model Context Protocol) Server**。LLM 推理全部
 
 ---
 
-### 3.2 写操作（4 个）
+### 3.2 写操作（7 个，此处详述 4 个）
 
 #### `add_favorite` — 添加收藏
 
@@ -284,9 +289,9 @@ python run.py
 
 # 2. 访问 MCP 状态端点
 curl http://127.0.0.1:8000/api/mcp/status
-# 应返回: {"enabled": true, "transport": "sse", "tools_count": 9, ...}
+# 应返回: {"enabled": true, "transport": "sse", "tools_count": 23, ...}
 
-# 3. 列出 9 个 tool
+# 3. 列出 23 个 tool
 curl http://127.0.0.1:8000/api/mcp/tools
 
 # 4. 测试 stdio
@@ -297,7 +302,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m backend.mcp_st
 
 在 Settings 抽屉的「MCP Server」卡片：
 - 启用 toggle 应为 ON（绿色）
-- 显示 5 读 + 4 写 = 9 个 tool
+- 显示 16 读 + 7 写 = 23 个 tool
 - 点击「复制 stdio 配置」可粘贴到 AI Agent 的 settings.json
 
 ---
@@ -310,4 +315,3 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m backend.mcp_st
 | `/api/mcp/status` 返回 503 | `feature.mcp_server=False` | 改 `config.py` + 重启 |
 | `tools/list` 返回 0 tools | seeding 未跑 | 重启 hotspot, lifespan 自动 seed |
 | 写入后 favorites 表没记录 | transaction 失败 | 检查 SQLite WAL 文件权限 |
-| `mark_digest_read` 返回 404 | digest_id 不存在 | 查 `/api/digests` 列表确认 ID |

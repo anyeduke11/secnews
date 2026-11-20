@@ -5,6 +5,8 @@
 > 历史: P1-3 (2026-08-24) 曾建 49 路由详表; 2026-08-30 重写; v0.8.5 (2026-09-08) 第三次重写; **NAV4 (2026-09-13) 第四次重写**（四菜单壳, 守卫测试 `nav4_shell.test.tsx` 锁定）。
 > **P2 (2026-09-13 终稿)**: ①SentinelMoreMenu + UTILITY_GROUPS (17 项) 物理删除, 工具页"我在哪"由 `menuOf(pathname)` 自动归属四菜单; ②SecNewsShell 6 视图拆挂 PageLayout (feed/pipeline/knowledge/analyze/analytics/observability), 由子路由内容归属四菜单; ③主题模式扩 3 态 (light/dark/paper), 纸面版暖米黄纸底 + 衬线字体, 最小侵入仅覆写 6 核心 token; ④nav4_shell 守卫新增 9 用例 (32 总数, +P2 死代码 5 + 纸面 theme 4); ⑤与 `docs/v0.8.5/V0.8.5_PLAN.md §5` 修订注③一致。
 
+> **2026-11-20 (四域删除后同步)**: `/skill-store` `/dashboard` `/secrets` `/sync` `/skills` `/codegarden` 六路由随工坊/技能库/密钥/跨端同步四域整体删除; 本表已回改。
+
 ## 一、前端路由（NAV4 四菜单壳）
 
 ### 资讯 `/` (默认落地)
@@ -17,7 +19,7 @@
 | `/quality/rejection` | → `/settings?cat=ops` | 旧深链重定向（2026-10-01 拒收日志迁设置运维区） |
 | `/deep/:type/:id` | DeepReadPage | 深读（跨实体, AI 判读流） |
 | `/history` | HistoryPage | 浏览历史 |
-| `/secnews/feed` `/pipeline` `/analytics` | SecNewsFeed / PipelineView / AnalyticsView | P1 拆挂 PageLayout（SecNewsShell 退役） |
+| `/secnews/feed` `/secnews/pipeline` `/secnews/analytics` | SecNewsFeed / PipelineView / AnalyticsView | P1 拆挂 PageLayout（SecNewsShell 退役） |
 
 ### 知识 `/knowledge`
 
@@ -30,8 +32,6 @@
 | `/knowledge/library` | KnowledgeLibraryPage | 编目室（占位 + 链路自检; Phase 4, 清单端点未实现见 UNIMPLEMENTED.md） |
 | `/reader/:id` | DeepReaderPage | 清样深读（wiki 条目纯阅读流; 批注未实现见 UNIMPLEMENTED.md） |
 | `/judge/graph` | → `/knowledge/graph` (301) | 旧路径保留 |
-| `/skill-store` (+`/:skillId` `/new`) | SkillStore / SkillDetail / SkillBuilder | 能力资产 |
-| `/dashboard` | Dashboard 技能看板 | 能力资产 |
 | `/tags` `/extract` `/search` | TagsPage / ExtractPage / UnifiedSearchPage | 加工工具 |
 | `/reviews` | ReviewPage | 间隔复习 |
 | `/secnews/knowledge` | WikiBrowser | P1 拆挂 PageLayout（SecNewsShell 退役） |
@@ -55,11 +55,7 @@
 |---|---|---|
 | `/settings` | SettingsPage | **6 配置分区**（overview/general/models/collection/network/ops） |
 | `/sentinel/settings` | → `/settings?cat=general` | 兼容重定向 |
-| `/secrets` | SecretsPage | 密钥管理 |
-| `/sync` | SyncPage | 同步与备份（gate `sync`） |
-| `/skills` | SkillsPage | 技能库配置（与 skill-store 内容库区分） |
 | `/secnews/observability` | ObservabilityTab | P1 拆挂 PageLayout（SecNewsShell 退役） |
-| `/codegarden` (+`/phase2b`) | CodegardenPage / Phase2b | 扩展域（gate `codegarden`） |
 | `/maint` | MaintPage | P3 维护诊断（复用 `/api/maintenance/*`） |
 
 ### 旧路径重定向汇总
@@ -76,23 +72,19 @@
 | `/category/:cat` | → `/` | 兼容 |
 | `*` | → `/` | 兜底 |
 
-| 路径 | 组件 | 归属菜单 |
-|---|---|---|
-
 ## 二、后端 API 域 → 前端消费关系
 
 > 后端 router 全量注册见 `backend/api/_registry.py`（真源）; v1 端点清单见 `docs/v0.8.5/V0.8.5_PLAN.md` §6（parity 门 74/74）。gate 语义: 关闭时对应路由不注册 (404)。
 
 | 域 | 前缀 | 前端消费 | 备注 |
 |---|---|---|---|
-| main hotspot | `/api/hotspots` `/sources` `/quality` `/maintenance` `/secrets` `/settings` 等 | 有 (资讯资料层 + 设置) | core 永远注册 |
+| main hotspot | `/api/hotspots` `/sources` `/quality` `/maintenance` `/settings` 等 | 有 (资讯资料层 + 设置) | core 永远注册 |
 | knowledge-master | `/api/knowledge` `/api/wiki` `/api/tags` `/api/extract` `/api/reviews` `/api/search` 等 | 有 (知识菜单 + 行动复习) | |
 | kl 管线 | `/api/kl/*` `/api/secnews/*` `/api/digests` | 有 (心跳条 + 资讯/知识/行动各视图) | `secnews` gate |
 | ai_hub | `/api/llm/*` | 有 (深读 + 分析) | |
 | dsh + agents | `/api/dsh/*` `/api/agents/*` | 有 (设置 DSH 控制卡) | `dsh` gate |
-| codegarden | `/api/codegarden*` | 有 (行动泳道 + 设置扩展域) | `codegarden` (+`codegarden_phase2b`) |
-| **v1 领域对象** | `/api/v1/signals` `/cases` `/judgments` `/actions` `/runs` `/artifacts` `/knowledge` `/skill-registry/v1` | 有 (资讯 SignalPanel + 行动 CaseDetail + 知识 v1 目录) | demo 零 gate (skill_registry/v1 挂 skill_registry gate) |
-| MCP 专用 | `/api/mcp/*` `/api/wiki/*` `/api/profile` `/api/cubox/sync` 等 | 无 (外部 AI Agent 经 MCP 消费) | `mcp` gate; 19 tools 见 `backend/api/mcp_types.py` |
+| **v1 领域对象** | `/api/v1/signals` `/cases` `/judgments` `/actions` `/runs` `/artifacts` `/knowledge` | 有 (资讯 SignalPanel + 行动 CaseDetail + 知识 v1 目录) | demo 零 gate |
+| MCP 专用 | `/api/mcp/*` `/api/wiki/*` `/api/profile` 等 | 无 (外部 AI Agent 经 MCP 消费) | `mcp` gate; 23 tools 见 `backend/api/mcp_types.py` |
 
 ## 三、待办与迁移计划
 
@@ -105,9 +97,9 @@
 | P1 | ~~CaseQueue 迁入 /action~~ **原声明不实**：`CaseQueuePanel` 有组件有测试但从未挂载（`git log -S` 零挂载记录），`/action` 只挂 `ExecOverviewPanel`（不含 `blocked`）→ 完整队列不可达。R1 裁决（2026-11-18）判定漏挂，已于前端重构 B5 真实补挂 | ✅ 完成 (2026-11-18, B5) |
 | P1 | SentinelGraphPage → knowledge + /knowledge/graph 路由 | ✅ 完成 (2026-09-13) |
 | P1 | SecNewsShell 拆挂：6 视图直挂 PageLayout, /secnews 索引→feed | ✅ 完成 (2026-09-13) |
-| P1 | 更多菜单保留过渡 → P2 评估删除 | 待启动 |
-| P2 | 死代码清理 (SecNewsShell 物理删除 + UTILITY_GROUPS) + 文档终稿 + 纸面风 theme | 待启动 |
-| P2 | spec 修订: V0.8.5_PLAN §5 修订注③ + AGENTS.md ×2 + PROJECT/PROGRESS | 待启动 |
+| P1 | 更多菜单保留过渡 → P2 评估删除 | ✅ 完成 (2026-09-13) |
+| P2 | 死代码清理 (SecNewsShell 物理删除 + UTILITY_GROUPS) + 文档终稿 + 纸面风 theme | ✅ 完成 (2026-09-13) |
+| P2 | spec 修订: V0.8.5_PLAN §5 修订注③ + AGENTS.md ×2 + PROJECT/PROGRESS | ✅ 完成 (2026-09-13) |
 
 ## 四、关键决策记录
 
@@ -117,5 +109,5 @@
 | 判断层拆解 | 2026-09-13 | 「判断是动词不是房间」：判读台→资讯质量区，CaseQueue→行动，graph→知识 |
 | /cases 重定向 | 2026-09-13 | `/cases` → `/action`（案件列表归行动菜单） |
 | /judge 重定向 | 2026-09-13 | `/judge` → `/`（透传 query；判读台主体组件拆出后挂资讯质量区） |
-| 纸面风 theme | 2026-09-13 (待实施) | 接入现有 `ThemeContext`，demo 的 `--marker`/`--serif` token 映射到现有 CSS 变量体系 |
+| 纸面风 theme | 2026-09-13 | 接入现有 `ThemeContext`，demo 的 `--marker`/`--serif` token 映射到现有 CSS 变量体系 |
 | SecNewsShell 拆挂 | 2026-09-13 | 6 视图（feed/pipeline/knowledge/analyze/analytics/observability）从 SecNewsShell 子路由改为 PageLayout 直挂；SecNewsShell 退役过渡文件保留至 P2 物理删除；StatusBar 心跳条能力由 SentinelShell pipeline bar 接管 |

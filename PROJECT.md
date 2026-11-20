@@ -8,60 +8,59 @@
 
 ## 项目概述
 
-- **一句话描述**: 面向 AI + 安全从业者的单机 AI Native 证据工作台 — SecNews 资讯聚合 + 知识复利 + Skill/Playbook 看板型 AI 智能体 (v0.8.9, SentinelShell 四菜单唯一壳 + 资讯→Signal→Case→Claim→Run→Artifact→Knowledge 全链证据账本)。
+- **一句话描述**: 面向 AI + 安全从业者的单机 AI Native 证据工作台 — SecNews 资讯聚合 + 知识复利 + 行动闭环 (v0.8.9, SentinelShell 四菜单唯一壳 + 资讯→Signal→Case→Claim→Run→Artifact→Knowledge 全链证据账本)。
 - **核心目标**:
-  1. 看板型 AI 智能体: 常用对话/prompt/skill 固化为主面板可启停功能 (非 chatbox) — Skill 商店 + Playbook YAML 双轨
+  1. 行动闭环: 资讯 → Signal → Case → Run → Artifact → Knowledge 的证据链落地 (人工回执 + pi 执行)
   2. 知识复利闭环: 采集 → wiki-first md 真源 → 学习/掌握 → 输出
-  3. CodeGarden: AI 协作全生命周期管理 (服务网格/资源/编排)
+  3. 安全领域纵深: MITRE ATT&CK / NVD CVE / 等保·关基·数安法 知识图谱
 - **技术栈**: Python FastAPI + SQLite (WAL+FTS5, HOT/WARM/COLD ATTACH) + APScheduler; React 18 + Vite 5 + TS + Tailwind 3; Fernet (PBKDF2); pytest / Vitest+jsdom
 
 ## 架构概览
 
 ```
 Frontend :8898 (React SPA, 路由全 lazy, 真源 routes/index.tsx, 速查 ROUTE_REGISTRY.md)
-  SentinelShell 四菜单 / · /knowledge · /action · /settings (工具页经 PageLayout+menuOf 挂入) · /skill-store(+Builder) · /dashboard · /knowledge/canvas · /maint
+  SentinelShell 四菜单 / · /knowledge · /action · /settings (工具页经 PageLayout+menuOf 挂入) · /quality · /history · /maint
         │ HTTP/JSON/SSE
 FastAPI :8000
-  ├─ 88 routers (69 core 白名单, 扩展按 feature gate 条件注册, lazy include)
-  ├─ 138 services / 13 包 — v0.8 Skills: trigger_gate · skill_registry(20 内置) · agent_loop ·
-  │   agent_memory · skill_runner · playbook_engine · skill_builder · skill_eval (gate 已通电)
-  ├─ 19 collectors · 48 jobs (APScheduler) · MCP server (19 tools, config.feature_mcp 默认关)
-  └─ ai_hub (LLM 单出口, 5 providers 四级链 env>kv>router>yaml) · dsh (Brain, 受管子进程
+  ├─ 88 routers (65 core 白名单, 扩展按 feature gate 条件注册, lazy include)
+  ├─ 138 services / 7 包 (ai_hub · dsh · llm · pi · execution_plan · execution_runner · triggers) ·
+  ├─ 19 collectors · 48 jobs (APScheduler) · MCP server (23 tools, config.feature_mcp 默认关)
+  └─ ai_hub (LLM 单出口, 密钥来源 env-only) · dsh (Brain, 受管子进程
       not_configured→mock→ai_hub) · SSRF url_safety 单一真相源
         │
-Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 trigram+porter, watchdog) · WebDAV 坚果云
+Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 trigram+porter, watchdog) · COLD 密文备份 (scripts/cold_db_crypto.py)
 ```
 
 - **关键路径**: `backend/main.py` → `api/__init__.py register_routers()` (core 白名单 + 扩展按 gate 条件注册) → `scheduler/scheduler.py` (48 job 集中注册, 实现在 `scheduler/jobs/` 按域拆分) → `repository/db.py` 启动期 ATTACH warm/cold。
-- **feature gates**: `backend/config/feature_gates.toml` 16 gate — 开 15 (codegarden/codegarden_phase2b/sync/tech_stack/security_graph/secnews/dsh + info_filter/skill_registry/trigger_gate/user_skills + interest_engine/semantic_filter/ai_classify/pipeline_ner), 关 1 (mcp, 只管 /api/mcp/* 调试路由; server 本体走 config.feature_mcp)。crm 键已随 migration 116 整体删除; agent_loop/playbook_engine/skill_eval 死键已移除 (v0.8.2 X-B3)。
+- **feature gates**: `backend/config/feature_gates.toml` 10 gate — 开 9 (tech_stack/security_graph/secnews/dsh + info_filter/interest_engine/semantic_filter/ai_classify/pipeline_ner), 关 1 (mcp, 只管 /api/mcp/* 调试路由; server 本体走 config.feature_mcp)。crm 键已随 migration 116 删除; 四域删除 (2026-11-19) 退役 codegarden/codegarden_phase2b/sync/skill_registry/trigger_gate/user_skills 6 键。
 
 ## 模块地图
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | API 路由 | `backend/api/` | 88 router, ≤150 行, lazy import, `_registry.py` 按 gate 注册 | 已完成 |
-| 服务层 | `backend/services/` | 138 services / 13 包; 依赖方向: 禁 `import backend.api` | 已完成 |
-| — ai_hub | `backend/services/ai_hub/` (12 文件 3717 行) | LLM 单出口: gateway/_try_order + service/_resolve_provider 四级链 + scenarios (deep/light/image) | 已完成 |
+| 服务层 | `backend/services/` | 138 services / 7 包; 依赖方向: 禁 `import backend.api` | 已完成 |
+| — ai_hub | `backend/services/ai_hub/` (12 文件 3717 行) | LLM 单出口: gateway/_try_order + service/_resolve_provider + scenarios (deep/light/image); 密钥 env-only | 已完成 |
 | — dsh | `backend/services/dsh/` (7 文件) | Brain: `runtime.resolve_effective` 三态 + ProcessSupervisor + bridge | 已完成 (真子进程未实测) |
-| — v0.8 Skills | `backend/services/{trigger_gate,skill_registry,agent_loop,agent_memory,skill_runner,playbook_engine,skill_builder,skill_eval}/` | 触发门(限流+队列) / 20 内置 skill / 五阶段状态机 / 记忆 / 分流 / YAML 编排 / 自建 / 评测 | 已完成, gate 已通电 |
+| — execution | `backend/services/{execution_plan,execution_runner,pi}/` | pi 执行 agent 桥 + 计划生成 + 执行器 (工作区根 `workspace/`) | 已完成 |
 | 采集器 | `backend/collectors/` | 19 collector, SSRF 防护走 url_safety | 已完成 |
 | 调度器 | `backend/scheduler/` | 48 job 集中注册 + `_is_job_enabled()` gate 门控 | 已完成 |
-| 存储层 | `backend/repository/` | 56 *_repo.py + migrations 132 个生效 .sql (编号至 136, 含历史空洞) | 已完成 |
-| 前端 | `frontend/src/` | 266 ts/tsx (不含测试), 20 组件域, I18nContext ~300 key×2; 无数据层库 (fetch+interval) | 已完成 |
+| 存储层 | `backend/repository/` | 46 *_repo.py + migrations 134 个 .sql (编号至 137, 缺号 066-069) | 已完成 |
+| 前端 | `frontend/src/` | 338 ts/tsx (不含测试), 17 组件域, I18nContext; 无数据层库 (fetch+interval) | 已完成 |
 | wiki | `llm-wiki-2.0/` | md+YAML 真源, 路径只走 `backend/wiki_fs/paths.py` 单一源 | 已完成 |
 
 ## 编码约定
 
 - **后端**: snake_case; router ≤150 行 + lazy import 协议; service 禁 `import backend.api`; ai_hub 是 LLM 唯一出口; wiki 路径改动只走 `wiki_fs/paths.py` (+`HOTSPOT_WIKI_ROOT`); 新服务 ≥30% docstring (CI `check_docstrings.py` 强制); monkeypatch 用全限定子模块路径; SQLite 连接线程亲和 × asyncio.to_thread 必须线程内构造
 - **前端**: PascalCase 组件 / camelCase 变量; Tailwind 优先 + 测试 colocated; 路由 lazy 走 `routes/lazy-imports.ts`; i18n 走 I18nContext `t(key, fallback)` (无 react-i18next); Tailwind 配置改动需重启 dev server
-- **测试**: pytest 5,463 / vitest 717 / tsc 0 错 (2026-11-17) / **零失败是硬要求** (skip 须环境性且留痕, 现存 9 环境性 skip 见 DEV-0225); conftest autouse 全开 gates; 日历周窗口 + now 相对种子必须钳制进周窗口 (周一炸弹)
+- **测试**: pytest 4,727 / vitest 674 / tsc 0 错 (2026-11-20) / **零失败是硬要求** (skip 须环境性且留痕); conftest autouse 全开 gates; 日历周窗口 + now 相对种子必须钳制进周窗口 (周一炸弹)
 - **提交纪律**: **必须 `git commit <显式 pathspec>`**, 禁 `git add -A` (2026-08-30 3840 文件事故); 远端推送/tag push 须用户授权 (V2-C11)
 
 ## 质量红线
 
 1. **不删除已有 ingested 信息**; 列表排序用 `ingested_at DESC`
 2. **SSRF 单一真相源**: 所有出站请求走 `backend/utils/url_safety.py` (`validate_url` / `safe_aiohttp_connector` / `safe_urllib_request`), 禁裸 httpx/urllib 出站
-3. **LLM 调用必经 ai_hub 单出口**; provider 配置四级链, llm_secrets 不动
+3. **LLM 调用必经 ai_hub 单出口**; 密钥来源 env-only (fail-soft 不抛)
 4. **feature gate fail-closed**: 新扩展默认 false; gate import 时读一次 (conftest 注册期快照)
 5. **wiki-first**: md 是真源, SQLite 是读缓存; 路径单一源 `wiki_fs/paths.py`
 6. **前端端口 8898 / 后端 8000 禁止漂移** (dev/prod 共用, `--strictPort`; 后端任一时刻只能跑一份, dev/prod 切换前 stop; 数据根仍隔离 dev_data/ vs 仓库根 backend/data)
@@ -103,7 +102,7 @@ Data: SQLite HOT/WARM/COLD (ATTACH, Fernet) · llm-wiki-2.0/ md 真源 (FTS5 tri
 - **pi CLI message_update 流式语义未接** (v0.8.1 D6 残项) — bridge 只取最终 message_end, 流式 UI §4.3.B (D1 独立窗口)
 - **services 层 320 处宽泛 except Exception** — error_classifier 缺 (D-a, 未选)
 - **前端数据层原始** — 25 处 setInterval/15 文件, 无 react-query/swr (方案 C, 未选)
-- Toast 零使用 / SecretsPage 主密钥明文输入 (UX 审计遗留)
+- Toast 零使用 (UX 审计遗留)
 - ~~pi CLI 未实测~~ → **已实测 (v0.8.1 D6, 0.84.4 live)**: 协议吻合 + 修 2 假阳性; soaktest 探针可重跑
 - ~~stdlib logging 全仓不可见~~ (Day 0 发现) — 无 InterceptHandler, main.py 自身 log.info 隐形; 新代码一律 loguru (红线, 持续有效)
 

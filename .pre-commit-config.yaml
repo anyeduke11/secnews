@@ -1,0 +1,52 @@
+# pre-commit 钩子 — 镜像 CI 的快速门禁 (ci.yml backend job)
+#
+# 设计口径:
+# - 只跑「秒级」门禁。全量 pytest (≈10 min) 不入 pre-commit, 交 CI / 手动跑。
+# - 全部 `repo: local` + `language: system`, 不 clone 外部仓库 (离线可用),
+#   工具取自项目 venv (.venv/bin/...)。
+# - 每条 hook 与 ci.yml 的 step 一一对应, 声明与验证不漂移。
+#
+# 安装: .venv/bin/python3 -m pre_commit install
+# 手动全跑: .venv/bin/python3 -m pre_commit run --all-files
+# 跳过一次: git commit --no-verify
+# 卸载: .venv/bin/python3 -m pre_commit uninstall
+
+repos:
+  - repo: local
+    hooks:
+      # ci.yml: ruff check backend/ scripts/
+      - id: ruff-check
+        name: ruff check (backend + scripts)
+        entry: .venv/bin/ruff check backend/ scripts/
+        language: system
+        pass_filenames: false
+        files: '\.py$'
+        stages: [pre-commit]
+
+      # ci.yml: python scripts/generate_meta.py --check
+      # 架构数字 AST 反推门禁 — 改注册代码 (routers/services/jobs/collectors) 必须同步
+      - id: generate-meta-check
+        name: generate_meta --check (架构数字一致性)
+        entry: .venv/bin/python3 scripts/generate_meta.py --check
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # ci.yml: python scripts/harness_analyze.py --check
+      # .agents/skills/ 资产 lint (error 阻断, warning 放行)
+      - id: harness-analyze-check
+        name: harness_analyze --check (agent 资产 lint)
+        entry: .venv/bin/python3 scripts/harness_analyze.py --check
+        language: system
+        pass_filenames: false
+        files: '^(\.agents/|scripts/harness)'
+        stages: [pre-commit]
+
+      # ci.yml: npx tsc --noEmit (frontend job) — ≈3s, 前端改动才触发
+      - id: frontend-tsc
+        name: frontend tsc --noEmit
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        pass_filenames: false
+        files: '^frontend/'
+        stages: [pre-commit]

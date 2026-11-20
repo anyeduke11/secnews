@@ -112,7 +112,7 @@
     <!-- 底部状态行 -->
     <line x1="640" y1="282" x2="1144" y2="282" stroke="#1C1E2E" stroke-width="1"/>
     <text x="664" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="12.5" fill="#5A6178">101 ROUTERS · 161 SERVICES · 59 JOBS</text>
+          font-size="12.5" fill="#5A6178">88 ROUTERS · 138 SERVICES · 48 JOBS</text>
     <text x="1120" y="303" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
           font-size="12.5" fill="#2DD4A7" text-anchor="end">● healthy</text>
   </g>

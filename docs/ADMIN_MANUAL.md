@@ -1,8 +1,8 @@
 # Hotspot 管理员手册 (ADMIN_MANUAL.md)
 
-> 本仓库: **https://github.com/anyeduke11/hotspot**
+> 本仓库: **https://github.com/anyeduke11/secnews**
 > 仓库主: `anyeduke11` · 默认分支: `main` · 授权: **GPL-3.0**
-> 状态: `public` · 描述: AI时代IT从业者的工作台，主要聚焦资讯，标讯，待办，密钥管理，LLM管理等
+> 状态: `public` · 描述: AI时代IT从业者的工作台，主要聚焦资讯，标讯，待办，知识库，LLM管理等
 
 ---
 
@@ -11,7 +11,7 @@
 | 项 | 值 |
 |----|----|
 | 名称 | `hotspot` |
-| 完整路径 | `anyeduke11/hotspot` |
+| 完整路径 | `anyeduke11/secnews` |
 | 默认分支 | `main` |
 | 可见性 | **public** |
 | 主语言 | Python |
@@ -20,7 +20,7 @@
 | 关联账户 | `secnews` (同主,Windows 平台推送) |
 | LICENSE | GNU GPL v3.0 |
 | 创建时间 | 2026-07-05 |
-| 最近推送 | 2026-07-10 |
+| 最近提交 | `d245a10` (v0.8.9 四域删除收口) |
 | 权限范围 | admin / maintain / push / triage / pull |
 
 ---
@@ -34,10 +34,10 @@
 | 2026-07-05 | 仓库创建 | `42abca5` | secnews |
 | 2026-07-10 10:15 | `anyeduke11/duke` 仓同步 hotspot | `dc2d493` | SecNews |
 | 2026-07-10 10:15 | SOC-kanban 清理 | `ed48c32` | SecNews |
-| 2026-07-10 10:24 | 推送到 `anyeduke11/hotspot` (force 覆盖) | `ae3593d9` | SecNews |
+| 2026-07-10 10:24 | 推送到 `anyeduke11/secnews` (force 覆盖) | `ae3593d9` | SecNews |
 | 2026-07-10 10:26 | 仓库公开 | — | — |
 
-**历史说明**:`anyeduke11/hotspot` 仓的初始 commit 来自 Windows 平台的 `secnews` 账户(同主)。2026-07-10 10:24:02Z 由 Mac 平台 SecNews 账户 force push 覆盖,新 HEAD `ae3593d9` 即为当前 master。
+**历史说明**:`anyeduke11/secnews` 仓的初始 commit 来自 Windows 平台的 `secnews` 账户(同主)。2026-07-10 10:24:02Z 由 Mac 平台 SecNews 账户 force push 覆盖,新 HEAD `ae3593d9` 即为当前 master。
 
 ---
 
@@ -51,8 +51,8 @@ cd /path/to/hotspot
 
 # 验证 origin
 git remote -v
-# origin  https://github.com/anyeduke11/hotspot.git (fetch)
-# origin  https://github.com/anyeduke11/hotspot.git (push)
+# origin  https://github.com/anyeduke11/secnews.git (fetch)
+# origin  https://github.com/anyeduke11/secnews.git (push)
 
 # 验证 user
 git config user.name   # SecNews
@@ -141,39 +141,39 @@ git push -f origin <branch-name>
 
 ```bash
 # 1. 开启 Secret scanning
-gh repo edit anyeduke11/hotspot --enable-secret-scanning
+gh repo edit anyeduke11/secnews --enable-secret-scanning
 
 # 2. 开启 Push protection (推前拦截)
-gh repo edit anyeduke11/hotspot --enable-secret-scanning-push-protection
+gh repo edit anyeduke11/secnews --enable-secret-scanning-push-protection
 
 # 3. 开启 Dependabot
 # 需在 .github/dependabot.yml 配置
 
 # 4. 开启 Discussions(可选,等社区规模起来)
-gh repo edit anyeduke11/hotspot --enable-discussions
+gh repo edit anyeduke11/secnews --enable-discussions
 
 # 5. 添加 topics(SEO / 检索)
-gh repo edit anyeduke11/hotspot --add-topic "python,fastapi,react,vite,typescript,ai,security,finance,startup"
+gh repo edit anyeduke11/secnews --add-topic "python,fastapi,react,vite,typescript,ai,security,finance,startup"
 ```
 
 ### 4.3 添加仓库描述 / 链接
 
 当前 `description`:
-> AI时代IT从业者的工作台，主要聚焦资讯，标讯，待办，密钥管理，LLM管理等
+> AI时代IT从业者的工作台，主要聚焦资讯，标讯，待办，知识库，LLM管理等
 
 ```bash
 # 修改描述
-gh repo edit anyeduke11/hotspot --description "AI 时代 IT 从业者的工作台 - 资讯聚合 / 标讯追踪 / 待办管理 / 密钥 & LLM 配置"
+gh repo edit anyeduke11/secnews --description "AI 时代 IT 从业者的工作台 - 资讯聚合 / 标讯追踪 / 待办管理 / 知识库 & LLM 配置"
 
 # 设置 homepage (如部署了 demo)
-gh repo edit anyeduke11/hotspot --homepage "https://hotspot.example.com"
+gh repo edit anyeduke11/secnews --homepage "https://hotspot.example.com"
 ```
 
 ### 4.4 设置分支保护
 
 ```bash
 # 启用 main 分支保护(避免直接 push 到 main)
-gh api repos/anyeduke11/hotspot/branches/main/protection \
+gh api repos/anyeduke11/secnews/branches/main/protection \
   --method PUT \
   --input - <<'EOF'
 {
@@ -331,13 +331,13 @@ EOF
 
 ```bash
 # 看近 14 天流量
-gh api repos/anyeduke11/hotspot/traffic/views 2>&1 | python3 -m json.tool
+gh api repos/anyeduke11/secnews/traffic/views 2>&1 | python3 -m json.tool
 
 # 看克隆来源
-gh api repos/anyeduke11/hotspot/traffic/clones 2>&1 | python3 -m json.tool
+gh api repos/anyeduke11/secnews/traffic/clones 2>&1 | python3 -m json.tool
 
 # 看 star 增长
-gh api repos/anyeduke11/hotspot/stargazers 2>&1 | python3 -c "
+gh api repos/anyeduke11/secnews/stargazers 2>&1 | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 print(f'Total stars: {len(data)}')
@@ -432,7 +432,7 @@ git push origin main     # 正常 push
 
 ### 8.3 避免混乱建议
 
-- **Mac 为主要开发平台**(`anyeduke11/hotspot` 的 origin 已在 Mac)
+- **Mac 为主要开发平台**(`anyeduke11/secnews` 的 origin 已在 Mac)
 - Windows 推送前必须先 pull
 - 大型改动在 Mac 完成,Windows 仅为消费/调试
 
@@ -496,7 +496,7 @@ git push -f origin main
 
 ```bash
 # 定期 bare clone 备份
-git clone --bare https://github.com/anyeduke11/hotspot.git /home/user/backup/hotspot-$(date +%Y%m%d).git
+git clone --bare https://github.com/anyeduke11/secnews.git /home/user/backup/hotspot-$(date +%Y%m%d).git
 
 # 清理 30 天前的备份
 find /home/user/backup -name "hotspot-*.git" -mtime +30 -exec rm -rf {} \;
@@ -508,9 +508,9 @@ find /home/user/backup -name "hotspot-*.git" -mtime +30 -exec rm -rf {} \;
 
 | 资源 | 链接 |
 |------|------|
-| 仓库 | https://github.com/anyeduke11/hotspot |
-| Issues | https://github.com/anyeduke11/hotspot/issues |
-| LICENSE | https://github.com/anyeduke11/hotspot/blob/main/LICENSE |
+| 仓库 | https://github.com/anyeduke11/secnews |
+| Issues | https://github.com/anyeduke11/secnews/issues |
+| LICENSE | https://github.com/anyeduke11/secnews/blob/main/LICENSE |
 | GitHub 文档 | https://docs.github.com |
 | gh CLI 文档 | https://cli.github.com/manual/ |
 | GPL-3.0 全文 | https://www.gnu.org/licenses/gpl-3.0.html |

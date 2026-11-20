@@ -34,7 +34,7 @@ export function QualitySettings({ open }: QualitySettingsProps) {
       .then(data => {
         setRules((data.rules || []) as QualityRule[]);
       })
-      .catch(() => { /* 子组件自己 fallback */ });
+      .catch(() => { /* 失败不重试: rules 保持空, 面板停在「加载中 (0)」(回归用例 C2 锁定) */ });
   }, [open]);
 
   // 拉 /api/llm/status — 检测真实开关 (gate_detect_available) + providerOptions 共享

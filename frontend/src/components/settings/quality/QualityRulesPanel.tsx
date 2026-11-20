@@ -8,7 +8,7 @@
  *       控件按 rule.value 类型渲染: boolean → st-switch, number → st-input,
  *       sample_rate → range slider, 其余 → st-input text
  */
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getQualityRules, putQualityRules } from '../../../api/settingsQuality';
 
 export interface QualityRule {
@@ -30,6 +30,15 @@ export function QualityRulesPanel({ initialRules }: QualityRulesPanelProps) {
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+
+  // initialRules 由父组件异步加载: 首帧 useState 只会捕获空数组,
+  // 数据到达后必须显式同步进本地 state, 否则面板永远停在「加载中」(0)。
+  useEffect(() => {
+    setRules(initialRules);
+    const init: Record<string, any> = {};
+    for (const r of initialRules) init[r.key] = r.value;
+    setEditing(init);
+  }, [initialRules]);
 
   const setVal = (key: string, val: any) => setEditing(prev => ({ ...prev, [key]: val }));
 

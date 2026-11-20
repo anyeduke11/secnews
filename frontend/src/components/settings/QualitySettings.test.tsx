@@ -10,9 +10,10 @@
  *  A. open 门控: open=false 不触发顶层状态拉取 (/api/quality/rules + /api/llm/status)
  *  B. LLM 检测真实状态化: 无假开关/无 PUT; chip 反映 gate_detect_available;
  *     未启用时给出长期生效指引
+ *  C. 质量规则面板渲染回归 (2026-11-20): 异步 initialRules 同步渲染, 失效不崩
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { QualitySettings } from './QualitySettings';
 
 const mockFetch = vi.fn();
@@ -82,8 +83,57 @@ describe('QualitySettings — open 门控', () => {
 });
 
 // ===================================================================
-// B. LLM 检测真实状态化 (DEV-0243) — 假开关清退契约
+// C. 规则行渲染回归 (2026-11-20 失效修复) — 异步 initialRules 必须同步进面板
+//    失效模式: QualityRulesPanel 用 useState(initialRules) 捕获首帧空数组,
+//    父组件 fetch 完成后不再生效 → 「质量设置 (0) / 加载中...」永驻,
+//    编辑与应用质量配置整链死锁。此用例锁定该链路第一环。
 // ===================================================================
+
+describe('QualitySettings — 质量规则面板渲染', () => {
+  it('open=true 且 GET /api/quality/rules 返回后, 面板渲染规则行而非「加载中」', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.resolve(mockQualityRules());
+      if (url === '/api/llm/status') {
+        return Promise.resolve(mockStatusResp({ sensenova: {} }, 'sensenova', 'env', 'env', true));
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    const panel = await waitFor(() => {
+      const el = screen.getByTestId('quality-rules-panel');
+      expect(el).toHaveTextContent('质量设置 (1)');
+      return el;
+    });
+    expect(panel).not.toHaveTextContent('加载中');
+    // 规则行控件存在且带初始值 (number → st-input)
+    const input = within(panel).getByLabelText('quality.min_score');
+    expect(input).toHaveValue(30);
+  });
+
+  it('GET 失败时面板保持「加载中 (0)」不崩, 应用按钮不误报变更', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/quality/rules') return Promise.reject(new Error('backend down'));
+      if (url === '/api/llm/status') return Promise.resolve(mockStatusResp({}));
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<QualitySettings open={true} />);
+    // flush GET reject 引发的 promise 状态收敛, 避免 act 警告
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    const panel = screen.getByTestId('quality-rules-panel');
+    expect(panel).toHaveTextContent('质量设置 (0)');
+    fireEvent.click(within(panel).getByRole('button', { name: '应用质量配置' }));
+    await waitFor(() => {
+      expect(panel).toHaveTextContent('无变更');
+    });
+    // 失败路径未发出 PUT (rules 为空 → changed 为空)
+    const putCalls = mockFetch.mock.calls.filter(
+      c => c[0] === '/api/quality/rules' && (c[1] as RequestInit)?.method === 'PUT',
+    );
+    expect(putCalls).toHaveLength(0);
+  });
+});
 
 describe('QualitySettings — LLM 检测真实状态 (DEV-0243)', () => {
   it('凭据就绪 → chip 显示「检测中」; 无任何 PUT quality/rules 写入 (假开关已清退)', async () => {
